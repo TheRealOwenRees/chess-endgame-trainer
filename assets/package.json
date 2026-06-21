@@ -7,10 +7,18 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
+    "fmt": "oxfmt --check",
+    "fmt:fix": "oxfmt",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
     "chessground": "^9.2.1"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.55.0",
+    "oxlint": "^1.70.0"
   }
 }
