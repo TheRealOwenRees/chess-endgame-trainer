@@ -15,7 +15,9 @@ defmodule Chesstrainer.Application do
       # Start a worker by calling: Chesstrainer.Worker.start_link(arg)
       # {Chesstrainer.Worker, arg},
       # Start to serve requests, typically the last entry
-      ChesstrainerWeb.Endpoint
+      ChesstrainerWeb.Endpoint,
+      {Registry, keys: :unique, name: Chesstrainer.CacheRegistry},
+      {Chesstrainer.Cache, :tablebase}
     ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html

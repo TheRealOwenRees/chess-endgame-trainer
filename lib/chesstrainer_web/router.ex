@@ -22,6 +22,17 @@ defmodule ChesstrainerWeb.Router do
     live "/chess-test", ChessTestLive
   end
 
+  scope "/admin", ChesstrainerWeb do
+    pipe_through :browser
+
+    live_session :endgames do
+      live "/endgames", EndgameLive.Index, :index
+      live "/endgames/new", EndgameLive.Form, :new
+      live "/endgames/:id", EndgameLive.Show, :show
+      live "/endgames/:id/edit", EndgameLive.Form, :edit
+    end
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", ChesstrainerWeb do
   #   pipe_through :api
