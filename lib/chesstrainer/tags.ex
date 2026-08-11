@@ -101,4 +101,23 @@ defmodule Chesstrainer.Tags do
   def change_tag(%Tag{} = tag, attrs \\ %{}) do
     Tag.changeset(tag, attrs)
   end
+
+  def search("", _category), do: []
+
+  def search(query, category) when is_binary(query) do
+    pattern = "%#{query}%"
+
+    Tag
+    |> where([t], ilike(t.name, ^pattern) and t.category == ^category)
+    |> order_by([t], asc: t.name)
+    |> limit(20)
+    |> Repo.all()
+  end
+
+  def get_or_create(name, category) when is_binary(name) do
+    case Repo.get_by(Tag, name: name, category: category) do
+      nil -> create_tag(%{name: name, category: category})
+      tag -> {:ok, tag}
+    end
+  end
 end

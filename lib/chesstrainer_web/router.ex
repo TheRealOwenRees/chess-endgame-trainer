@@ -20,6 +20,9 @@ defmodule ChesstrainerWeb.Router do
     get "/", PageController, :home
 
     live "/chess-test", ChessTestLive
+
+    live "/endgames", EndgameLive.PlayerIndex, :index
+    live "/endgames/:id/play", EndgameLive.Play, :play
   end
 
   scope "/admin", ChesstrainerWeb do

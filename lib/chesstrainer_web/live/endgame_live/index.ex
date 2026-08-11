@@ -34,6 +34,7 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
           <div class="sr-only">
             <.link navigate={~p"/admin/endgames/#{endgame}"}>Show</.link>
           </div>
+          <.link navigate={~p"/endgames/#{endgame}/play"}>Play</.link>
           <.link navigate={~p"/admin/endgames/#{endgame}/edit"}>Edit</.link>
         </:action>
         <:action :let={{id, endgame}}>
