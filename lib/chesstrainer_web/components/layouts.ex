@@ -59,17 +59,17 @@ defmodule ChesstrainerWeb.Layouts do
       <div class="flex-none">
         <ul class="flex flex-column px-1 space-x-4 items-center">
           <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
+            <a href="/endgames" class="btn btn-ghost">Endgames</a>
           </li>
           <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
+            <a href="/admin/endgames" class="btn btn-ghost">Admin</a>
           </li>
           <li>
             <.theme_toggle />
           </li>
           <li>
-            <a href="https://phoenix.hexdocs.pm/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
+            <a href="/" class="btn btn-primary">
+              Login / Signup
             </a>
           </li>
         </ul>
