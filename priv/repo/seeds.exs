@@ -32,7 +32,7 @@ Repo.insert_all(Endgame, [
   },
   %{
     id: Ecto.UUID.generate(),
-    fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 0",
+    fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 1",
     color: :black,
     key: "KPPP v KPP",
     message: "3 pawns vs 2 pawns",

@@ -31,6 +31,9 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
           <.button navigate={~p"/admin/endgames"}>
             <.icon name="hero-arrow-left" />
           </.button>
+          <.button navigate={~p"/endgames/#{@endgame}/play"}>
+            <.icon name="hero-play" /> Play (opens trainer)
+          </.button>
           <.button variant="primary" navigate={~p"/admin/endgames/#{@endgame}/edit?return_to=show"}>
             <.icon name="hero-pencil-square" /> Edit endgame
           </.button>

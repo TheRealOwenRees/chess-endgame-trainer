@@ -4,11 +4,70 @@ import { Chess } from "chess.js";
 export const ChessBoard = {
   mounted() {
     this.chess = new Chess();
+    this.ground = null;
+
+    this.handleEvent("init_board", (payload) => {
+      this.initBoard(payload);
+    });
+
+    this.handleEvent("set_fen", ({ fen }) => {
+      try {
+        this.chess.load(fen);
+
+        if (this.ground) {
+          const currentTurnColor = this.chess.turn() === "w" ? "white" : "black";
+          this.ground.set({
+            fen: fen,
+            turnColor: currentTurnColor,
+            movable: {
+              color: currentTurnColor,
+              dests: this.getValidDests(),
+            },
+          });
+        } else {
+          this.initBoard({
+            fen,
+            orientation: "white",
+            player_color: "white",
+          });
+        }
+      } catch (error) {
+        console.error("Invalid FEN string submitted:", error);
+        alert("Invalid FEN configuration!");
+      }
+    });
+
+    this.initBoard({
+      fen: this.chess.fen(),
+      orientation: "white",
+      player_color: "white",
+    });
+  },
+
+  initBoard({ fen, orientation, player_color }) {
+    try {
+      this.chess.load(fen);
+    } catch (error) {
+      console.error("Invalid FEN from server:", fen, error);
+      this.pushEvent("chess_fen_invalid", {
+        fen: fen,
+        message: error && error.message ? error.message : String(error),
+      });
+      return;
+    }
+
+    if (this.ground) {
+      this.ground.destroy();
+    }
+
+    const turnColor = this.chess.turn() === "w" ? "white" : "black";
 
     this.ground = Chessground(this.el, {
-      fen: this.chess.fen(),
+      fen: fen,
+      orientation: orientation,
+      turnColor: turnColor,
       movable: {
-        color: "white",
+        color: player_color,
         free: false,
         dests: this.getValidDests(),
       },
@@ -17,26 +76,6 @@ export const ChessBoard = {
           this.handleMove(orig, dest);
         },
       },
-    });
-
-    this.handleEvent("set_fen", ({ fen }) => {
-      try {
-        this.chess.load(fen);
-
-        const currentTurnColor = this.chess.turn() === "w" ? "white" : "black";
-
-        this.ground.set({
-          fen: fen,
-          turnColor: currentTurnColor,
-          movable: {
-            color: currentTurnColor,
-            dests: this.getValidDests(),
-          },
-        });
-      } catch (error) {
-        console.error("Invalid FEN string submitted:", error);
-        alert("Invalid FEN configuration!");
-      }
     });
   },
 
@@ -56,7 +95,7 @@ export const ChessBoard = {
     const destRank = dest[1];
     if (piece?.role === "pawn" && (destRank === "1" || destRank === "8")) {
       this.showPromotionDialog(orig, dest);
-      return; // don't execute yet — wait for user choice
+      return;
     }
     this.executeMove(orig, dest);
   },
@@ -98,12 +137,23 @@ export const ChessBoard = {
     const move = this.chess.move({ from: orig, to: dest, promotion });
 
     if (move) {
-      this.pushEvent("move_played", {
+      const eventName =
+        this.el.dataset && this.el.dataset.endgameId
+          ? "endgame_move_played"
+          : "move_played";
+
+      const payload = {
         from: orig,
         to: dest,
         fen: this.chess.fen(),
         san: move.san,
-      });
+      };
+
+      if (eventName === "endgame_move_played") {
+        payload.endgame_id = this.el.dataset.endgameId;
+      }
+
+      this.pushEvent(eventName, payload);
 
       const nextTurnColor = this.chess.turn() === "w" ? "white" : "black";
 
