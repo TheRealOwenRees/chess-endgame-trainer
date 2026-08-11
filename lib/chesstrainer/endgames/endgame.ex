@@ -30,7 +30,7 @@ defmodule Chesstrainer.Endgames.Endgame do
   @doc false
   def changeset(endgame, attrs) do
     endgame
-    |> cast(attrs, [:fen, :key, :message, :notes, :result, :rating, :color])
+    |> cast(normalize_attrs(attrs), [:fen, :key, :message, :notes, :result, :rating, :color])
     |> validate_required([:fen, :color], message: "Invalid FEN")
     |> validate_required([:key, :result, :rating])
     |> validate_format(:key, ~r/^(?=.{5,10}$)KQ*R*[NB]*P*\sv\sKQ*R*[NB]*P*$/,
@@ -44,6 +44,14 @@ defmodule Chesstrainer.Endgames.Endgame do
     end)
     |> unique_constraint(:fen, message: "FEN already exists")
   end
+
+  defp normalize_attrs(%{"fen" => fen} = attrs) when is_binary(fen),
+    do: Map.put(attrs, "fen", Chesstrainer.FEN.normalize(fen))
+
+  defp normalize_attrs(%{fen: fen} = attrs) when is_binary(fen),
+    do: Map.put(attrs, :fen, Chesstrainer.FEN.normalize(fen))
+
+  defp normalize_attrs(attrs), do: attrs
 
   # Strict structural validation. Mirrors chess.js rules so the FEN survives
   # both the server-side parser (Chex, permissive) and the client-side parser

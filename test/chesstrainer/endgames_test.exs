@@ -17,7 +17,7 @@ defmodule Chesstrainer.EndgamesTest do
       assert {:ok, %Endgame{}} = Endgames.create_endgame(attrs)
     end
 
-    test "rejects a FEN with fullmove number zero" do
+    test "normalizes fullmove 0 to 1 before inserting" do
       attrs = %{
         fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 0",
         color: :black,
@@ -26,9 +26,21 @@ defmodule Chesstrainer.EndgamesTest do
         rating: 1500
       }
 
-      assert {:error, changeset} = Endgames.create_endgame(attrs)
-      assert [msg] = errors_on(changeset).fen
-      assert msg =~ "fullmove number"
+      assert {:ok, endgame} = Endgames.create_endgame(attrs)
+      assert endgame.fen == "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 1"
+    end
+
+    test "trims whitespace around the FEN before inserting" do
+      attrs = %{
+        fen: "  8/8/3k4/8/8/3K1R2/8/8 w - - 0 1\t\n",
+        color: :white,
+        key: "KR v K",
+        result: :win,
+        rating: 1500
+      }
+
+      assert {:ok, endgame} = Endgames.create_endgame(attrs)
+      assert endgame.fen == "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
     end
 
     test "rejects a FEN with a zero digit in a rank" do

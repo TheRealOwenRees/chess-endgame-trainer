@@ -28,6 +28,9 @@ chesstrainer-*.tar
 # Ignore assets that are produced by build tools.
 /priv/static/assets/
 
+# Ignore ETS table backups
+/priv/static/backups/
+
 # Ignore digested assets cache.
 /priv/static/cache_manifest.json
 
