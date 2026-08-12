@@ -10,7 +10,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
       <.header>
         Play endgame {@endgame.key}
         <:subtitle>
-          {@endgame.color} to move · Result: {@endgame.result} · Rating: {@endgame.rating}
+          {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {@endgame.rating}
         </:subtitle>
         <:actions>
           <.button navigate={~p"/endgames"}>
