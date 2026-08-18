@@ -36,12 +36,12 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
               <%= if @move_list == [] do %>
                 <p class="text-sm text-gray-500">No Moves</p>
               <% else %>
-                <%= for {pair, i} <- Enum.chunk_every(@move_list, 2) |> Enum.with_index() do %>
+                <%= for {[white_move, black_move], i} <- format_move_pairs(@move_list, @endgame.color) do %>
                   <div class="font-mono text-sm leading-6">
-                    <span class="text-gray-500 mr-2">{i + 1}.</span>
-                    <span class="text-gray-900">{Enum.at(pair, 0)}</span>
-                    <%= if length(pair) == 2 do %>
-                      <span class="text-gray-900 ml-2">{Enum.at(pair, 1)}</span>
+                    <span class="text-gray-500 mr-2">{i}.</span>
+                    <span class="text-gray-900">{white_move || "..."}</span>
+                    <%= if black_move do %>
+                      <span class="text-gray-900 ml-2">{black_move}</span>
                     <% end %>
                   </div>
                 <% end %>
@@ -116,5 +116,13 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
        orientation: Atom.to_string(socket.assigns.endgame.color),
        player_color: Atom.to_string(socket.assigns.endgame.color)
      })}
+  end
+
+  def format_move_pairs(move_list, color) do
+    moves = if color in [:black, "black"], do: [nil | move_list], else: move_list
+
+    moves
+    |> Enum.chunk_every(2, 2, [nil])
+    |> Enum.with_index(1)
   end
 end
