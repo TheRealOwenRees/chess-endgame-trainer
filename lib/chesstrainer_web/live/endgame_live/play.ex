@@ -10,7 +10,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
       <.header>
         Play endgame {@endgame.key}
         <:subtitle>
-          {@endgame.color} to move · Result: {@endgame.result} · Rating: {@endgame.rating}
+          {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {@endgame.rating}
         </:subtitle>
         <:actions>
           <.button navigate={~p"/endgames"}>
@@ -19,44 +19,45 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         </:actions>
       </.header>
 
-      <div class="bg-gray-100 p-4 rounded mb-4 flex justify-between items-center shadow-sm">
-        <div>
-          <p class="text-sm text-gray-600 font-semibold">Last Played Move:</p>
-          <p class="text-lg font-mono text-blue-600">{@last_from_to}</p>
-          <p class="text-lg font-mono text-blue-600">{@last_san}</p>
-          <p class="text-lg font-mono text-emerald-600">
-            {if @move_list == [] do
-              "No Moves"
-            else
-              Enum.reverse(@move_list) |> Enum.join(", ")
-            end}
-          </p>
-        </div>
-        <div>
-          <.button phx-click="reset" variant="primary">
-            <.icon name="hero-arrow-path" /> Reset
-          </.button>
-        </div>
-      </div>
-
-      <div class="flex justify-center bg-gray-200 p-4 rounded-xl shadow-inner">
+      <div class="flex gap-2 bg-gray-200 p-4 rounded-xl shadow-inner">
         <div
           id="endgame-board"
           phx-hook="ChessBoard"
           phx-update="ignore"
           data-endgame-id={@endgame.id}
-          class="w-[400px] h-[400px]"
+          class="w-100 h-100"
         >
         </div>
-      </div>
 
-      <.list>
-        <:item title="Fen">{@endgame.fen}</:item>
-        <:item title="Key">{@endgame.key}</:item>
-        <:item title="Color">{@endgame.color}</:item>
-        <:item title="Result">{@endgame.result}</:item>
-        <:item title="Rating">{@endgame.rating}</:item>
-      </.list>
+        <div class="w-48 h-100 flex flex-col gap-3">
+          <div class="flex-1 min-h-0 flex flex-col bg-white rounded-lg p-3">
+            <p class="text-sm text-gray-600 font-semibold mb-2">Moves:</p>
+            <div class="flex-1 overflow-y-auto">
+              <%= if @move_list == [] do %>
+                <p class="text-sm text-gray-500">No Moves</p>
+              <% else %>
+                <%= for {[white_move, black_move], i} <- format_move_pairs(@move_list, @endgame.color) do %>
+                  <div class="font-mono text-sm leading-6">
+                    <span class="text-gray-500 mr-2">{i}.</span>
+                    <span class="text-gray-900">{white_move || "..."}</span>
+                    <%= if black_move do %>
+                      <span class="text-gray-900 ml-2">{black_move}</span>
+                    <% end %>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+
+          <div>Buttons</div>
+
+          <div>
+            <.button phx-click="reset" variant="primary">
+              <.icon name="hero-arrow-path" /> Reset
+            </.button>
+          </div>
+        </div>
+      </div>
     </Layouts.app>
     """
   end
@@ -92,7 +93,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
      socket
      |> assign(:last_from_to, "#{from} ➔ #{to}")
      |> assign(:last_san, san)
-     |> assign(:move_list, [san | socket.assigns.move_list])}
+     |> assign(:move_list, socket.assigns.move_list ++ [san])}
   end
 
   def handle_event("chess_fen_invalid", %{"fen" => fen, "message" => message}, socket) do
@@ -115,5 +116,13 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
        orientation: Atom.to_string(socket.assigns.endgame.color),
        player_color: Atom.to_string(socket.assigns.endgame.color)
      })}
+  end
+
+  def format_move_pairs(move_list, color) do
+    moves = if color in [:black, "black"], do: [nil | move_list], else: move_list
+
+    moves
+    |> Enum.chunk_every(2, 2, [nil])
+    |> Enum.with_index(1)
   end
 end
