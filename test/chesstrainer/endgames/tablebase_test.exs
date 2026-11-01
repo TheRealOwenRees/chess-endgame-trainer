@@ -4,6 +4,7 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Endgames.Tablebase.Cache, as: TablebaseCache
   alias Chesstrainer.Endgames.Tablebase.Parser
+  alias Chesstrainer.Ratelimiters
 
   describe "normalize_category/1" do
     test "maps winning categories to :win" do
@@ -65,6 +66,19 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
 
       assert tablebase.category == :draw
       assert [%Tablebase.Move{category: :draw, uci: "e8d7"}] = tablebase.moves
+    end
+  end
+
+  describe "Parser.parse_response/1" do
+    test "a 429 sets the cooldown and returns a rate-limit error" do
+      Ratelimiters.lichess_reset_cooldown()
+      on_exit(fn -> Ratelimiters.lichess_reset_cooldown() end)
+
+      assert {:error, {:too_many_requests, 429, "rate limited"}} =
+               Parser.parse_response({:ok, %Req.Response{status: 429, body: "rate limited"}})
+
+      assert {:cooldown, remaining} = Ratelimiters.lichess_check_cooldown()
+      assert remaining > 0
     end
   end
 

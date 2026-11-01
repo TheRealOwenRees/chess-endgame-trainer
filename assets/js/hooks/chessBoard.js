@@ -44,7 +44,7 @@ export const ChessBoard = {
     });
   },
 
-  initBoard({ fen, orientation, player_color }) {
+  initBoard({ fen, orientation, player_color, blocked }) {
     try {
       this.chess.load(fen);
     } catch (error) {
@@ -67,9 +67,9 @@ export const ChessBoard = {
       orientation: orientation,
       turnColor: turnColor,
       movable: {
-        color: player_color,
+        color: blocked ? null : player_color,
         free: false,
-        dests: this.getValidDests(),
+        dests: blocked ? new Map() : this.getValidDests(),
       },
       events: {
         move: (orig, dest, _capturedPiece) => {
@@ -134,22 +134,25 @@ export const ChessBoard = {
   },
 
   executeMove(orig, dest, promotion) {
-    const move = this.chess.move({ from: orig, to: dest, promotion });
+    const prevFen = this.chess.fen();
+    const move = promotion
+      ? this.chess.move({ from: orig, to: dest, promotion })
+      : this.chess.move({ from: orig, to: dest });
 
     if (move) {
-      const eventName =
-        this.el.dataset && this.el.dataset.endgameId
-          ? "endgame_move_played"
-          : "move_played";
+      const isTrainer = !!(this.el.dataset && this.el.dataset.endgameId);
+      const eventName = isTrainer ? "endgame_move_played" : "move_played";
 
       const payload = {
         from: orig,
         to: dest,
+        prev_fen: prevFen,
         fen: this.chess.fen(),
         san: move.san,
+        promotion: promotion || null,
       };
 
-      if (eventName === "endgame_move_played") {
+      if (isTrainer) {
         payload.endgame_id = this.el.dataset.endgameId;
       }
 
@@ -160,10 +163,9 @@ export const ChessBoard = {
       this.ground.set({
         turnColor: nextTurnColor,
         fen: this.chess.fen(),
-        movable: {
-          color: nextTurnColor,
-          dests: this.getValidDests(),
-        },
+        movable: isTrainer
+          ? { color: null, dests: new Map() }
+          : { color: nextTurnColor, dests: this.getValidDests() },
       });
     } else {
       this.ground.set({ fen: this.chess.fen() });

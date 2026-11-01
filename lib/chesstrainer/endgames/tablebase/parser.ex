@@ -11,7 +11,7 @@ defmodule Chesstrainer.Endgames.Tablebase.Parser do
   import Chesstrainer.Ratelimiters
   alias Chesstrainer.Endgames.Tablebase
 
-  @lichess_tablebase_url "http://tablebase.lichess.ovh/standard?fen="
+  @lichess_tablebase_url "https://tablebase.lichess.ovh/standard?fen="
 
   @spec from_fen(String.t()) ::
           {:ok, Tablebase.t()} | {:cooldown, non_neg_integer()} | {:error, term()}
@@ -72,20 +72,21 @@ defmodule Chesstrainer.Endgames.Tablebase.Parser do
     }
   end
 
-  defp parse_response(response) do
+  # exposed for testing
+  def parse_response(response) do
     case response do
       # Success
       {:ok, %Req.Response{status: 200, body: body}} ->
         {:ok, body}
 
-      # Client errors
-      {:ok, %Req.Response{status: status, body: body}} when status in 400..499 ->
-        {:error, {:client_error, status, body}}
-
-      # Rate limiting
+      # Rate limiting (must precede the generic 4xx clause, or 429 is swallowed)
       {:ok, %Req.Response{status: 429, body: body}} ->
         lichess_add_cooldown()
         {:error, {:too_many_requests, 429, body}}
+
+      # Client errors
+      {:ok, %Req.Response{status: status, body: body}} when status in 400..499 ->
+        {:error, {:client_error, status, body}}
 
       # Server errors
       {:ok, %Req.Response{status: status, body: body}} when status in 500..599 ->
