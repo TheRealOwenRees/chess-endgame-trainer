@@ -3,6 +3,7 @@ defmodule Chesstrainer.EndgamesTest do
 
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Endgame
+  alias Chesstrainer.Tags
 
   describe "create_endgame/1 FEN validation" do
     test "accepts a standard valid FEN" do
@@ -83,6 +84,40 @@ defmodule Chesstrainer.EndgamesTest do
       assert {:error, changeset} = Endgames.create_endgame(attrs)
       assert [msg] = errors_on(changeset).fen
       assert msg =~ "active color"
+    end
+  end
+
+  describe "tags" do
+    test "create_endgame/2 associates themes" do
+      {:ok, tag} = Tags.create_tag(%{name: "Lucena", category: :endgame})
+
+      attrs = %{
+        fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1",
+        color: :white,
+        key: "KR v K",
+        result: :win,
+        rating: 1500
+      }
+
+      assert {:ok, endgame} = Endgames.create_endgame(attrs, [tag])
+      assert Enum.map(endgame.tags, & &1.id) == [tag.id]
+    end
+
+    test "update_endgame/3 replaces themes" do
+      {:ok, lucena} = Tags.create_tag(%{name: "Lucena", category: :endgame})
+      {:ok, philidor} = Tags.create_tag(%{name: "Philidor", category: :endgame})
+
+      attrs = %{
+        fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 1",
+        color: :black,
+        key: "KPPP v KPP",
+        result: :win,
+        rating: 1500
+      }
+
+      assert {:ok, endgame} = Endgames.create_endgame(attrs, [lucena])
+      assert {:ok, updated} = Endgames.update_endgame(endgame, %{rating: 1600}, [philidor])
+      assert Enum.map(updated.tags, & &1.id) == [philidor.id]
     end
   end
 end

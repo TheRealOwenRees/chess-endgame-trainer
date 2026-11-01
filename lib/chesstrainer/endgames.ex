@@ -49,9 +49,10 @@ defmodule Chesstrainer.Endgames do
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_endgame(attrs) do
+  def create_endgame(attrs, tags \\ []) do
     %Endgame{}
     |> Endgame.changeset(attrs)
+    |> Ecto.Changeset.put_assoc(:tags, tags)
     |> Repo.insert()
   end
 
@@ -67,12 +68,14 @@ defmodule Chesstrainer.Endgames do
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_endgame(%Endgame{} = endgame, attrs) do
+  def update_endgame(%Endgame{} = endgame, attrs, tags \\ []) do
     # ignore fen on update
     attrs = Map.delete(attrs, "fen")
 
     endgame
+    |> Repo.preload(:tags)
     |> Endgame.changeset(attrs)
+    |> Ecto.Changeset.put_assoc(:tags, tags)
     |> Repo.update()
   end
 
@@ -119,21 +122,5 @@ defmodule Chesstrainer.Endgames do
     Repo.update_all(from(e in Endgame, where: e.id == ^id), inc: increments)
 
     {:ok, Repo.get!(Endgame, id)}
-  end
-
-  def add_tag(endgame, tag) do
-    endgame
-    |> Repo.preload(:tags)
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_assoc(:tags, [tag | endgame.tags])
-    |> Repo.update()
-  end
-
-  def remove_tag(endgame, tag) do
-    endgame
-    |> Repo.preload(:tags)
-    |> Ecto.Changeset.change()
-    |> Ecto.Changeset.put_assoc(:tags, endgame.tags -- [tag])
-    |> Repo.update()
   end
 end

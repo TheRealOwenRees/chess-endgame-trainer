@@ -105,19 +105,52 @@ defmodule Chesstrainer.Tags do
   def search("", _category), do: []
 
   def search(query, category) when is_binary(query) do
-    pattern = "%#{query}%"
+    case String.trim(query) do
+      "" ->
+        []
 
-    Tag
-    |> where([t], ilike(t.name, ^pattern) and t.category == ^category)
-    |> order_by([t], asc: t.name)
-    |> limit(20)
-    |> Repo.all()
+      query ->
+        pattern = "%#{query}%"
+
+        Tag
+        |> where([t], ilike(t.name, ^pattern) and t.category == ^category)
+        |> order_by([t], asc: t.name)
+        |> limit(20)
+        |> Repo.all()
+    end
   end
 
+  @doc """
+  Finds a tag by name (trimmed and case-insensitive) for a category, creating it
+  if it does not exist.
+  """
   def get_or_create(name, category) when is_binary(name) do
-    case Repo.get_by(Tag, name: name, category: category) do
-      nil -> create_tag(%{name: name, category: category})
-      tag -> {:ok, tag}
+    name = String.trim(name)
+
+    if name == "" do
+      {:error, :blank_name}
+    else
+      case find_by_name(name, category) do
+        nil -> create_tag(%{name: name, category: category})
+        tag -> {:ok, tag}
+      end
     end
+  end
+
+  defp find_by_name(name, category) do
+    downcased = String.downcase(name)
+
+    Repo.one(
+      from t in Tag,
+        where: t.category == ^category and fragment("lower(?)", t.name) == ^downcased,
+        limit: 1
+    )
+  end
+
+  @doc """
+  Returns the names of the given tags, sorted.
+  """
+  def names(tags) when is_list(tags) do
+    tags |> Enum.map(& &1.name) |> Enum.sort()
   end
 end

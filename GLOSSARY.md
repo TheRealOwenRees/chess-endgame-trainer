@@ -19,6 +19,11 @@ _Avoid_: Endgame (the stored record), exercise
 One playthrough of a puzzle by a user, ending solved or failed.
 _Avoid_: Run, session, game
 
+**Theme**:
+A label describing an endgame's technique or goal, such as "mate in 2", "Lucena" or
+"opposition"; an endgame can carry several.
+_Avoid_: Tag, label, category
+
 ## Play
 
 **Winning side**:

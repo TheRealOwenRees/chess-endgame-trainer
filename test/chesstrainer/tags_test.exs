@@ -57,5 +57,23 @@ defmodule Chesstrainer.TagsTest do
       tag = tag_fixture()
       assert %Ecto.Changeset{} = Tags.change_tag(tag)
     end
+
+    test "get_or_create/2 matches case-insensitively and trims" do
+      assert {:ok, tag} = Tags.get_or_create("Lucena", "endgame")
+
+      assert {:ok, found} = Tags.get_or_create("  lucena  ", "endgame")
+      assert found.id == tag.id
+      assert length(Tags.list_tags()) == 1
+    end
+
+    test "get_or_create/2 rejects a blank name" do
+      assert {:error, :blank_name} = Tags.get_or_create("   ", "endgame")
+    end
+
+    test "create_tag/1 rejects a case-insensitive duplicate" do
+      assert {:ok, _tag} = Tags.create_tag(%{name: "Lucena", category: :endgame})
+      assert {:error, changeset} = Tags.create_tag(%{name: "lucena", category: :endgame})
+      assert changeset.errors[:name]
+    end
   end
 end

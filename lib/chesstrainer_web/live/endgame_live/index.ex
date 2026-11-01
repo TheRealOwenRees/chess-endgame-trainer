@@ -2,6 +2,8 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
   use ChesstrainerWeb, :live_view
 
   alias Chesstrainer.Endgames
+  alias Chesstrainer.Repo
+  alias Chesstrainer.Tags
 
   @impl true
   def render(assigns) do
@@ -28,6 +30,9 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
         <:col :let={{_id, endgame}} label="Message">{endgame.message}</:col>
         <:col :let={{_id, endgame}} label="Notes">{endgame.notes}</:col>
         <:col :let={{_id, endgame}} label="Result">{endgame.result}</:col>
+        <:col :let={{_id, endgame}} label="Themes">
+          {Enum.join(Tags.names(endgame.tags), ", ")}
+        </:col>
         <:col :let={{_id, endgame}} label="Attempted">{endgame.times_attempted}</:col>
         <:col :let={{_id, endgame}} label="Solved">{endgame.times_solved}</:col>
         <:action :let={{_id, endgame}}>
@@ -67,6 +72,6 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
   end
 
   defp list_endgames() do
-    Endgames.list_endgames()
+    Endgames.list_endgames() |> Repo.preload(:tags)
   end
 end

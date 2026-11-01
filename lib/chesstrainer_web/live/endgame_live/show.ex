@@ -3,6 +3,8 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
 
   alias Chesstrainer.Endgames
   alias Chesstrainer.Game
+  alias Chesstrainer.Repo
+  alias Chesstrainer.Tags
 
   import ChesstrainerWeb.Board.BoardComponent
 
@@ -50,6 +52,7 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
         <:item title="Message">{@endgame.message}</:item>
         <:item title="Notes">{@endgame.notes}</:item>
         <:item title="Result">{@endgame.result}</:item>
+        <:item title="Themes">{Enum.join(Tags.names(@endgame.tags), ", ")}</:item>
         <:item title="Attempted">{@endgame.times_attempted}</:item>
         <:item title="Solved">{@endgame.times_solved}</:item>
       </.list>
@@ -62,6 +65,6 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
     {:ok,
      socket
      |> assign(:page_title, "Show Endgame")
-     |> assign(:endgame, Endgames.get_endgame!(id))}
+     |> assign(:endgame, Endgames.get_endgame!(id) |> Repo.preload(:tags))}
   end
 end
