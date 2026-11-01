@@ -38,6 +38,8 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
               <% @status == :blocked -> %>
                 <p class="font-semibold text-red-600">Tablebase unavailable</p>
                 <p class="text-red-500">{@blocked_reason}</p>
+              <% @awaiting_reply -> %>
+                <p class="text-gray-500">Opponent is replying…</p>
               <% @last_grade == :optimal -> %>
                 <p class="font-semibold text-emerald-600">Optimal move</p>
               <% @last_grade == :winning -> %>
@@ -97,6 +99,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
       |> assign(:last_san, "None yet")
       |> assign(:last_from_to, "None yet")
       |> assign(:last_grade, nil)
+      |> assign(:awaiting_reply, false)
 
     {:ok, load_attempt(socket)}
   end
@@ -106,6 +109,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
     %{"from" => from, "to" => to, "san" => san} = params
     promotion = params["promotion"]
     prev_fen = params["prev_fen"] || socket.assigns.fen
+    fen_after = params["fen"] || socket.assigns.fen
 
     cond do
       socket.assigns.status != :playing ->
@@ -117,7 +121,32 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
          put_flash(socket, :error, "That move is out of sequence. Press Reset to try again.")}
 
       true ->
-        grade_and_record(socket, from, to, promotion, san)
+        grade_and_record(socket, from, to, promotion, san, fen_after)
+    end
+  end
+
+  def handle_event("opponent_reply_applied", %{"fen" => fen}, socket) do
+    if socket.assigns.awaiting_reply do
+      case Tablebase.new(fen) do
+        {:ok, tablebase} ->
+          {:noreply,
+           socket
+           |> assign(:fen, fen)
+           |> assign(:tablebase, tablebase)
+           |> assign(:awaiting_reply, false)
+           |> assign(:status, :playing)
+           |> assign(:blocked_reason, nil)
+           |> push_event("resume_board", %{})}
+
+        other ->
+          {:noreply,
+           socket
+           |> assign(:awaiting_reply, false)
+           |> assign(:status, :blocked)
+           |> assign(:blocked_reason, blocked_reason(other))}
+      end
+    else
+      {:noreply, socket}
     end
   end
 
@@ -151,7 +180,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
   defp load_attempt(socket) do
     fen = socket.assigns.endgame.fen
-    socket = assign(socket, :fen, fen)
+    socket = socket |> assign(:fen, fen) |> assign(:awaiting_reply, false)
 
     if connected?(socket) do
       case Tablebase.new(fen) do
@@ -200,19 +229,57 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
     "The tablebase is unavailable (#{inspect(reason)})."
   end
 
-  defp grade_and_record(socket, from, to, promotion, san) do
+  defp grade_and_record(socket, from, to, promotion, san, fen_after) do
     case find_move(socket.assigns.tablebase, from, to, promotion) do
       nil ->
         {:noreply, put_flash(socket, :error, "Could not identify that move in the tablebase.")}
 
       move ->
+        grade = grade_move(socket.assigns.tablebase, move)
+
+        socket =
+          socket
+          |> assign(:last_from_to, "#{from} ➔ #{to}")
+          |> assign(:last_san, san)
+          |> assign(:last_grade, grade)
+          |> assign(:move_list, socket.assigns.move_list ++ [san])
+
+        if grade in [:optimal, :winning] and
+             not same_position?(fen_after, socket.assigns.fen) do
+          start_opponent_reply(socket, fen_after)
+        else
+          {:noreply, socket}
+        end
+    end
+  end
+
+  defp start_opponent_reply(socket, fen_after) do
+    case Tablebase.new(fen_after) do
+      {:ok, %Tablebase{moves: [reply | _]}} ->
         {:noreply,
          socket
-         |> assign(:last_from_to, "#{from} ➔ #{to}")
-         |> assign(:last_san, san)
-         |> assign(:last_grade, grade_move(socket.assigns.tablebase, move))
-         |> assign(:move_list, socket.assigns.move_list ++ [san])}
+         |> assign(:awaiting_reply, true)
+         |> push_event("opponent_move", reply_payload(reply))}
+
+      {:ok, %Tablebase{moves: []}} ->
+        # Terminal position (checkmate/stalemate): there is no reply to play.
+        {:noreply, socket}
+
+      other ->
+        {:noreply,
+         socket
+         |> assign(:status, :blocked)
+         |> assign(:blocked_reason, blocked_reason(other))}
     end
+  end
+
+  defp reply_payload(%Tablebase.Move{uci: uci, san: san}) do
+    %{
+      from: String.slice(uci, 0, 2),
+      to: String.slice(uci, 2, 2),
+      promotion: String.at(uci, 4),
+      san: san
+    }
   end
 
   defp find_move(%Tablebase{moves: moves}, from, to, promotion) when is_list(moves) do

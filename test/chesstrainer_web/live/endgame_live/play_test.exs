@@ -176,6 +176,54 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     end
   end
 
+  describe "opponent reply" do
+    test "plays the opponent's optimal defence and resumes the user's turn", %{conn: conn} do
+      endgame = endgame_fixture()
+      fen_after = "8/8/8/8/8/8/8/8 b - - 0 1"
+      fen_after_reply = "8/8/8/8/8/8/8/8 w - - 0 1"
+      reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :loss, dtz: -3}
+
+      seed_tablebase(endgame.fen, moves: grading_moves())
+      seed_tablebase(fen_after, category: :loss, moves: [reply])
+      seed_tablebase(fen_after_reply, category: :win, moves: grading_moves())
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d7",
+        "san" => "Qd7+",
+        "prev_fen" => endgame.fen,
+        "fen" => fen_after,
+        "endgame_id" => endgame.id
+      })
+
+      %{proxy: {ref, _topic, _}} = view
+
+      assert_receive {^ref, {:push_event, "opponent_move", payload}}, 100
+
+      assert payload == %{from: "e8", to: "e7", promotion: nil, san: "Ke7"}
+
+      render_hook(view, "opponent_reply_applied", %{"fen" => fen_after_reply})
+
+      assert_receive {^ref, {:push_event, "resume_board", _payload}}, 100
+    end
+
+    test "does not reply when the move throws the win away", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen, moves: grading_moves())
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      play_move(view, endgame, "d1", "d4", "Qd4")
+
+      %{proxy: {ref, _topic, _}} = view
+
+      refute_receive {^ref, {:push_event, "opponent_move", _payload}}, 100
+      assert render(view) =~ "Losing move"
+    end
+  end
+
   describe "reset" do
     test "clears the move list and grade, and re-pushes init_board", %{conn: conn} do
       endgame = endgame_fixture()

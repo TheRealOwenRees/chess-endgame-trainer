@@ -5,6 +5,7 @@ export const ChessBoard = {
   mounted() {
     this.chess = new Chess();
     this.ground = null;
+    this.playerColor = "white";
 
     this.handleEvent("init_board", (payload) => {
       this.initBoard(payload);
@@ -37,6 +38,14 @@ export const ChessBoard = {
       }
     });
 
+    this.handleEvent("opponent_move", ({ from, to, promotion, san }) => {
+      this.applyOpponentMove({ from, to, promotion, san });
+    });
+
+    this.handleEvent("resume_board", () => {
+      this.resumeBoard();
+    });
+
     this.initBoard({
       fen: this.chess.fen(),
       orientation: "white",
@@ -55,6 +64,8 @@ export const ChessBoard = {
       });
       return;
     }
+
+    this.playerColor = player_color;
 
     if (this.ground) {
       this.ground.destroy();
@@ -170,5 +181,43 @@ export const ChessBoard = {
     } else {
       this.ground.set({ fen: this.chess.fen() });
     }
+  },
+
+  applyOpponentMove({ from, to, promotion, san }) {
+    const move = promotion
+      ? this.chess.move({ from, to, promotion })
+      : this.chess.move({ from, to });
+
+    if (!move) {
+      console.error("Opponent move rejected by chess.js", { from, to, promotion, san });
+      return;
+    }
+
+    const nextTurnColor = this.chess.turn() === "w" ? "white" : "black";
+
+    this.ground.set({
+      fen: this.chess.fen(),
+      turnColor: nextTurnColor,
+      movable: { color: null, dests: new Map() },
+    });
+
+    this.pushEvent("opponent_reply_applied", {
+      fen: this.chess.fen(),
+      san: move.san,
+    });
+  },
+
+  resumeBoard() {
+    const turnColor = this.chess.turn() === "w" ? "white" : "black";
+
+    this.ground.set({
+      fen: this.chess.fen(),
+      turnColor,
+      movable: {
+        color: this.playerColor || turnColor,
+        free: false,
+        dests: this.getValidDests(),
+      },
+    });
   },
 };
