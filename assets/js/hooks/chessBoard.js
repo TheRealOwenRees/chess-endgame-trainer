@@ -161,6 +161,8 @@ export const ChessBoard = {
         fen: this.chess.fen(),
         san: move.san,
         promotion: promotion || null,
+        draw: this.chess.isDraw(),
+        checkmate: this.chess.isCheckmate(),
       };
 
       if (isTrainer) {
@@ -204,6 +206,8 @@ export const ChessBoard = {
     this.pushEvent("opponent_reply_applied", {
       fen: this.chess.fen(),
       san: move.san,
+      draw: this.chess.isDraw(),
+      checkmate: this.chess.isCheckmate(),
     });
   },
 

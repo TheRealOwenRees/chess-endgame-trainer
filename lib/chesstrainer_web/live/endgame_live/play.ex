@@ -40,10 +40,16 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
                 <p class="font-semibold text-red-600">Tablebase unavailable</p>
                 <p class="text-red-500">{@blocked_reason}</p>
               <% @status == :solved -> %>
-                <p class="font-semibold text-emerald-600">Solved!</p>
+                <p class="font-semibold text-emerald-600">
+                  {if @endgame.result == :draw, do: "Draw held!", else: "Solved!"}
+                </p>
               <% @status == :failed -> %>
                 <p class="font-semibold text-red-600">Failed</p>
-                <p class="text-red-500">That move throws away the win.</p>
+                <p class="text-red-500">
+                  {if @endgame.result == :draw,
+                    do: "That move loses the draw.",
+                    else: "That move throws away the win."}
+                </p>
                 <%= if @best_move do %>
                   <p class="text-gray-600">Best was: {@best_move}</p>
                 <% end %>
@@ -119,6 +125,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
   def handle_event("endgame_move_played", params, socket) do
     %{"from" => from, "to" => to, "san" => san} = params
     promotion = params["promotion"]
+    draw = params["draw"] || false
     prev_fen = params["prev_fen"] || socket.assigns.fen
     fen_after = params["fen"] || socket.assigns.fen
 
@@ -135,32 +142,40 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
          put_flash(socket, :error, "That move is out of sequence. Press Reset to try again.")}
 
       true ->
-        grade_and_record(socket, from, to, promotion, san, fen_after)
+        grade_and_record(socket, from, to, promotion, san, fen_after, draw)
     end
   end
 
-  def handle_event("opponent_reply_applied", %{"fen" => fen}, socket) do
-    if socket.assigns.awaiting_reply do
-      case Tablebase.new(fen) do
-        {:ok, tablebase} ->
-          {:noreply,
-           socket
-           |> assign(:fen, fen)
-           |> assign(:tablebase, tablebase)
-           |> assign(:awaiting_reply, false)
-           |> assign(:status, :playing)
-           |> assign(:blocked_reason, nil)
-           |> push_event("resume_board", %{})}
+  def handle_event("opponent_reply_applied", params, socket) do
+    %{"fen" => fen} = params
+    draw = params["draw"] || false
 
-        other ->
-          {:noreply,
-           socket
-           |> assign(:awaiting_reply, false)
-           |> assign(:status, :blocked)
-           |> assign(:blocked_reason, blocked_reason(other))}
-      end
-    else
-      {:noreply, socket}
+    cond do
+      not socket.assigns.awaiting_reply ->
+        {:noreply, socket}
+
+      draw and socket.assigns.endgame.result == :draw ->
+        solve_attempt(socket)
+
+      true ->
+        case Tablebase.new(fen) do
+          {:ok, tablebase} ->
+            {:noreply,
+             socket
+             |> assign(:fen, fen)
+             |> assign(:tablebase, tablebase)
+             |> assign(:awaiting_reply, false)
+             |> assign(:status, :playing)
+             |> assign(:blocked_reason, nil)
+             |> push_event("resume_board", %{})}
+
+          other ->
+            {:noreply,
+             socket
+             |> assign(:awaiting_reply, false)
+             |> assign(:status, :blocked)
+             |> assign(:blocked_reason, blocked_reason(other))}
+        end
     end
   end
 
@@ -251,7 +266,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
     "The tablebase is unavailable (#{inspect(reason)})."
   end
 
-  defp grade_and_record(socket, from, to, promotion, san, fen_after) do
+  defp grade_and_record(socket, from, to, promotion, san, fen_after, draw) do
     case find_move(socket.assigns.tablebase, from, to, promotion) do
       nil ->
         {:noreply, put_flash(socket, :error, "Could not identify that move in the tablebase.")}
@@ -270,12 +285,18 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
           grade == :losing ->
             fail_attempt(socket)
 
-          grade in [:optimal, :winning] and not is_nil(promotion) ->
-            # Conversion cutoff: a promotion that keeps the win ends the puzzle.
+          grade not in [:optimal, :winning] ->
+            {:noreply, socket}
+
+          draw and socket.assigns.endgame.result == :draw ->
+            # A drawn-by-rule position is the goal of a draw puzzle.
             solve_attempt(socket)
 
-          grade in [:optimal, :winning] and
-              not same_position?(fen_after, socket.assigns.fen) ->
+          socket.assigns.endgame.result == :win and not is_nil(promotion) ->
+            # Conversion cutoff: a promotion that keeps the win ends a win puzzle.
+            solve_attempt(socket)
+
+          not same_position?(fen_after, socket.assigns.fen) ->
             start_opponent_reply(socket, fen_after)
 
           true ->

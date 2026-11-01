@@ -39,6 +39,13 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     ]
   end
 
+  defp draw_moves do
+    [
+      %Tablebase.Move{uci: "d1d7", san: "Qd7", category: :draw, dtz: nil},
+      %Tablebase.Move{uci: "d1d4", san: "Qd4", category: :win, dtz: nil}
+    ]
+  end
+
   defp play_move(view, endgame, from, to, san) do
     render_hook(view, "endgame_move_played", %{
       "from" => from,
@@ -291,6 +298,112 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert html =~ "Failed"
       assert html =~ "Qd7+"
       assert Endgames.get_endgame!(endgame.id).times_solved == 0
+    end
+  end
+
+  describe "draw endgames" do
+    test "loads and is playable", %{conn: conn} do
+      endgame = endgame_fixture(result: :draw)
+      seed_tablebase(endgame.fen, category: :draw, moves: [])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      assert has_element?(view, "#endgame-board")
+      assert render(view) =~ "Make a move"
+    end
+
+    test "passes a move that keeps the draw and replies", %{conn: conn} do
+      endgame = endgame_fixture(result: :draw)
+      fen_after = "8/8/8/8/8/8/8/8 b - - 0 1"
+      reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :draw, dtz: nil}
+
+      seed_tablebase(endgame.fen, category: :draw, moves: draw_moves())
+      seed_tablebase(fen_after, category: :draw, moves: [reply])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d7",
+        "san" => "Qd7",
+        "draw" => false,
+        "prev_fen" => endgame.fen,
+        "fen" => fen_after,
+        "endgame_id" => endgame.id
+      })
+
+      %{proxy: {ref, _topic, _}} = view
+
+      assert_receive {^ref, {:push_event, "opponent_move", payload}}, 100
+      assert payload == %{from: "e8", to: "e7", promotion: nil, san: "Ke7"}
+    end
+
+    test "fails a move that loses the draw", %{conn: conn} do
+      endgame = endgame_fixture(result: :draw)
+      seed_tablebase(endgame.fen, category: :draw, moves: draw_moves())
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d4",
+        "san" => "Qd4",
+        "draw" => false,
+        "prev_fen" => endgame.fen,
+        "fen" => endgame.fen,
+        "endgame_id" => endgame.id
+      })
+
+      html = render(view)
+      assert html =~ "Failed"
+      assert html =~ "loses the draw"
+      assert html =~ "Qd7"
+    end
+
+    test "solves when the user's move draws by rule", %{conn: conn} do
+      endgame = endgame_fixture(result: :draw)
+      seed_tablebase(endgame.fen, category: :draw, moves: draw_moves())
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d7",
+        "san" => "Qd7",
+        "draw" => true,
+        "prev_fen" => endgame.fen,
+        "fen" => endgame.fen,
+        "endgame_id" => endgame.id
+      })
+
+      assert render(view) =~ "Draw held!"
+      assert Endgames.get_endgame!(endgame.id).times_solved == 1
+    end
+
+    test "solves when the opponent's reply draws by rule", %{conn: conn} do
+      endgame = endgame_fixture(result: :draw)
+      fen_after = "8/8/8/8/8/8/8/8 b - - 0 1"
+      reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :draw, dtz: nil}
+
+      seed_tablebase(endgame.fen, category: :draw, moves: draw_moves())
+      seed_tablebase(fen_after, category: :draw, moves: [reply])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d7",
+        "san" => "Qd7",
+        "draw" => false,
+        "prev_fen" => endgame.fen,
+        "fen" => fen_after,
+        "endgame_id" => endgame.id
+      })
+
+      render_hook(view, "opponent_reply_applied", %{"fen" => fen_after, "draw" => true})
+
+      assert render(view) =~ "Draw held!"
+      assert Endgames.get_endgame!(endgame.id).times_solved == 1
     end
   end
 
