@@ -116,3 +116,17 @@ How to write code in this repo. Read the section for the layer you're touching.
 ## Precommit
 
 `mix precommit` runs `compile --warnings-as-errors`, `deps.unlock --unused`, `format` and `test`.
+
+## Type checking (Dialyzer)
+
+`dialyxir` is available in dev/test; run:
+
+    mix dialyzer
+
+It is intentionally **not** part of `mix precommit`: the first run builds a PLT
+(several minutes), though subsequent runs are fast. The PLT lives under
+`_build/` (gitignored).
+
+Treat warnings as bugs — add `@spec`s or fix them. Only suppress with
+`@dialyzer` or `.dialyzer_ignore.exs` when accompanied by a comment explaining
+why.

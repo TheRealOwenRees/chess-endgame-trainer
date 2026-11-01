@@ -50,6 +50,9 @@ Read `CODING_STANDARDS.md` before writing code. Read the section for the layer y
 
 Run `mix precommit` and fix what it flags.
 
+Type-check risky changes with `mix dialyzer` (not part of `mix precommit`; the
+first run builds a PLT and is slow).
+
 ## Agent skills
 
 ### Issue tracker
