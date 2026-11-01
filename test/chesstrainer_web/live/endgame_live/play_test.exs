@@ -4,6 +4,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   import Phoenix.LiveViewTest
   import Chesstrainer.EndgamesFixtures
 
+  alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Endgames.Tablebase.Cache, as: TablebaseCache
   alias Chesstrainer.Ratelimiters
@@ -22,6 +23,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   defp seed_tablebase(fen, opts \\ []) do
     tablebase = %Tablebase{
       category: Keyword.get(opts, :category, :win),
+      checkmate: Keyword.get(opts, :checkmate, false),
       moves: Keyword.get(opts, :moves, [])
     }
 
@@ -146,7 +148,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert render(view) =~ "Winning — but not the sharpest"
     end
 
-    test "grades a move that throws the win away as losing", %{conn: conn} do
+    test "fails a move that throws the win away", %{conn: conn} do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
@@ -154,7 +156,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
       play_move(view, endgame, "d1", "d4", "Qd4")
 
-      assert render(view) =~ "Losing move"
+      assert render(view) =~ "Failed"
     end
 
     test "rejects a move that is out of sequence", %{conn: conn} do
@@ -220,7 +222,75 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       %{proxy: {ref, _topic, _}} = view
 
       refute_receive {^ref, {:push_event, "opponent_move", _payload}}, 100
-      assert render(view) =~ "Losing move"
+      assert render(view) =~ "Failed"
+    end
+  end
+
+  describe "attempt outcome" do
+    test "records an attempt on start", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen)
+
+      {:ok, _view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      assert Endgames.get_endgame!(endgame.id).times_attempted == 1
+    end
+
+    test "solves on checkmate", %{conn: conn} do
+      endgame = endgame_fixture()
+      fen_after = "8/8/8/8/8/8/8/8 b - - 0 1"
+
+      seed_tablebase(endgame.fen, moves: grading_moves())
+      seed_tablebase(fen_after, checkmate: true, moves: [])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d7",
+        "san" => "Qd7+",
+        "prev_fen" => endgame.fen,
+        "fen" => fen_after,
+        "endgame_id" => endgame.id
+      })
+
+      assert render(view) =~ "Solved!"
+      assert Endgames.get_endgame!(endgame.id).times_solved == 1
+    end
+
+    test "solves on a promotion that keeps the win", %{conn: conn} do
+      endgame = endgame_fixture()
+      moves = [%Tablebase.Move{uci: "a7a8q", san: "a8=Q", category: :loss, dtz: -1}]
+      seed_tablebase(endgame.fen, moves: moves)
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "a7",
+        "to" => "a8",
+        "san" => "a8=Q",
+        "promotion" => "q",
+        "prev_fen" => endgame.fen,
+        "fen" => endgame.fen,
+        "endgame_id" => endgame.id
+      })
+
+      assert render(view) =~ "Solved!"
+      assert Endgames.get_endgame!(endgame.id).times_solved == 1
+    end
+
+    test "fails on a losing move and reveals the best move", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen, moves: grading_moves())
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      play_move(view, endgame, "d1", "d4", "Qd4")
+
+      html = render(view)
+      assert html =~ "Failed"
+      assert html =~ "Qd7+"
+      assert Endgames.get_endgame!(endgame.id).times_solved == 0
     end
   end
 
@@ -240,6 +310,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert html =~ "No Moves"
       refute html =~ "Optimal move"
       assert_init_board(view, endgame.fen, "white", "white")
+      assert Endgames.get_endgame!(endgame.id).times_attempted == 2
     end
   end
 end

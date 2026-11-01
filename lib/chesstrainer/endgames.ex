@@ -105,6 +105,22 @@ defmodule Chesstrainer.Endgames do
     Endgame.changeset(endgame, attrs)
   end
 
+  @doc """
+  Records the start of an attempt, incrementing `times_attempted`.
+  """
+  def record_attempt(%Endgame{id: id}), do: increment(id, times_attempted: 1)
+
+  @doc """
+  Records a solved attempt, incrementing `times_solved`.
+  """
+  def record_solve(%Endgame{id: id}), do: increment(id, times_solved: 1)
+
+  defp increment(id, increments) do
+    Repo.update_all(from(e in Endgame, where: e.id == ^id), inc: increments)
+
+    {:ok, Repo.get!(Endgame, id)}
+  end
+
   def add_tag(endgame, tag) do
     endgame
     |> Repo.preload(:tags)

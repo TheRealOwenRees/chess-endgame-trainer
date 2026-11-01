@@ -11,7 +11,8 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
       <.header>
         Play endgame {@endgame.key}
         <:subtitle>
-          {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {@endgame.rating}
+          {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {@endgame.rating} · Attempts: {@endgame.times_attempted ||
+            0} · Solved: {@endgame.times_solved || 0}
         </:subtitle>
         <:actions>
           <.button navigate={~p"/endgames"}>
@@ -38,6 +39,14 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
               <% @status == :blocked -> %>
                 <p class="font-semibold text-red-600">Tablebase unavailable</p>
                 <p class="text-red-500">{@blocked_reason}</p>
+              <% @status == :solved -> %>
+                <p class="font-semibold text-emerald-600">Solved!</p>
+              <% @status == :failed -> %>
+                <p class="font-semibold text-red-600">Failed</p>
+                <p class="text-red-500">That move throws away the win.</p>
+                <%= if @best_move do %>
+                  <p class="text-gray-600">Best was: {@best_move}</p>
+                <% end %>
               <% @awaiting_reply -> %>
                 <p class="text-gray-500">Opponent is replying…</p>
               <% @last_grade == :optimal -> %>
@@ -74,7 +83,8 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
           <div>
             <.button phx-click="reset" variant="primary">
-              <.icon name="hero-arrow-path" /> Reset
+              <.icon name="hero-arrow-path" />
+              {if @status in [:solved, :failed], do: "Try again", else: "Reset"}
             </.button>
           </div>
         </div>
@@ -95,6 +105,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
       |> assign(:tablebase, nil)
       |> assign(:status, :loading)
       |> assign(:blocked_reason, nil)
+      |> assign(:best_move, nil)
       |> assign(:move_list, [])
       |> assign(:last_san, "None yet")
       |> assign(:last_from_to, "None yet")
@@ -112,9 +123,12 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
     fen_after = params["fen"] || socket.assigns.fen
 
     cond do
-      socket.assigns.status != :playing ->
+      socket.assigns.status == :blocked ->
         {:noreply,
          put_flash(socket, :error, "The tablebase is unavailable, so this move cannot be graded.")}
+
+      socket.assigns.status != :playing ->
+        {:noreply, socket}
 
       not same_position?(prev_fen, socket.assigns.fen) ->
         {:noreply,
@@ -180,12 +194,20 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
   defp load_attempt(socket) do
     fen = socket.assigns.endgame.fen
-    socket = socket |> assign(:fen, fen) |> assign(:awaiting_reply, false)
+
+    socket =
+      socket
+      |> assign(:fen, fen)
+      |> assign(:awaiting_reply, false)
+      |> assign(:best_move, nil)
 
     if connected?(socket) do
       case Tablebase.new(fen) do
         {:ok, tablebase} ->
+          {:ok, endgame} = Endgames.record_attempt(socket.assigns.endgame)
+
           socket
+          |> assign(:endgame, endgame)
           |> assign(:tablebase, tablebase)
           |> assign(:status, :playing)
           |> assign(:blocked_reason, nil)
@@ -244,25 +266,37 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
           |> assign(:last_grade, grade)
           |> assign(:move_list, socket.assigns.move_list ++ [san])
 
-        if grade in [:optimal, :winning] and
-             not same_position?(fen_after, socket.assigns.fen) do
-          start_opponent_reply(socket, fen_after)
-        else
-          {:noreply, socket}
+        cond do
+          grade == :losing ->
+            fail_attempt(socket)
+
+          grade in [:optimal, :winning] and not is_nil(promotion) ->
+            # Conversion cutoff: a promotion that keeps the win ends the puzzle.
+            solve_attempt(socket)
+
+          grade in [:optimal, :winning] and
+              not same_position?(fen_after, socket.assigns.fen) ->
+            start_opponent_reply(socket, fen_after)
+
+          true ->
+            {:noreply, socket}
         end
     end
   end
 
   defp start_opponent_reply(socket, fen_after) do
     case Tablebase.new(fen_after) do
+      {:ok, %Tablebase{checkmate: true}} ->
+        solve_attempt(socket)
+
       {:ok, %Tablebase{moves: [reply | _]}} ->
         {:noreply,
          socket
          |> assign(:awaiting_reply, true)
          |> push_event("opponent_move", reply_payload(reply))}
 
-      {:ok, %Tablebase{moves: []}} ->
-        # Terminal position (checkmate/stalemate): there is no reply to play.
+      {:ok, %Tablebase{}} ->
+        # Terminal non-mate position (stalemate/insufficient): no reply to play.
         {:noreply, socket}
 
       other ->
@@ -272,6 +306,47 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
          |> assign(:blocked_reason, blocked_reason(other))}
     end
   end
+
+  defp solve_attempt(socket) do
+    {:ok, endgame} = Endgames.record_solve(socket.assigns.endgame)
+
+    {:noreply,
+     socket
+     |> assign(:status, :solved)
+     |> assign(:endgame, endgame)
+     |> assign(:awaiting_reply, false)
+     |> assign(:best_move, nil)}
+  end
+
+  defp fail_attempt(socket) do
+    {:noreply,
+     socket
+     |> assign(:status, :failed)
+     |> assign(:awaiting_reply, false)
+     |> assign(:best_move, best_move_text(socket.assigns.tablebase))}
+  end
+
+  defp best_move_text(%Tablebase{category: category, moves: [best | _] = moves}) do
+    best_rank = outcome_rank(category)
+
+    if is_nil(best_rank) do
+      nil
+    else
+      san =
+        moves
+        |> Enum.filter(fn move ->
+          outcome_rank(mover_outcome(move.category)) == best_rank and move.dtz == best.dtz
+        end)
+        |> Enum.map(& &1.san)
+        |> Enum.reject(&is_nil/1)
+        |> Enum.take(3)
+        |> Enum.join(", ")
+
+      if san == "", do: nil, else: san
+    end
+  end
+
+  defp best_move_text(_tablebase), do: nil
 
   defp reply_payload(%Tablebase.Move{uci: uci, san: san}) do
     %{
