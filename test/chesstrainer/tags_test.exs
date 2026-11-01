@@ -21,11 +21,11 @@ defmodule Chesstrainer.TagsTest do
     end
 
     test "create_tag/1 with valid data creates a tag" do
-      valid_attrs = %{name: "some name", category: "some category"}
+      valid_attrs = %{name: "some name", category: :endgame}
 
       assert {:ok, %Tag{} = tag} = Tags.create_tag(valid_attrs)
       assert tag.name == "some name"
-      assert tag.category == "some category"
+      assert tag.category == :endgame
     end
 
     test "create_tag/1 with invalid data returns error changeset" do
@@ -34,11 +34,11 @@ defmodule Chesstrainer.TagsTest do
 
     test "update_tag/2 with valid data updates the tag" do
       tag = tag_fixture()
-      update_attrs = %{name: "some updated name", category: "some updated category"}
+      update_attrs = %{name: "some updated name", category: :opening}
 
       assert {:ok, %Tag{} = tag} = Tags.update_tag(tag, update_attrs)
       assert tag.name == "some updated name"
-      assert tag.category == "some updated category"
+      assert tag.category == :opening
     end
 
     test "update_tag/2 with invalid data returns error changeset" do

@@ -3,7 +3,7 @@ defmodule Chesstrainer.Endgames.Tablebase.Move do
   Moves struct for the tablebase
   """
 
-  @type result :: :win | :draw | :loss
+  @type result :: :win | :draw | :loss | :unknown
 
   @type t :: %__MODULE__{
           category: result,

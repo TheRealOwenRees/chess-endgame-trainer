@@ -16,7 +16,7 @@ defmodule Chesstrainer.TagsFixtures do
     {:ok, tag} =
       attrs
       |> Enum.into(%{
-        category: "some category",
+        category: :endgame,
         name: unique_tag_name()
       })
       |> Chesstrainer.Tags.create_tag()

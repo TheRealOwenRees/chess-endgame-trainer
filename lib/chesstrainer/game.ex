@@ -102,12 +102,7 @@ defmodule Chesstrainer.Game do
         game_type: game_type,
         fen: fen,
         game_state: :continue,
-        tablebase:
-          if game_type === :endgame do
-            Endgames.Tablebase.new(fen)
-          else
-            nil
-          end
+        tablebase: tablebase_for(fen, game_type)
       }
 
       {:ok, game}
@@ -140,6 +135,15 @@ defmodule Chesstrainer.Game do
         }
 
         {:error, :invalid_fen, game}
+    end
+  end
+
+  defp tablebase_for(_fen, game_type) when game_type != :endgame, do: nil
+
+  defp tablebase_for(fen, :endgame) do
+    case Endgames.Tablebase.new(fen) do
+      {:ok, tablebase} -> tablebase
+      _ -> nil
     end
   end
 end

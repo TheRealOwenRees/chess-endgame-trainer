@@ -27,6 +27,24 @@ defmodule Chesstrainer.Endgames.Tablebase do
             insufficient_material: false,
             moves: nil
 
+  @doc """
+  Normalises a Lichess tablebase category string into a trainer result.
+
+  `cursed-win` and `blessed-loss` are wins/losses only when the 50-move rule is
+  ignored, so they are draws in play. Unrecognised values become `:unknown`
+  rather than minting arbitrary atoms.
+  """
+  @spec normalize_category(term()) :: result()
+  def normalize_category(category) when category in ["win", "syzygy-win", "maybe-win"], do: :win
+
+  def normalize_category(category) when category in ["draw", "cursed-win", "blessed-loss"],
+    do: :draw
+
+  def normalize_category(category) when category in ["loss", "syzygy-loss", "maybe-loss"],
+    do: :loss
+
+  def normalize_category(_category), do: :unknown
+
   @spec new(String.t()) ::
           {:ok, t()}
           | {:cooldown, non_neg_integer()}
@@ -34,8 +52,8 @@ defmodule Chesstrainer.Endgames.Tablebase do
           | {:error, term()}
   def new(fen) do
     case Tablebase.Cache.get(fen) do
-      {_fen, tablebase} ->
-        {:cache, tablebase}
+      {:ok, tablebase} ->
+        {:ok, tablebase}
 
       _ ->
         case Tablebase.Parser.from_fen(fen) do

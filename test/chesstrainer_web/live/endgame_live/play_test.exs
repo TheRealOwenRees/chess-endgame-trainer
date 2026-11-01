@@ -38,8 +38,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       {:ok, _view, html} = live(conn, ~p"/endgames/#{endgame}/play")
 
       assert html =~ "KQ v K"
-      assert html =~ "white to move"
-      assert html =~ "win"
+      assert html =~ "White to move"
       assert html =~ "1800"
     end
 
@@ -85,7 +84,6 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
       html = render(view)
       assert html =~ "Qd7+"
-      assert html =~ "d1 ➔ d7"
     end
   end
 

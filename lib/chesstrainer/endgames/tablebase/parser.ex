@@ -41,7 +41,7 @@ defmodule Chesstrainer.Endgames.Tablebase.Parser do
   def from_map(map) do
     {:ok,
      %Tablebase{
-       category: map["category"] |> String.to_atom(),
+       category: Tablebase.normalize_category(map["category"]),
        checkmate: map["checkmate"],
        dtc: map["dtc"],
        dtm: map["dtm"],
@@ -54,7 +54,7 @@ defmodule Chesstrainer.Endgames.Tablebase.Parser do
 
   defp moves_from_map(map) do
     %Tablebase.Move{
-      category: map["category"] |> String.to_atom(),
+      category: Tablebase.normalize_category(map["category"]),
       checkmate: map["checkmate"],
       conversion: map["conversion"],
       dtc: map["dtc"],
