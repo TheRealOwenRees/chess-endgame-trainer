@@ -1,7 +1,7 @@
 defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
   use ChesstrainerWeb, :live_view
 
-  alias Chesstrainer.Endgames
+  import ChesstrainerWeb.EndgameList
 
   @impl true
   def render(assigns) do
@@ -12,18 +12,54 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
         <:subtitle>Pick an endgame to play.</:subtitle>
       </.header>
 
-      <.table
-        id="player-endgames"
-        rows={@streams.endgames}
-      >
-        <:col :let={{_id, endgame}} label="Key">{endgame.key}</:col>
-        <:col :let={{_id, endgame}} label="Color">{endgame.color}</:col>
-        <:col :let={{_id, endgame}} label="Result">{endgame.result}</:col>
-        <:col :let={{_id, endgame}} label="Rating">{endgame.rating}</:col>
-        <:action :let={{_id, endgame}}>
-          <.link navigate={~p"/endgames/#{endgame}/play"}>Play</.link>
-        </:action>
-      </.table>
+      <.filter_bar
+        selected_themes={@selected_themes}
+        theme_query={@theme_query}
+        theme_results={@theme_results}
+        keys={@keys}
+        selected_key={@selected_key}
+      />
+
+      <.grouped_list :if={@groups != []} groups={@groups}>
+        <:header>
+          <tr>
+            <th>Color</th>
+            <th>Result</th>
+            <th>Rating</th>
+            <th>Themes</th>
+            <th><span class="sr-only">Actions</span></th>
+          </tr>
+        </:header>
+
+        <:row :let={endgame}>
+          <tr id={"endgame-" <> endgame.id}>
+            <td phx-click={JS.navigate(~p"/endgames/#{endgame}/play")} class="hover:cursor-pointer">
+              {endgame.color}
+            </td>
+            <td phx-click={JS.navigate(~p"/endgames/#{endgame}/play")} class="hover:cursor-pointer">
+              {endgame.result}
+            </td>
+            <td phx-click={JS.navigate(~p"/endgames/#{endgame}/play")} class="hover:cursor-pointer">
+              {endgame.rating}
+            </td>
+            <td>
+              <span :for={theme <- endgame.themes} class="badge badge-sm">
+                <button type="button" phx-click="add_theme" phx-value-id={theme.id}>
+                  {theme.name}
+                </button>
+              </span>
+              <span :if={endgame.themes == []} class="text-base-content/50">None</span>
+            </td>
+            <td class="w-0 font-semibold">
+              <.link navigate={~p"/endgames/#{endgame}/play"}>Play</.link>
+            </td>
+          </tr>
+        </:row>
+      </.grouped_list>
+
+      <p :if={@groups == []} class="text-base-content/70">
+        No endgames match these filters.
+      </p>
     </Layouts.app>
     """
   end
@@ -33,6 +69,11 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
     {:ok,
      socket
      |> assign(:page_title, "Endgames")
-     |> stream(:endgames, Endgames.list_endgames())}
+     |> init_state()}
+  end
+
+  @impl true
+  def handle_event(event, params, socket) do
+    handle_filter_event(event, params, socket)
   end
 end
