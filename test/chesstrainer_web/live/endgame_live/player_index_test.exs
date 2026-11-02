@@ -16,6 +16,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
     {:ok, view, html} = live(conn, ~p"/endgames")
 
     assert html =~ "Endgames"
+    assert html =~ "max-w-7xl"
     assert has_element?(view, "#key-group-K-v-K")
     refute html =~ "Lucena"
 

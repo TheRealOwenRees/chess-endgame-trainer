@@ -11,10 +11,26 @@ defmodule ChesstrainerWeb.EndgameLive.IndexTest do
     endgame_fixture()
     endgame_fixture()
 
-    {:ok, view, _html} = live(conn, ~p"/admin/endgames")
+    {:ok, view, html} = live(conn, ~p"/admin/endgames")
 
+    assert html =~ "max-w-7xl"
     assert has_element?(view, "#key-group-K-v-K")
     assert has_element?(view, "#key-group-K-v-K .badge", "2")
+  end
+
+  test "trims the table to the key columns", %{conn: conn} do
+    endgame_fixture()
+
+    {:ok, view, _html} = live(conn, ~p"/admin/endgames")
+    view |> element("#key-group-K-v-K button") |> render_click()
+
+    for label <- ~w(Key Color Result Themes Rating) do
+      assert has_element?(view, "th", label)
+    end
+
+    for label <- ~w(Fen Message Notes Attempted Solved) do
+      refute has_element?(view, "th", label)
+    end
   end
 
   test "lazy-loads a group's endgames when expanded", %{conn: conn} do
@@ -25,13 +41,13 @@ defmodule ChesstrainerWeb.EndgameLive.IndexTest do
     {:ok, view, html} = live(conn, ~p"/admin/endgames")
 
     # collapsed: the endgame row (and its themes) are not rendered yet
-    refute html =~ endgame.fen
+    refute html =~ ~p"/endgames/#{endgame}/play"
     refute html =~ "Lucena"
 
     view |> element("#key-group-K-v-K button") |> render_click()
 
     html = render(view)
-    assert html =~ endgame.fen
+    assert html =~ ~p"/endgames/#{endgame}/play"
     assert html =~ "Lucena"
   end
 

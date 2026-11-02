@@ -25,7 +25,7 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
       |> assign(:game_type, :endgame)
 
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} wide>
       <.header>
         Endgame {@endgame.id}
         <:subtitle>This is a endgame record from your database.</:subtitle>

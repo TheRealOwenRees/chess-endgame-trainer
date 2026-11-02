@@ -93,6 +93,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert html =~ "KQ v K"
       assert html =~ "White to move"
       assert html =~ "1800"
+      assert html =~ "max-w-2xl"
     end
 
     test "raises when the endgame does not exist", %{conn: conn} do

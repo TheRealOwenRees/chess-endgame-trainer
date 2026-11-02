@@ -6,7 +6,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} wide>
       <.header>
         Endgames
         <:subtitle>Pick an endgame to play.</:subtitle>

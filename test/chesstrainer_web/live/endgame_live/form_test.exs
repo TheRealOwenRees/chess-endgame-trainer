@@ -13,7 +13,9 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
   test "creates an endgame with staged themes", %{conn: conn} do
     theme = theme_fixture(%{name: "Lucena"})
 
-    {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
+    {:ok, view, html} = live(conn, ~p"/admin/endgames/new")
+
+    assert html =~ "max-w-2xl"
 
     view |> form("#theme-form", %{theme_search: "Luc"}) |> render_change()
     view |> element("button", "Lucena") |> render_click()

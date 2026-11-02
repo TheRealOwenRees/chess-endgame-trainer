@@ -8,7 +8,7 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} wide>
       <.header>
         Listing Endgames
         <:actions>
@@ -29,16 +29,11 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
       <.grouped_list :if={@groups != []} groups={@groups}>
         <:header>
           <tr>
-            <th>Fen</th>
-            <th>Color</th>
             <th>Key</th>
-            <th>Rating</th>
-            <th>Message</th>
-            <th>Notes</th>
+            <th>Color</th>
             <th>Result</th>
             <th>Themes</th>
-            <th>Attempted</th>
-            <th>Solved</th>
+            <th>Rating</th>
             <th><span class="sr-only">Actions</span></th>
           </tr>
         </:header>
@@ -46,22 +41,10 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
         <:row :let={endgame}>
           <tr id={"endgame-" <> endgame.id}>
             <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
-              {endgame.fen}
-            </td>
-            <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
-              {endgame.color}
-            </td>
-            <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
               {endgame.key}
             </td>
             <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
-              {endgame.rating}
-            </td>
-            <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
-              {endgame.message}
-            </td>
-            <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
-              {endgame.notes}
+              {endgame.color}
             </td>
             <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
               {endgame.result}
@@ -75,10 +58,7 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
               <span :if={endgame.themes == []} class="text-base-content/50">None</span>
             </td>
             <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
-              {endgame.times_attempted}
-            </td>
-            <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
-              {endgame.times_solved}
+              {endgame.rating}
             </td>
             <td class="w-0 font-semibold">
               <div class="flex gap-4">
