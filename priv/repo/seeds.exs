@@ -12,7 +12,7 @@
 
 alias Chesstrainer.Repo
 alias Chesstrainer.Endgames.Endgame
-alias Chesstrainer.Tags.Tag
+alias Chesstrainer.Themes.Theme
 
 now = DateTime.utc_now() |> DateTime.truncate(:second)
 
@@ -49,7 +49,7 @@ Repo.insert_all(
 
 IO.puts("✅ Done seeding endgames.")
 
-IO.puts("🌱 Seeding endgame tags into DB...")
+IO.puts("🌱 Seeding endgame themes into DB...")
 
 theme_names = [
   "mate in 2",
@@ -62,11 +62,11 @@ theme_names = [
 ]
 
 Repo.insert_all(
-  Tag,
+  Theme,
   Enum.map(theme_names, fn name ->
     %{name: name, category: :endgame, inserted_at: now, updated_at: now}
   end),
   on_conflict: :nothing
 )
 
-IO.puts("✅ Done seeding endgame tags.")
+IO.puts("✅ Done seeding endgame themes.")

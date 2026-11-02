@@ -20,8 +20,8 @@ defmodule Chesstrainer.Endgames.Endgame do
     field :times_attempted, :integer
     field :times_solved, :integer
 
-    many_to_many :tags, Chesstrainer.Tags.Tag,
-      join_through: "endgames_tags",
+    many_to_many :themes, Chesstrainer.Themes.Theme,
+      join_through: "endgames_themes",
       on_replace: :delete
 
     timestamps(type: :utc_datetime)

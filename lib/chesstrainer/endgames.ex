@@ -49,10 +49,10 @@ defmodule Chesstrainer.Endgames do
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_endgame(attrs, tags \\ []) do
+  def create_endgame(attrs, themes \\ []) do
     %Endgame{}
     |> Endgame.changeset(attrs)
-    |> Ecto.Changeset.put_assoc(:tags, tags)
+    |> Ecto.Changeset.put_assoc(:themes, themes)
     |> Repo.insert()
   end
 
@@ -68,14 +68,14 @@ defmodule Chesstrainer.Endgames do
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_endgame(%Endgame{} = endgame, attrs, tags \\ []) do
+  def update_endgame(%Endgame{} = endgame, attrs, themes \\ []) do
     # ignore fen on update
     attrs = Map.delete(attrs, "fen")
 
     endgame
-    |> Repo.preload(:tags)
+    |> Repo.preload(:themes)
     |> Endgame.changeset(attrs)
-    |> Ecto.Changeset.put_assoc(:tags, tags)
+    |> Ecto.Changeset.put_assoc(:themes, themes)
     |> Repo.update()
   end
 

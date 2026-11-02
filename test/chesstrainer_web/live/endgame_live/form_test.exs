@@ -2,20 +2,20 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
   use ChesstrainerWeb.ConnCase
 
   import Phoenix.LiveViewTest
-  import Chesstrainer.TagsFixtures
+  import Chesstrainer.ThemesFixtures
 
   alias Chesstrainer.Endgames
   alias Chesstrainer.Repo
-  alias Chesstrainer.Tags
+  alias Chesstrainer.Themes
 
   @fen "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
 
   test "creates an endgame with staged themes", %{conn: conn} do
-    tag = tag_fixture(%{name: "Lucena"})
+    theme = theme_fixture(%{name: "Lucena"})
 
     {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
 
-    view |> form("#theme-form", %{tag_search: "Luc"}) |> render_change()
+    view |> form("#theme-form", %{theme_search: "Luc"}) |> render_change()
     view |> element("button", "Lucena") |> render_click()
 
     view
@@ -29,21 +29,21 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
     endgame =
       Endgames.list_endgames()
       |> Enum.find(&(&1.fen == @fen))
-      |> Repo.preload(:tags)
+      |> Repo.preload(:themes)
 
-    assert Enum.map(endgame.tags, & &1.id) == [tag.id]
+    assert Enum.map(endgame.themes, & &1.id) == [theme.id]
   end
 
   test "attaches multiple themes", %{conn: conn} do
-    tag_fixture(%{name: "Lucena"})
-    tag_fixture(%{name: "Philidor"})
+    theme_fixture(%{name: "Lucena"})
+    theme_fixture(%{name: "Philidor"})
 
     {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
 
-    view |> form("#theme-form", %{tag_search: "Luc"}) |> render_change()
+    view |> form("#theme-form", %{theme_search: "Luc"}) |> render_change()
     view |> element("button", "Lucena") |> render_click()
 
-    view |> form("#theme-form", %{tag_search: "Phil"}) |> render_change()
+    view |> form("#theme-form", %{theme_search: "Phil"}) |> render_change()
     view |> element("button", "Philidor") |> render_click()
 
     html = render(view)
@@ -54,16 +54,16 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
   test "creates and attaches a new theme inline", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
 
-    view |> form("#theme-form", %{tag_search: "Lucerne"}) |> render_submit()
+    view |> form("#theme-form", %{theme_search: "Lucerne"}) |> render_submit()
 
     assert render(view) =~ "Lucerne"
-    assert [%{name: "Lucerne"}] = Tags.search("Lucerne", "endgame")
+    assert [%{name: "Lucerne"}] = Themes.search("Lucerne", "endgame")
   end
 
   test "removes a theme from an existing endgame", %{conn: conn} do
-    tag = tag_fixture(%{name: "Lucena"})
+    theme = theme_fixture(%{name: "Lucena"})
     attrs = %{fen: @fen, color: :white, key: "KR v K", result: :win, rating: 1500}
-    {:ok, endgame} = Endgames.create_endgame(attrs, [tag])
+    {:ok, endgame} = Endgames.create_endgame(attrs, [theme])
 
     {:ok, view, _html} = live(conn, ~p"/admin/endgames/#{endgame}/edit")
 
@@ -77,7 +77,7 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
 
     assert_redirect(view, ~p"/admin/endgames")
 
-    updated = Endgames.get_endgame!(endgame.id) |> Repo.preload(:tags)
-    assert updated.tags == []
+    updated = Endgames.get_endgame!(endgame.id) |> Repo.preload(:themes)
+    assert updated.themes == []
   end
 end

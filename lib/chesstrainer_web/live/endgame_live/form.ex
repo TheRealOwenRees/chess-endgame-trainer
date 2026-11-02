@@ -2,7 +2,7 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
   use ChesstrainerWeb, :live_view
 
   alias Chesstrainer.Repo
-  alias Chesstrainer.Tags
+  alias Chesstrainer.Themes
   alias Chesstrainer.FEN
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Endgame
@@ -22,14 +22,14 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
         </label>
 
         <div class="flex flex-wrap gap-2 mb-2">
-          <%= for tag <- @selected_tags do %>
+          <%= for theme <- @selected_themes do %>
             <span class="badge badge-primary gap-1">
-              {tag.name}
+              {theme.name}
               <button
                 type="button"
-                phx-click="remove_tag"
-                phx-value-id={tag.id}
-                aria-label={"Remove #{tag.name}"}
+                phx-click="remove_theme"
+                phx-value-id={theme.id}
+                aria-label={"Remove #{theme.name}"}
               >
                 ×
               </button>
@@ -39,13 +39,13 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
 
         <form
           id="theme-form"
-          phx-change="search_tags"
-          phx-submit="create_tag_from_search"
+          phx-change="search_themes"
+          phx-submit="create_theme_from_search"
         >
           <input
             type="text"
-            name="tag_search"
-            value={@tag_query}
+            name="theme_search"
+            value={@theme_query}
             phx-debounce="200"
             autocomplete="off"
             placeholder="Search or create a theme…"
@@ -53,16 +53,16 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
           />
 
           <ul class="menu bg-base-100 rounded-box mt-2">
-            <%= for tag <- @tag_results do %>
+            <%= for theme <- @theme_results do %>
               <li>
-                <button type="button" phx-click="add_tag" phx-value-id={tag.id}>{tag.name}</button>
+                <button type="button" phx-click="add_theme" phx-value-id={theme.id}>{theme.name}</button>
               </li>
             <% end %>
 
             <%= if @can_create do %>
               <li>
-                <button type="button" phx-click="create_tag" phx-value-name={@tag_query}>
-                  Create theme "{String.trim(@tag_query)}"
+                <button type="button" phx-click="create_theme" phx-value-name={@theme_query}>
+                  Create theme "{String.trim(@theme_query)}"
                 </button>
               </li>
             <% end %>
@@ -108,14 +108,14 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
   defp return_to(_), do: "index"
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    endgame = Endgames.get_endgame!(id) |> Repo.preload(:tags)
+    endgame = Endgames.get_endgame!(id) |> Repo.preload(:themes)
 
     socket
     |> assign(:page_title, "Edit Endgame")
     |> assign(:endgame, endgame)
-    |> assign(:selected_tags, endgame.tags)
-    |> assign(:tag_query, "")
-    |> assign(:tag_results, [])
+    |> assign(:selected_themes, endgame.themes)
+    |> assign(:theme_query, "")
+    |> assign(:theme_results, [])
     |> assign(:can_create, false)
     |> assign(:form, to_form(Endgames.change_endgame(endgame)))
   end
@@ -126,34 +126,34 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
     socket
     |> assign(:page_title, "New Endgame")
     |> assign(:endgame, endgame)
-    |> assign(:selected_tags, [])
-    |> assign(:tag_query, "")
-    |> assign(:tag_results, [])
+    |> assign(:selected_themes, [])
+    |> assign(:theme_query, "")
+    |> assign(:theme_results, [])
     |> assign(:can_create, false)
     |> assign(:form, to_form(Endgames.change_endgame(endgame)))
   end
 
   @impl true
-  def handle_event("search_tags", %{"tag_search" => query}, socket) do
+  def handle_event("search_themes", %{"theme_search" => query}, socket) do
     {:noreply, assign_search(socket, query)}
   end
 
-  def handle_event("add_tag", %{"id" => id}, socket) do
-    tag = Tags.get_tag!(id)
-    {:noreply, socket |> add_selected_tag(tag) |> clear_search()}
+  def handle_event("add_theme", %{"id" => id}, socket) do
+    theme = Themes.get_theme!(id)
+    {:noreply, socket |> add_selected_theme(theme) |> clear_search()}
   end
 
-  def handle_event("create_tag", %{"name" => name}, socket) do
+  def handle_event("create_theme", %{"name" => name}, socket) do
     {:noreply, create_theme(socket, name)}
   end
 
-  def handle_event("create_tag_from_search", %{"tag_search" => name}, socket) do
+  def handle_event("create_theme_from_search", %{"theme_search" => name}, socket) do
     {:noreply, create_theme(socket, name)}
   end
 
-  def handle_event("remove_tag", %{"id" => id}, socket) do
-    selected = Enum.reject(socket.assigns.selected_tags, &(Integer.to_string(&1.id) == id))
-    {:noreply, assign(socket, :selected_tags, selected)}
+  def handle_event("remove_theme", %{"id" => id}, socket) do
+    selected = Enum.reject(socket.assigns.selected_themes, &(Integer.to_string(&1.id) == id))
+    {:noreply, assign(socket, :selected_themes, selected)}
   end
 
   def handle_event("validate", %{"endgame" => endgame_params}, socket) do
@@ -176,7 +176,7 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
     case Endgames.update_endgame(
            socket.assigns.endgame,
            endgame_params,
-           socket.assigns.selected_tags
+           socket.assigns.selected_themes
          ) do
       {:ok, endgame} ->
         {:noreply,
@@ -193,7 +193,7 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
     color = FEN.color_from_fen(endgame_params["fen"])
     params = Map.put(endgame_params, "color", color)
 
-    case Endgames.create_endgame(params, socket.assigns.selected_tags) do
+    case Endgames.create_endgame(params, socket.assigns.selected_themes) do
       {:ok, endgame} ->
         {:noreply,
          socket
@@ -207,15 +207,15 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
 
   defp assign_search(socket, query) do
     trimmed = String.trim(query)
-    results = Tags.search(query, "endgame")
+    results = Themes.search(query, "endgame")
 
     can_create =
       trimmed != "" and
         not Enum.any?(results, &(String.downcase(&1.name) == String.downcase(trimmed)))
 
     socket
-    |> assign(:tag_query, query)
-    |> assign(:tag_results, results)
+    |> assign(:theme_query, query)
+    |> assign(:theme_results, results)
     |> assign(:can_create, can_create)
   end
 
@@ -223,8 +223,8 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
     if String.trim(name) == "" do
       socket
     else
-      case Tags.get_or_create(name, "endgame") do
-        {:ok, tag} -> socket |> add_selected_tag(tag) |> clear_search()
+      case Themes.get_or_create(name, "endgame") do
+        {:ok, theme} -> socket |> add_selected_theme(theme) |> clear_search()
         {:error, _reason} -> put_flash(socket, :error, "Could not create that theme.")
       end
     end
@@ -232,16 +232,16 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
 
   defp clear_search(socket) do
     socket
-    |> assign(:tag_query, "")
-    |> assign(:tag_results, [])
+    |> assign(:theme_query, "")
+    |> assign(:theme_results, [])
     |> assign(:can_create, false)
   end
 
-  defp add_selected_tag(socket, tag) do
-    if Enum.any?(socket.assigns.selected_tags, &(&1.id == tag.id)) do
+  defp add_selected_theme(socket, theme) do
+    if Enum.any?(socket.assigns.selected_themes, &(&1.id == theme.id)) do
       socket
     else
-      assign(socket, :selected_tags, socket.assigns.selected_tags ++ [tag])
+      assign(socket, :selected_themes, socket.assigns.selected_themes ++ [theme])
     end
   end
 

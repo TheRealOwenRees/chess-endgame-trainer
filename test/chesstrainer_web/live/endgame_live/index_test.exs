@@ -3,14 +3,14 @@ defmodule ChesstrainerWeb.EndgameLive.IndexTest do
 
   import Phoenix.LiveViewTest
   import Chesstrainer.EndgamesFixtures
-  import Chesstrainer.TagsFixtures
+  import Chesstrainer.ThemesFixtures
 
   alias Chesstrainer.Endgames
 
   test "lists an endgame's themes", %{conn: conn} do
-    tag = tag_fixture(%{name: "Lucena"})
+    theme = theme_fixture(%{name: "Lucena"})
     endgame = endgame_fixture()
-    {:ok, _endgame} = Endgames.update_endgame(endgame, %{}, [tag])
+    {:ok, _endgame} = Endgames.update_endgame(endgame, %{}, [theme])
 
     {:ok, _view, html} = live(conn, ~p"/admin/endgames")
 

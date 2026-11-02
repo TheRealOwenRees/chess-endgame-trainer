@@ -3,7 +3,7 @@ defmodule Chesstrainer.EndgamesTest do
 
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Endgame
-  alias Chesstrainer.Tags
+  alias Chesstrainer.Themes
 
   describe "create_endgame/1 FEN validation" do
     test "accepts a standard valid FEN" do
@@ -87,9 +87,9 @@ defmodule Chesstrainer.EndgamesTest do
     end
   end
 
-  describe "tags" do
+  describe "themes" do
     test "create_endgame/2 associates themes" do
-      {:ok, tag} = Tags.create_tag(%{name: "Lucena", category: :endgame})
+      {:ok, theme} = Themes.create_theme(%{name: "Lucena", category: :endgame})
 
       attrs = %{
         fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1",
@@ -99,13 +99,13 @@ defmodule Chesstrainer.EndgamesTest do
         rating: 1500
       }
 
-      assert {:ok, endgame} = Endgames.create_endgame(attrs, [tag])
-      assert Enum.map(endgame.tags, & &1.id) == [tag.id]
+      assert {:ok, endgame} = Endgames.create_endgame(attrs, [theme])
+      assert Enum.map(endgame.themes, & &1.id) == [theme.id]
     end
 
     test "update_endgame/3 replaces themes" do
-      {:ok, lucena} = Tags.create_tag(%{name: "Lucena", category: :endgame})
-      {:ok, philidor} = Tags.create_tag(%{name: "Philidor", category: :endgame})
+      {:ok, lucena} = Themes.create_theme(%{name: "Lucena", category: :endgame})
+      {:ok, philidor} = Themes.create_theme(%{name: "Philidor", category: :endgame})
 
       attrs = %{
         fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 1",
@@ -117,7 +117,7 @@ defmodule Chesstrainer.EndgamesTest do
 
       assert {:ok, endgame} = Endgames.create_endgame(attrs, [lucena])
       assert {:ok, updated} = Endgames.update_endgame(endgame, %{rating: 1600}, [philidor])
-      assert Enum.map(updated.tags, & &1.id) == [philidor.id]
+      assert Enum.map(updated.themes, & &1.id) == [philidor.id]
     end
   end
 end
