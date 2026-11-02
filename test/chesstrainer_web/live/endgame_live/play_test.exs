@@ -57,6 +57,57 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     })
   end
 
+  # Plays one optimal move, applies the opponent's reply, then a losing move,
+  # leaving a three-ply failed attempt to review.
+  defp seeded_attempt(conn) do
+    endgame = endgame_fixture()
+
+    after_first = "8/8/8/8/8/8/8/8 b - - 0 1"
+    after_reply = "8/8/8/8/8/8/8/8 w - - 0 1"
+    after_losing = "8/8/8/8/8/8/8/8 b - - 1 1"
+    reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :loss, dtz: -3}
+
+    seed_tablebase(endgame.fen, moves: grading_moves())
+    seed_tablebase(after_first, category: :loss, moves: [reply])
+    seed_tablebase(after_reply, category: :win, moves: grading_moves())
+
+    {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+    %{proxy: {ref, _topic, _}} = view
+    assert_receive {^ref, {:push_event, "init_board", _payload}}, 100
+
+    render_hook(view, "endgame_move_played", %{
+      "from" => "d1",
+      "to" => "d7",
+      "san" => "Qd7+",
+      "prev_fen" => endgame.fen,
+      "fen" => after_first,
+      "endgame_id" => endgame.id
+    })
+
+    render_hook(view, "opponent_reply_applied", %{"fen" => after_reply})
+
+    assert_receive {^ref, {:push_event, "opponent_move", _payload}}, 100
+    assert_receive {^ref, {:push_event, "resume_board", _payload}}, 100
+
+    render_hook(view, "endgame_move_played", %{
+      "from" => "d1",
+      "to" => "d4",
+      "san" => "Qd4",
+      "prev_fen" => after_reply,
+      "fen" => after_losing,
+      "endgame_id" => endgame.id
+    })
+
+    {view,
+     %{
+       start: endgame.fen,
+       after_first: after_first,
+       after_reply: after_reply,
+       after_losing: after_losing
+     }}
+  end
+
   describe "mount" do
     test "renders the chessboard hook div and pushes init_board", %{conn: conn} do
       endgame = endgame_fixture(color: :white)
@@ -432,6 +483,171 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       refute html =~ "Optimal move"
       assert_init_board(view, endgame.fen, "white", "white")
       assert Endgames.get_endgame!(endgame.id).times_attempted == 2
+    end
+  end
+
+  describe "full move list" do
+    test "shows the opponent's reply alongside the user's moves", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      html = render(view)
+      assert html =~ "Qd7+"
+      assert html =~ "Ke7"
+      assert html =~ "Qd4"
+    end
+
+    test "colours the user's plies by grade", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      html = render(view)
+      assert html =~ ~s(data-grade="optimal")
+      assert html =~ ~s(data-grade="losing")
+    end
+
+    test "uses draw-aware wording for draw attempts", %{conn: conn} do
+      endgame = endgame_fixture(result: :draw)
+
+      moves = [
+        %Tablebase.Move{uci: "d1d7", san: "Qd7", category: :draw, dtz: 0},
+        %Tablebase.Move{uci: "d1d5", san: "Qd5", category: :draw, dtz: -5}
+      ]
+
+      seed_tablebase(endgame.fen, category: :draw, moves: moves)
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d5",
+        "san" => "Qd5",
+        "prev_fen" => endgame.fen,
+        "fen" => endgame.fen,
+        "endgame_id" => endgame.id
+      })
+
+      html = render(view)
+      assert html =~ "Keeps the draw"
+      refute html =~ "Winning — but not the sharpest"
+    end
+  end
+
+  describe "review" do
+    test "enters review after a failed attempt at the final position", %{conn: conn} do
+      {view, fens} = seeded_attempt(conn)
+
+      assert has_element?(view, "button", "Review")
+
+      view |> element("button", "Review") |> render_click()
+
+      %{proxy: {ref, _topic, _}} = view
+      assert_receive {^ref, {:push_event, "review_position", %{fen: fen}}}, 100
+      assert fen == fens.after_losing
+      assert has_element?(view, "#review-controls")
+    end
+
+    test "offers review after a solved attempt", %{conn: conn} do
+      endgame = endgame_fixture()
+      moves = [%Tablebase.Move{uci: "a7a8q", san: "a8=Q", category: :loss, dtz: -1}]
+      seed_tablebase(endgame.fen, moves: moves)
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "a7",
+        "to" => "a8",
+        "san" => "a8=Q",
+        "promotion" => "q",
+        "prev_fen" => endgame.fen,
+        "fen" => endgame.fen,
+        "endgame_id" => endgame.id
+      })
+
+      assert has_element?(view, "button", "Review")
+    end
+
+    test "steps through positions with prev/next and clamps at the ends", %{conn: conn} do
+      {view, fens} = seeded_attempt(conn)
+
+      view |> element("button", "Review") |> render_click()
+
+      %{proxy: {ref, _topic, _}} = view
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: after_losing}}}, 100
+      assert after_losing == fens.after_losing
+
+      render_hook(view, "review_prev", %{})
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: after_reply}}}, 100
+      assert after_reply == fens.after_reply
+
+      render_hook(view, "review_prev", %{})
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: after_first}}}, 100
+      assert after_first == fens.after_first
+
+      render_hook(view, "review_prev", %{})
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: start}}}, 100
+      assert start == fens.start
+
+      # Bounded at the start of the game.
+      render_hook(view, "review_prev", %{})
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: still_start}}}, 100
+      assert still_start == fens.start
+
+      render_hook(view, "review_next", %{})
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: back}}}, 100
+      assert back == fens.after_first
+    end
+
+    test "clicking a ply jumps to its position", %{conn: conn} do
+      {view, fens} = seeded_attempt(conn)
+
+      view |> element("button", "Review") |> render_click()
+
+      %{proxy: {ref, _topic, _}} = view
+
+      # Consume the position pushed on entering review.
+      assert_receive {^ref, {:push_event, "review_position", _payload}}, 100
+
+      view |> element("button", "Ke7") |> render_click()
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: fen}}}, 100
+      assert fen == fens.after_reply
+    end
+
+    test "try again exits review and starts a fresh attempt", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      view |> element("button", "Review") |> render_click()
+      assert has_element?(view, "#review-controls")
+
+      view |> element("button", "Try again") |> render_click()
+
+      refute has_element?(view, "#review-controls")
+      assert render(view) =~ "No Moves"
+
+      %{proxy: {ref, _topic, _}} = view
+      assert_receive {^ref, {:push_event, "init_board", _payload}}, 100
+    end
+
+    test "ignores moves while reviewing", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      view |> element("button", "Review") |> render_click()
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "a1",
+        "to" => "a2",
+        "san" => "Ka2",
+        "prev_fen" => "8/8/8/8/8/8/8/8 b - - 1 1",
+        "fen" => "8/8/8/8/8/8/8/8 w - - 1 2",
+        "endgame_id" => "ignored"
+      })
+
+      refute render(view) =~ "Ka2"
     end
   end
 end

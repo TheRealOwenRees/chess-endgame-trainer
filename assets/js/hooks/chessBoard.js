@@ -6,10 +6,31 @@ export const ChessBoard = {
     this.chess = new Chess();
     this.ground = null;
     this.playerColor = "white";
+    this.reviewing = false;
 
     this.handleEvent("init_board", (payload) => {
+      this.reviewing = false;
       this.initBoard(payload);
     });
+
+    this.handleEvent("review_position", ({ fen }) => {
+      this.reviewing = true;
+      this.showReviewPosition(fen);
+    });
+
+    this.handleKeyDown = (event) => {
+      if (!this.reviewing) return;
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        this.pushEvent("review_prev", {});
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        this.pushEvent("review_next", {});
+      }
+    };
+
+    window.addEventListener("keydown", this.handleKeyDown);
 
     this.handleEvent("set_fen", ({ fen }) => {
       try {
@@ -50,6 +71,29 @@ export const ChessBoard = {
       fen: this.chess.fen(),
       orientation: "white",
       player_color: "white",
+    });
+  },
+
+  destroyed() {
+    window.removeEventListener("keydown", this.handleKeyDown);
+  },
+
+  showReviewPosition(fen) {
+    if (!this.ground) return;
+
+    try {
+      this.chess.load(fen);
+    } catch (error) {
+      console.error("Invalid review FEN from server:", fen, error);
+      return;
+    }
+
+    const turnColor = this.chess.turn() === "w" ? "white" : "black";
+
+    this.ground.set({
+      fen: this.chess.fen(),
+      turnColor,
+      movable: { color: null, dests: new Map() },
     });
   },
 
