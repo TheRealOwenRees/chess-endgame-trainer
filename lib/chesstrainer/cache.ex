@@ -8,6 +8,9 @@ defmodule Chesstrainer.Cache do
   every frequency so entries that were used heavily once but have not been used
   since eventually age out.
 
+  A daily backup runs off the cache process at a configurable UTC time, so reads
+  and writes stay responsive while the snapshot is written.
+
   ## Examples
 
       iex> start_link(:tablebase)
@@ -15,11 +18,15 @@ defmodule Chesstrainer.Cache do
 
   use GenServer
 
-  @default_max_size 1000
-  @default_sweep_interval :timer.hours(24 * 7)
-  @backup_interval_minutes 60
+  alias Chesstrainer.Cache.Backup
+  alias Chesstrainer.Cache.Persist
 
-  def start_link(table), do: start_link(table, [])
+  @default_max_size 100_000
+  @default_sweep_interval :timer.hours(24 * 7)
+
+  def start_link(table) when is_atom(table), do: start_link(table, [])
+
+  def start_link({table, opts}), do: start_link(table, opts)
 
   def start_link(table, opts) when is_list(opts) do
     GenServer.start_link(__MODULE__, {table, opts}, name: via_tuple(table))
@@ -28,7 +35,7 @@ defmodule Chesstrainer.Cache do
   def put(table, key, value), do: GenServer.call(via_tuple(table), {:put, key, value})
   def get(table, key), do: GenServer.call(via_tuple(table), {:get, key})
   def delete(table, key), do: GenServer.call(via_tuple(table), {:delete, key})
-  def backup(table), do: GenServer.call(via_tuple(table), :backup)
+  def backup(table), do: Persist.backup(table)
   def sweep(table), do: GenServer.call(via_tuple(table), :sweep)
 
   def show(table) do
@@ -43,18 +50,20 @@ defmodule Chesstrainer.Cache do
     state = %{
       table: table,
       max_size: Keyword.get(opts, :max_size, @default_max_size),
-      sweep_interval: Keyword.get(opts, :sweep_interval, @default_sweep_interval)
+      sweep_interval: Keyword.get(opts, :sweep_interval, @default_sweep_interval),
+      backup_time: Backup.time!(Keyword.get(opts, :backup_time)),
+      backup_fun: Keyword.get(opts, :backup_fun, &Persist.backup/1),
+      backup_timer: nil
     }
 
     # Create and restore synchronously so the cache is never observed empty
     # between `start_link/1` returning and the restore finishing.
     create_table(table)
-    __MODULE__.Persist.restore(table)
+    Persist.restore(table)
     __MODULE__.Evict.evict(table, state.max_size)
-    :timer.send_interval(:timer.minutes(@backup_interval_minutes), :backup)
     :timer.send_interval(state.sweep_interval, :sweep)
 
-    {:ok, state}
+    {:ok, schedule_backup(state)}
   end
 
   @impl true
@@ -88,12 +97,6 @@ defmodule Chesstrainer.Cache do
   end
 
   @impl true
-  def handle_call(:backup, _from, state) do
-    __MODULE__.Persist.backup(state.table)
-    {:reply, :ok, state}
-  end
-
-  @impl true
   def handle_call(:sweep, _from, state) do
     __MODULE__.Sweep.halve_frequencies(state.table)
     {:reply, :ok, state}
@@ -101,14 +104,26 @@ defmodule Chesstrainer.Cache do
 
   @impl true
   def handle_info(:backup, state) do
-    __MODULE__.Persist.backup(state.table)
-    {:noreply, state}
+    run_backup(state)
+    {:noreply, schedule_backup(state)}
   end
 
   @impl true
   def handle_info(:sweep, state) do
     __MODULE__.Sweep.halve_frequencies(state.table)
     {:noreply, state}
+  end
+
+  defp run_backup(state) do
+    table = state.table
+    backup_fun = state.backup_fun
+
+    Task.Supervisor.start_child(Chesstrainer.Cache.BackupSupervisor, fn -> backup_fun.(table) end)
+  end
+
+  defp schedule_backup(state) do
+    timer = Process.send_after(self(), :backup, Backup.next_delay(state.backup_time))
+    %{state | backup_timer: timer}
   end
 
   defp via_tuple(table), do: {:via, Registry, {Chesstrainer.CacheRegistry, table}}

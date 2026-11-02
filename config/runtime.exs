@@ -20,6 +20,24 @@ if System.get_env("PHX_SERVER") do
   config :chesstrainer, ChesstrainerWeb.Endpoint, server: true
 end
 
+# Tablebase cache: size and the UTC time of the daily backup. Environment
+# variables win over the defaults in config/config.exs so deployments can tune
+# the cache without a rebuild.
+cache_config = Application.get_env(:chesstrainer, Chesstrainer.Cache, [])
+
+cache_max_size =
+  case System.get_env("TABLEBASE_CACHE_MAX_SIZE") do
+    nil -> Keyword.get(cache_config, :max_size, 100_000)
+    value -> String.to_integer(value)
+  end
+
+cache_backup_time =
+  System.get_env("TABLEBASE_BACKUP_TIME") || Keyword.get(cache_config, :backup_time, {3, 0})
+
+config :chesstrainer, Chesstrainer.Cache,
+  max_size: cache_max_size,
+  backup_time: cache_backup_time
+
 config :chesstrainer, ChesstrainerWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 

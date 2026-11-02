@@ -58,6 +58,12 @@ config :tailwind,
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
+# Configure the tablebase cache: maximum entries and the UTC time of the daily
+# backup. Both can be overridden with environment variables at runtime.
+config :chesstrainer, Chesstrainer.Cache,
+  max_size: 100_000,
+  backup_time: {3, 0}
+
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",

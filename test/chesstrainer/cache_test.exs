@@ -37,6 +37,31 @@ defmodule Chesstrainer.CacheTest do
     end
   end
 
+  describe "configuration" do
+    test "defaults to a max size of 100_000", %{pid: pid} do
+      assert :sys.get_state(pid).max_size == 100_000
+    end
+
+    test "starts from a {table, opts} child spec argument" do
+      table = :"test_child_spec_#{System.unique_integer([:positive])}"
+      {:ok, pid} = Cache.start_link({table, max_size: 3})
+      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+
+      assert :sys.get_state(pid).max_size == 3
+    end
+
+    test "the application starts the tablebase cache with the configured options" do
+      config = Application.get_env(:chesstrainer, Chesstrainer.Cache, [])
+      pid = GenServer.whereis({:via, Registry, {Chesstrainer.CacheRegistry, :tablebase}})
+      state = :sys.get_state(pid)
+
+      assert state.max_size == Keyword.get(config, :max_size, 100_000)
+
+      assert state.backup_time ==
+               Chesstrainer.Cache.Backup.time!(Keyword.get(config, :backup_time))
+    end
+  end
+
   describe "frequency tracking" do
     test "get/2 increments the entry frequency", %{table: table} do
       Cache.put(table, "key", "value")
@@ -92,7 +117,103 @@ defmodule Chesstrainer.CacheTest do
     end
   end
 
+  describe "backup" do
+    test "runs off the cache process so reads and writes stay responsive" do
+      table = :"test_async_backup_#{System.unique_integer([:positive])}"
+      parent = self()
+      ref = make_ref()
+
+      backup_fun = fn _table ->
+        send(parent, {:backup_started, ref, self()})
+
+        receive do
+          {:finish_backup, ^ref} -> :ok
+        end
+      end
+
+      {:ok, pid} = Cache.start_link(table, backup_fun: backup_fun)
+      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+
+      assert :ok = Cache.put(table, "key", "value")
+
+      send(pid, :backup)
+
+      assert_receive {:backup_started, ^ref, backup_pid}, 1_000
+      backup_monitor = Process.monitor(backup_pid)
+
+      assert {:ok, "value"} = Cache.get(table, "key")
+      assert :ok = Cache.put(table, "other", "value")
+
+      send(backup_pid, {:finish_backup, ref})
+      assert_receive {:DOWN, ^backup_monitor, :process, ^backup_pid, :normal}, 1_000
+    end
+
+    test "re-arms the daily backup after each run" do
+      table = :"test_rearm_#{System.unique_integer([:positive])}"
+      {:ok, pid} = Cache.start_link(table, backup_fun: fn _table -> :ok end, backup_time: "04:30")
+      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+
+      send(pid, :backup)
+
+      state = :sys.get_state(pid)
+
+      assert state.backup_time == {4, 30}
+      assert is_reference(state.backup_timer)
+      assert :erlang.read_timer(state.backup_timer) > 0
+    end
+  end
+
   describe "persistence" do
+    test "writes the backup atomically, leaving no temporary file" do
+      table = :"test_atomic_#{System.unique_integer([:positive])}"
+      backup = Path.join("priv/static/backups", "#{table}.v2.det")
+
+      on_exit(fn ->
+        File.rm_rf(backup <> ".tmp")
+        File.rm(backup)
+      end)
+
+      {:ok, pid} = Cache.start_link(table)
+      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+
+      Cache.put(table, "key", "value")
+
+      assert :ok = Cache.backup(table)
+      assert File.exists?(backup)
+      refute File.exists?(backup <> ".tmp")
+    end
+
+    test "a failed backup leaves the previous backup intact" do
+      table = :"test_failed_backup_#{System.unique_integer([:positive])}"
+      backup = Path.join("priv/static/backups", "#{table}.v2.det")
+      temp = backup <> ".tmp"
+
+      on_exit(fn ->
+        File.rm_rf(temp)
+        File.rm(backup)
+      end)
+
+      {:ok, pid} = Cache.start_link(table)
+      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+
+      Cache.put(table, "key", "value")
+      assert :ok = Cache.backup(table)
+
+      # A directory at the temporary path makes the write fail before the rename.
+      File.mkdir_p!(temp)
+      Cache.put(table, "another", "value")
+
+      assert {:error, _reason} = Cache.Persist.backup(table)
+      assert File.exists?(backup)
+      assert :ok = GenServer.stop(pid)
+
+      {:ok, restored_pid} = Cache.start_link(table)
+      on_exit(fn -> if Process.alive?(restored_pid), do: GenServer.stop(restored_pid) end)
+
+      assert {:ok, "value"} = Cache.get(table, "key")
+      assert :error = Cache.get(table, "another")
+    end
+
     test "backup and restore preserve frequencies" do
       table = :"test_persist_#{System.unique_integer([:positive])}"
       backup = Path.join("priv/static/backups", "#{table}.v2.det")
