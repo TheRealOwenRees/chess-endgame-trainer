@@ -77,6 +77,26 @@ defmodule Chesstrainer.CacheTest do
     end
   end
 
+  describe "eviction on a cache larger than the sample" do
+    @describetag cache_opts: [max_size: 100]
+
+    test "stays at the maximum size under churn", %{table: table} do
+      for i <- 1..500, do: Cache.put(table, i, i)
+
+      assert Cache.size(table) == 100
+    end
+
+    test "a frequently used entry survives churn from cold entries", %{table: table} do
+      Cache.put(table, :hot, "value")
+      for _ <- 1..50, do: Cache.get(table, :hot)
+
+      for i <- 1..500, do: Cache.put(table, i, i)
+
+      assert Cache.size(table) == 100
+      assert {:ok, "value"} = Cache.get(table, :hot)
+    end
+  end
+
   describe "weekly sweep" do
     test "halves every entry frequency", %{table: table} do
       Cache.put(table, "busy", "value")
