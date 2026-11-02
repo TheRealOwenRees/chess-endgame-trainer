@@ -5,8 +5,9 @@ defmodule Chesstrainer.CacheTest do
 
   setup context do
     table = :"test_#{System.unique_integer([:positive])}"
-    {:ok, pid} = Cache.start_link(table, Map.get(context, :cache_opts, []))
-    on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+    opts = Map.get(context, :cache_opts, [])
+    pid = start_supervised!(Supervisor.child_spec({Cache, {table, opts}}, id: table))
+
     {:ok, %{pid: pid, table: table}}
   end
 
@@ -44,8 +45,9 @@ defmodule Chesstrainer.CacheTest do
 
     test "starts from a {table, opts} child spec argument" do
       table = :"test_child_spec_#{System.unique_integer([:positive])}"
-      {:ok, pid} = Cache.start_link({table, max_size: 3})
-      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+
+      pid =
+        start_supervised!(Supervisor.child_spec({Cache, {table, max_size: 3}}, id: table))
 
       assert :sys.get_state(pid).max_size == 3
     end
@@ -58,7 +60,7 @@ defmodule Chesstrainer.CacheTest do
       assert state.max_size == Keyword.get(config, :max_size, 100_000)
 
       assert state.backup_time ==
-               Chesstrainer.Cache.Backup.time!(Keyword.get(config, :backup_time))
+               Chesstrainer.Cache.BackupSchedule.time!(Keyword.get(config, :backup_time))
     end
   end
 
@@ -151,8 +153,10 @@ defmodule Chesstrainer.CacheTest do
         end
       end
 
-      {:ok, pid} = Cache.start_link(table, backup_fun: backup_fun)
-      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+      pid =
+        start_supervised!(
+          Supervisor.child_spec({Cache, {table, [backup_fun: backup_fun]}}, id: table)
+        )
 
       assert :ok = Cache.put(table, "key", "value")
 
@@ -170,8 +174,14 @@ defmodule Chesstrainer.CacheTest do
 
     test "re-arms the daily backup after each run" do
       table = :"test_rearm_#{System.unique_integer([:positive])}"
-      {:ok, pid} = Cache.start_link(table, backup_fun: fn _table -> :ok end, backup_time: "04:30")
-      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+
+      pid =
+        start_supervised!(
+          Supervisor.child_spec(
+            {Cache, {table, [backup_fun: fn _table -> :ok end, backup_time: "04:30"]}},
+            id: table
+          )
+        )
 
       send(pid, :backup)
 
@@ -193,8 +203,7 @@ defmodule Chesstrainer.CacheTest do
         File.rm(backup)
       end)
 
-      {:ok, pid} = Cache.start_link(table)
-      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+      start_supervised!(Supervisor.child_spec({Cache, table}, id: table))
 
       Cache.put(table, "key", "value")
 
@@ -213,8 +222,7 @@ defmodule Chesstrainer.CacheTest do
         File.rm(backup)
       end)
 
-      {:ok, pid} = Cache.start_link(table)
-      on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+      start_supervised!(Supervisor.child_spec({Cache, table}, id: table))
 
       Cache.put(table, "key", "value")
       assert :ok = Cache.backup(table)
@@ -225,10 +233,9 @@ defmodule Chesstrainer.CacheTest do
 
       assert {:error, _reason} = Cache.Persist.backup(table)
       assert File.exists?(backup)
-      assert :ok = GenServer.stop(pid)
+      assert :ok = stop_supervised(table)
 
-      {:ok, restored_pid} = Cache.start_link(table)
-      on_exit(fn -> if Process.alive?(restored_pid), do: GenServer.stop(restored_pid) end)
+      start_supervised!(Supervisor.child_spec({Cache, table}, id: table))
 
       assert {:ok, "value"} = Cache.get(table, "key")
       assert :error = Cache.get(table, "another")
@@ -239,17 +246,16 @@ defmodule Chesstrainer.CacheTest do
       backup = Path.join("priv/static/backups", "#{table}.v2.det")
       on_exit(fn -> File.rm(backup) end)
 
-      {:ok, pid} = Cache.start_link(table)
+      start_supervised!(Supervisor.child_spec({Cache, table}, id: table))
 
       Cache.put(table, "key", "value")
       Cache.get(table, "key")
       Cache.get(table, "key")
 
       assert :ok = Cache.backup(table)
-      assert :ok = GenServer.stop(pid)
+      assert :ok = stop_supervised(table)
 
-      {:ok, restored_pid} = Cache.start_link(table)
-      on_exit(fn -> if Process.alive?(restored_pid), do: GenServer.stop(restored_pid) end)
+      start_supervised!(Supervisor.child_spec({Cache, table}, id: table))
 
       assert [{"key", "value", frequency, _last_access}] = Cache.show(table)
       assert frequency == 3
