@@ -63,7 +63,9 @@ promotion (still winning) for conversion puzzles, mate otherwise.
 
 **Tablebase**:
 A database of precomputed optimal outcomes for every position with at most
-seven pieces, queried via the lichess API and cached.
+seven pieces, queried via the lichess API and cached. The trainer caches only
+the outcome data it grades on — enough to tell a winning move from a losing
+one — not every metric the tablebase reports, and refetches anything else.
 
 **Cooldown**:
 Rate-limit state entered after a 429 from the lichess tablebase API, during
