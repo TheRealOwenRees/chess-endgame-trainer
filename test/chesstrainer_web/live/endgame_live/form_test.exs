@@ -10,6 +10,40 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
 
   @fen "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
 
+  describe "rating default" do
+    test "new endgame form pre-fills rating with 1500", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
+
+      html = view |> element("#endgame-form input[name='endgame[rating]']") |> render()
+
+      assert html =~ ~s(value="1500")
+    end
+
+    test "creates an endgame rated 1500 when rating is left unchanged", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
+
+      view
+      |> form("#endgame-form", endgame: %{fen: @fen, result: "win"})
+      |> render_submit()
+
+      assert_redirect(view, ~p"/admin/endgames")
+
+      endgame = Endgames.list_endgames() |> Enum.find(&(&1.fen == @fen))
+      assert endgame.rating == 1500
+    end
+
+    test "editing an endgame keeps its stored rating", %{conn: conn} do
+      attrs = %{fen: @fen, color: :white, result: :win, rating: 1625}
+      {:ok, endgame} = Endgames.create_endgame(attrs)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames/#{endgame}/edit")
+
+      html = view |> element("#endgame-form input[name='endgame[rating]']") |> render()
+
+      assert html =~ ~s(value="1625")
+    end
+  end
+
   test "creates an endgame with staged themes", %{conn: conn} do
     theme = theme_fixture(%{name: "Lucena"})
 

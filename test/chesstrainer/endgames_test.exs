@@ -150,6 +150,14 @@ defmodule Chesstrainer.EndgamesTest do
     end
   end
 
+  describe "rating default" do
+    test "a new endgame changeset defaults rating to 1500" do
+      changeset = Endgames.change_endgame(%Endgame{})
+
+      assert Ecto.Changeset.get_field(changeset, :rating) == 1500
+    end
+  end
+
   describe "listing and filtering" do
     test "list_keys/0 returns the distinct keys sorted" do
       create_endgame!(@kr)
