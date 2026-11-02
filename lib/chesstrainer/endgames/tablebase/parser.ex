@@ -45,9 +45,6 @@ defmodule Chesstrainer.Endgames.Tablebase.Parser do
        checkmate: map["checkmate"],
        dtc: map["dtc"],
        dtm: map["dtm"],
-       dtw: map["dtw"],
-       dtz: map["dtz"],
-       insufficient_material: map["insufficient_material"],
        moves: Enum.map(map["moves"], &moves_from_map/1)
      }}
   end
@@ -55,20 +52,11 @@ defmodule Chesstrainer.Endgames.Tablebase.Parser do
   defp moves_from_map(map) do
     %Tablebase.Move{
       category: Tablebase.normalize_category(map["category"]),
-      checkmate: map["checkmate"],
-      conversion: map["conversion"],
       dtc: map["dtc"],
       dtm: map["dtm"],
-      dtw: map["dtw"],
       dtz: map["dtz"],
-      insufficient_material: map["insufficient_material"],
-      precise_dtz: map["precise_dtz"],
       san: map["san"],
-      stalemate: map["stalemate"],
-      uci: map["uci"],
-      variant_loss: map["variant_loss"],
-      variant_win: map["variant_win"],
-      zeroing: map["zeroing"]
+      uci: map["uci"]
     }
   end
 
