@@ -22,6 +22,61 @@ defmodule Chesstrainer.Endgames do
   end
 
   @doc """
+  Returns the distinct Keys across all endgames, sorted.
+  """
+  def list_keys do
+    Repo.all(from e in Endgame, distinct: true, select: e.key, order_by: [asc: e.key])
+  end
+
+  @doc """
+  Returns `{key, count}` groups for endgames matching the filters, sorted by key.
+
+  Filters is a map with optional `:themes` (a list of theme ids; an endgame must
+  carry any one of them) and `:key` (an exact Key).
+  """
+  def list_key_groups(filters \\ %{}) do
+    Endgame
+    |> apply_filters(filters)
+    |> group_by([e], e.key)
+    |> select([e], {e.key, count(e.id)})
+    |> order_by([e], asc: e.key)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns the endgames for one Key, matching the filters, with themes preloaded.
+  """
+  def list_endgames_for_key(key, filters \\ %{}) do
+    Endgame
+    |> apply_filters(filters)
+    |> where([e], e.key == ^key)
+    |> preload(:themes)
+    |> order_by([e], asc: e.fen)
+    |> Repo.all()
+  end
+
+  defp apply_filters(query, filters) do
+    query
+    |> filter_themes(Map.get(filters, :themes, []))
+    |> filter_key(Map.get(filters, :key))
+  end
+
+  defp filter_themes(query, []), do: query
+
+  defp filter_themes(query, theme_ids) do
+    endgame_ids =
+      from(t in "endgames_themes",
+        where: t.theme_id in ^theme_ids,
+        select: t.endgame_id
+      )
+
+    where(query, [e], e.id in subquery(endgame_ids))
+  end
+
+  defp filter_key(query, key) when key in [nil, ""], do: query
+  defp filter_key(query, key), do: where(query, [e], e.key == ^key)
+
+  @doc """
   Gets a single endgame.
 
   Raises `Ecto.NoResultsError` if the Endgame does not exist.

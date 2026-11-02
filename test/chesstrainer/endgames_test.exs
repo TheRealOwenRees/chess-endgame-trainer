@@ -5,6 +5,16 @@ defmodule Chesstrainer.EndgamesTest do
   alias Chesstrainer.Endgames.Endgame
   alias Chesstrainer.Themes
 
+  @kr "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
+  @kr_other "8/8/4k3/8/8/3K1R2/8/8 w - - 0 1"
+  @kq "8/8/3k4/8/8/3K1Q2/8/8 w - - 0 1"
+
+  defp create_endgame!(fen, themes \\ []) do
+    attrs = %{fen: fen, color: :white, result: :win, rating: 1500}
+    {:ok, endgame} = Endgames.create_endgame(attrs, themes)
+    endgame
+  end
+
   describe "create_endgame/1 FEN validation" do
     test "accepts a standard valid FEN and derives its key" do
       attrs = %{
@@ -137,6 +147,51 @@ defmodule Chesstrainer.EndgamesTest do
       assert {:ok, updated} = Endgames.update_endgame(endgame, %{rating: 1600}, [philidor])
       assert Enum.map(updated.themes, & &1.id) == [philidor.id]
       assert updated.key == "KPPP v KPP"
+    end
+  end
+
+  describe "listing and filtering" do
+    test "list_keys/0 returns the distinct keys sorted" do
+      create_endgame!(@kr)
+      create_endgame!(@kr_other)
+      create_endgame!(@kq)
+
+      assert Endgames.list_keys() == ["KQ v K", "KR v K"]
+    end
+
+    test "list_key_groups/1 groups by key and counts" do
+      create_endgame!(@kr)
+      create_endgame!(@kr_other)
+      create_endgame!(@kq)
+
+      assert Endgames.list_key_groups() == [{"KQ v K", 1}, {"KR v K", 2}]
+    end
+
+    test "list_endgames_for_key/2 returns only that key with themes preloaded" do
+      {:ok, lucena} = Themes.create_theme(%{name: "Lucena", category: :endgame})
+      create_endgame!(@kr, [lucena])
+      create_endgame!(@kq)
+
+      assert [endgame] = Endgames.list_endgames_for_key("KR v K")
+      assert endgame.fen == @kr
+      assert Enum.map(endgame.themes, & &1.name) == ["Lucena"]
+    end
+
+    test "list_key_groups/1 filters by theme" do
+      {:ok, lucena} = Themes.create_theme(%{name: "Lucena", category: :endgame})
+      {:ok, philidor} = Themes.create_theme(%{name: "Philidor", category: :endgame})
+
+      create_endgame!(@kr, [lucena])
+      create_endgame!(@kq, [philidor])
+
+      assert Endgames.list_key_groups(%{themes: [lucena.id]}) == [{"KR v K", 1}]
+    end
+
+    test "list_key_groups/1 filters by key" do
+      create_endgame!(@kr)
+      create_endgame!(@kq)
+
+      assert Endgames.list_key_groups(%{key: "KQ v K"}) == [{"KQ v K", 1}]
     end
   end
 end
