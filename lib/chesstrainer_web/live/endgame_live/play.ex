@@ -50,8 +50,10 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
                     do: "That move loses the draw.",
                     else: "That move throws away the win."}
                 </p>
-                <%= if @best_move do %>
-                  <p class="text-gray-600">Best was: {@best_move}</p>
+                <%= if @best_move && @plies != [] do %>
+                  <p class="text-gray-600">
+                    You played {List.last(@plies).san}; best was: {@best_move}
+                  </p>
                 <% end %>
               <% @awaiting_reply -> %>
                 <p class="text-gray-500">Opponent is replying…</p>
@@ -76,13 +78,30 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
             <% end %>
           </div>
 
-          <div class="flex-1 min-h-0 flex flex-col bg-white rounded-lg p-3">
+          <div :if={@reviewing} id="best-move-panel" class="rounded-lg bg-white p-3 text-sm">
+            <%= cond do %>
+              <% @review_blocked -> %>
+                <p class="text-gray-500">Best move unavailable here</p>
+                <p class="text-gray-400">{@review_blocked}</p>
+              <% @review_tablebase -> %>
+                <p class="text-gray-600 font-semibold mb-1">Best move:</p>
+                <p class="text-emerald-600">{best_move_text(@review_tablebase) || "—"}</p>
+                <%= if played_ply = played_ply_at(@line, @review_index) do %>
+                  <p class={["mt-1", grade_class(played_ply.grade)]}>Played: {played_ply.san}</p>
+                <% end %>
+              <% true -> %>
+                <p class="text-gray-500">No best move.</p>
+            <% end %>
+          </div>
+
+          <div id="move-list" class="flex-1 min-h-0 flex flex-col bg-white rounded-lg p-3">
+            <% plies = display_plies(@reviewing, @line, @plies) %>
             <p class="text-sm text-gray-600 font-semibold mb-2">Moves:</p>
             <div class="flex-1 overflow-y-auto">
-              <%= if @plies == [] do %>
+              <%= if plies == [] do %>
                 <p class="text-sm text-gray-500">No Moves</p>
               <% else %>
-                <%= for {[white_ply, black_ply], move_no} <- move_rows(@plies, @endgame.color) do %>
+                <%= for {[white_ply, black_ply], move_no} <- move_rows(plies, @endgame.color) do %>
                   <div class="font-mono text-sm leading-6">
                     <span class="text-gray-500 mr-2">{move_no}.</span>
                     <%= if white_ply do %>
@@ -122,9 +141,17 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
             </.button>
           </div>
 
-          <div :if={@reviewing} id="review-controls" class="flex gap-2">
+          <div :if={@reviewing} id="review-controls" class="flex flex-wrap gap-2">
             <.button phx-click="review_prev" disabled={@review_index <= 0}>←</.button>
-            <.button phx-click="review_next" disabled={@review_index >= length(@plies)}>→</.button>
+            <.button phx-click="review_next" disabled={@review_index >= length(@line)}>→</.button>
+            <.button
+              :if={@review_tablebase && best_move_text(@review_tablebase)}
+              phx-click="play_best_line"
+              disabled={@awaiting_best_line}
+            >
+              Play best line
+            </.button>
+            <.button :if={@line != @plies} phx-click="back_to_game">Back to game</.button>
           </div>
         </div>
       </div>
@@ -149,6 +176,12 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
       |> assign(:reviewing, false)
       |> assign(:review_index, 0)
       |> assign(:pending_reply, nil)
+      |> assign(:snapshots, %{})
+      |> assign(:line, [])
+      |> assign(:review_tablebase, nil)
+      |> assign(:review_blocked, nil)
+      |> assign(:awaiting_best_line, false)
+      |> assign(:pending_best_move, nil)
       |> assign(:last_san, "None yet")
       |> assign(:last_from_to, "None yet")
       |> assign(:last_grade, nil)
@@ -202,6 +235,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
                socket
                |> assign(:fen, fen)
                |> assign(:tablebase, tablebase)
+               |> snapshot(fen, tablebase)
                |> assign(:awaiting_reply, false)
                |> assign(:status, :playing)
                |> assign(:blocked_reason, nil)
@@ -234,6 +268,12 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
       |> assign(:reviewing, false)
       |> assign(:review_index, 0)
       |> assign(:pending_reply, nil)
+      |> assign(:snapshots, %{})
+      |> assign(:line, [])
+      |> assign(:review_tablebase, nil)
+      |> assign(:review_blocked, nil)
+      |> assign(:awaiting_best_line, false)
+      |> assign(:pending_best_move, nil)
       |> assign(:last_san, "None yet")
       |> assign(:last_from_to, "None yet")
       |> assign(:last_grade, nil)
@@ -243,13 +283,13 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
   def handle_event("review", _params, socket) do
     if socket.assigns.status in [:solved, :failed] do
-      last = length(socket.assigns.plies)
+      socket =
+        socket
+        |> assign(:reviewing, true)
+        |> assign(:line, socket.assigns.plies)
+        |> set_review_index(length(socket.assigns.plies))
 
-      {:noreply,
-       socket
-       |> assign(:reviewing, true)
-       |> assign(:review_index, last)
-       |> push_review_position()}
+      {:noreply, push_review_position(socket)}
     else
       {:noreply, socket}
     end
@@ -261,13 +301,68 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
   def handle_event("review_step", %{"index" => index}, socket) do
     if socket.assigns.reviewing do
-      last = length(socket.assigns.plies)
+      last = length(socket.assigns.line)
       index = parse_index(index) |> max(0) |> min(last)
 
+      {:noreply, push_review_position(set_review_index(socket, index))}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("play_best_line", _params, socket) do
+    with true <- socket.assigns.reviewing,
+         %Tablebase{} = tablebase <- socket.assigns.review_tablebase,
+         %Tablebase.Move{} = move <- pick_best_move(tablebase) do
+      # Branch the review line at the current position, then play one best move.
       {:noreply,
        socket
-       |> assign(:review_index, index)
-       |> push_review_position()}
+       |> assign(:line, Enum.take(socket.assigns.line, socket.assigns.review_index))
+       |> assign(:awaiting_best_line, true)
+       |> assign(:pending_best_move, move)
+       |> push_event("best_line_move", reply_payload(move))}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("best_line_move_applied", %{"fen" => fen}, socket) do
+    if socket.assigns.awaiting_best_line do
+      move = socket.assigns.pending_best_move
+
+      line =
+        socket.assigns.line ++
+          [
+            %{
+              index: length(socket.assigns.line),
+              san: move.san,
+              fen_after: fen,
+              grade: nil,
+              best_line: true
+            }
+          ]
+
+      socket =
+        socket
+        |> assign(:line, line)
+        |> assign(:awaiting_best_line, false)
+        |> assign(:pending_best_move, nil)
+        |> set_review_index(length(line))
+
+      {:noreply, push_review_position(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("back_to_game", _params, socket) do
+    if socket.assigns.reviewing do
+      socket =
+        socket
+        |> assign(:line, socket.assigns.plies)
+        |> set_review_index(length(socket.assigns.plies))
+
+      {:noreply, push_review_position(socket)}
     else
       {:noreply, socket}
     end
@@ -287,18 +382,18 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         phx-value-index={@ply.index + 1}
         class={[
           "ml-2",
-          grade_class(@ply.grade),
+          ply_class(@ply),
           current_ply?(@ply, @review_index) && "underline"
         ]}
-        title={grade_label(@ply.grade, @result)}
+        title={ply_title(@ply, @result)}
         data-grade={@ply.grade}
       >
         {@ply.san}
       </button>
     <% else %>
       <span
-        class={["ml-2", grade_class(@ply.grade)]}
-        title={grade_label(@ply.grade, @result)}
+        class={["ml-2", ply_class(@ply)]}
+        title={ply_title(@ply, @result)}
         data-grade={@ply.grade}
       >
         {@ply.san}
@@ -317,24 +412,62 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
   defp positions(start_fen, plies), do: [start_fen | Enum.map(plies, & &1.fen_after)]
 
+  defp display_plies(true, line, _plies), do: line
+  defp display_plies(false, _line, plies), do: plies
+
   defp push_review_position(socket) do
     fen =
       socket.assigns.endgame.fen
-      |> positions(socket.assigns.plies)
+      |> positions(socket.assigns.line)
       |> Enum.at(socket.assigns.review_index)
 
     push_event(socket, "review_position", %{fen: fen})
   end
 
+  defp set_review_index(socket, index) do
+    socket
+    |> assign(:review_index, index)
+    |> update_review_tablebase()
+  end
+
+  defp update_review_tablebase(socket) do
+    fen =
+      socket.assigns.endgame.fen
+      |> positions(socket.assigns.line)
+      |> Enum.at(socket.assigns.review_index)
+
+    case snapshot_or_fetch(socket, fen) do
+      {:ok, tablebase, socket} ->
+        assign(socket, review_tablebase: tablebase, review_blocked: nil)
+
+      {:unavailable, reason, socket} ->
+        assign(socket, review_tablebase: nil, review_blocked: reason)
+    end
+  end
+
+  defp snapshot_or_fetch(socket, fen) do
+    case Map.fetch(socket.assigns.snapshots, fen) do
+      {:ok, tablebase} ->
+        {:ok, tablebase, socket}
+
+      :error ->
+        case Tablebase.new(fen) do
+          {:ok, tablebase} -> {:ok, tablebase, snapshot(socket, fen, tablebase)}
+          other -> {:unavailable, blocked_reason(other), socket}
+        end
+    end
+  end
+
+  defp snapshot(socket, fen, tablebase) do
+    assign(socket, :snapshots, Map.put(socket.assigns.snapshots, fen, tablebase))
+  end
+
   defp step_review(socket, delta) do
     if socket.assigns.reviewing do
-      last = length(socket.assigns.plies)
+      last = length(socket.assigns.line)
       index = (socket.assigns.review_index + delta) |> max(0) |> min(last)
 
-      {:noreply,
-       socket
-       |> assign(:review_index, index)
-       |> push_review_position()}
+      {:noreply, socket |> set_review_index(index) |> push_review_position()}
     else
       {:noreply, socket}
     end
@@ -344,6 +477,19 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
   defp parse_index(index) when is_binary(index), do: String.to_integer(index)
 
   defp current_ply?(%{index: index}, review_index), do: index + 1 == review_index
+
+  defp played_ply_at(line, review_index) do
+    case Enum.at(line, review_index) do
+      %{best_line: true} -> nil
+      ply -> ply
+    end
+  end
+
+  defp ply_class(%{best_line: true}), do: "text-sky-600 italic"
+  defp ply_class(ply), do: grade_class(ply.grade)
+
+  defp ply_title(%{best_line: true}, _result), do: "Best line"
+  defp ply_title(ply, result), do: grade_label(ply.grade, result)
 
   defp grade_class(:optimal), do: "text-emerald-600"
   defp grade_class(:winning), do: "text-amber-600"
@@ -375,6 +521,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
           socket
           |> assign(:endgame, endgame)
           |> assign(:tablebase, tablebase)
+          |> snapshot(fen, tablebase)
           |> assign(:status, :playing)
           |> assign(:blocked_reason, nil)
           |> push_init_board(fen)
@@ -465,19 +612,9 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
   defp start_opponent_reply(socket, fen_after) do
     case Tablebase.new(fen_after) do
-      {:ok, %Tablebase{checkmate: true}} ->
-        solve_attempt(socket)
-
-      {:ok, %Tablebase{moves: [reply | _]}} ->
-        {:noreply,
-         socket
-         |> assign(:awaiting_reply, true)
-         |> assign(:pending_reply, %{san: reply.san, uci: reply.uci})
-         |> push_event("opponent_move", reply_payload(reply))}
-
-      {:ok, %Tablebase{}} ->
-        # Terminal non-mate position (stalemate/insufficient): no reply to play.
-        {:noreply, socket}
+      {:ok, tablebase} ->
+        socket = snapshot(socket, fen_after, tablebase)
+        reply_to(socket, tablebase)
 
       other ->
         {:noreply,
@@ -485,6 +622,21 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
          |> assign(:status, :blocked)
          |> assign(:blocked_reason, blocked_reason(other))}
     end
+  end
+
+  defp reply_to(socket, %Tablebase{checkmate: true}), do: solve_attempt(socket)
+
+  defp reply_to(socket, %Tablebase{moves: [reply | _]}) do
+    {:noreply,
+     socket
+     |> assign(:awaiting_reply, true)
+     |> assign(:pending_reply, %{san: reply.san, uci: reply.uci})
+     |> push_event("opponent_move", reply_payload(reply))}
+  end
+
+  defp reply_to(socket, %Tablebase{}) do
+    # Terminal non-mate position (stalemate/insufficient): no reply to play.
+    {:noreply, socket}
   end
 
   defp solve_attempt(socket) do
@@ -506,27 +658,36 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
      |> assign(:best_move, best_move_text(socket.assigns.tablebase))}
   end
 
-  defp best_move_text(%Tablebase{category: category, moves: [best | _] = moves}) do
-    best_rank = outcome_rank(category)
+  defp best_move_text(tablebase) do
+    san =
+      tablebase
+      |> best_moves()
+      |> Enum.map(& &1.san)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.take(3)
+      |> Enum.join(", ")
 
-    if is_nil(best_rank) do
-      nil
-    else
-      san =
-        moves
-        |> Enum.filter(fn move ->
+    if san == "", do: nil, else: san
+  end
+
+  defp pick_best_move(tablebase), do: tablebase |> best_moves() |> List.first()
+
+  defp best_moves(%Tablebase{moves: moves} = tablebase) when is_list(moves) do
+    case {outcome_rank(tablebase.category), moves} do
+      {nil, _} ->
+        []
+
+      {_best_rank, []} ->
+        []
+
+      {best_rank, [best | _]} ->
+        Enum.filter(moves, fn move ->
           outcome_rank(mover_outcome(move.category)) == best_rank and move.dtz == best.dtz
         end)
-        |> Enum.map(& &1.san)
-        |> Enum.reject(&is_nil/1)
-        |> Enum.take(3)
-        |> Enum.join(", ")
-
-      if san == "", do: nil, else: san
     end
   end
 
-  defp best_move_text(_tablebase), do: nil
+  defp best_moves(_tablebase), do: []
 
   defp record_opponent_ply(socket, fen, client_san) do
     san =

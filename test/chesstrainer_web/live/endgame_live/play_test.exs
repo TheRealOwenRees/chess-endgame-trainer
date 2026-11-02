@@ -66,10 +66,12 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     after_reply = "8/8/8/8/8/8/8/8 w - - 0 1"
     after_losing = "8/8/8/8/8/8/8/8 b - - 1 1"
     reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :loss, dtz: -3}
+    losing_reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :draw, dtz: 0}
 
     seed_tablebase(endgame.fen, moves: grading_moves())
     seed_tablebase(after_first, category: :loss, moves: [reply])
     seed_tablebase(after_reply, category: :win, moves: grading_moves())
+    seed_tablebase(after_losing, category: :draw, moves: [losing_reply])
 
     {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
 
@@ -648,6 +650,81 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       })
 
       refute render(view) =~ "Ka2"
+    end
+  end
+
+  describe "best moves" do
+    test "shows the best move and the played move at each reviewed position", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      view |> element("button", "Review") |> render_click()
+
+      panel = view |> element("#best-move-panel") |> render()
+      assert panel =~ "Best move:"
+      assert panel =~ "Ke7"
+
+      render_hook(view, "review_prev", %{})
+
+      panel = view |> element("#best-move-panel") |> render()
+      assert panel =~ "Qd7+"
+      assert panel =~ "Played: Qd4"
+    end
+
+    test "summarises the failing move and the best alternative", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      assert render(view) =~ "You played Qd4; best was: Qd7+"
+    end
+
+    test "play best line branches and steps the optimal continuation", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      view |> element("button", "Review") |> render_click()
+      render_hook(view, "review_prev", %{})
+
+      %{proxy: {ref, _topic, _}} = view
+      assert_receive {^ref, {:push_event, "review_position", _}}, 100
+      assert_receive {^ref, {:push_event, "review_position", _}}, 100
+
+      view |> element("button", "Play best line") |> render_click()
+
+      assert_receive {^ref, {:push_event, "best_line_move", %{from: "d1", to: "d7"}}}, 100
+
+      best_after = "8/8/8/8/8/8/8/8 w - - 2 1"
+      seed_tablebase(best_after, category: :draw, moves: [])
+      render_hook(view, "best_line_move_applied", %{"fen" => best_after})
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: ^best_after}}}, 100
+
+      moves = view |> element("#move-list") |> render()
+      refute moves =~ "Qd4"
+      assert moves =~ "Qd7+"
+      assert moves =~ ~s(title="Best line")
+
+      view |> element("button", "Back to game") |> render_click()
+
+      moves = view |> element("#move-list") |> render()
+      assert moves =~ "Qd4"
+    end
+
+    test "degrades gracefully and reuses played-position snapshots", %{conn: conn} do
+      {view, fens} = seeded_attempt(conn)
+
+      TablebaseCache.delete(fens.after_losing)
+      Ratelimiters.lichess_add_cooldown()
+      on_exit(fn -> Ratelimiters.lichess_reset_cooldown() end)
+
+      view |> element("button", "Review") |> render_click()
+
+      panel = view |> element("#best-move-panel") |> render()
+      assert panel =~ "Best move unavailable here"
+      refute has_element?(view, "button", "Play best line")
+
+      render_hook(view, "review_prev", %{})
+
+      panel = view |> element("#best-move-panel") |> render()
+      refute panel =~ "Best move unavailable here"
+      assert panel =~ "Qd7+"
     end
   end
 end

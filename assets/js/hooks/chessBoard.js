@@ -18,6 +18,10 @@ export const ChessBoard = {
       this.showReviewPosition(fen);
     });
 
+    this.handleEvent("best_line_move", ({ from, to, promotion, san }) => {
+      this.applyBestLineMove({ from, to, promotion, san });
+    });
+
     this.handleKeyDown = (event) => {
       if (!this.reviewing) return;
 
@@ -94,6 +98,30 @@ export const ChessBoard = {
       fen: this.chess.fen(),
       turnColor,
       movable: { color: null, dests: new Map() },
+    });
+  },
+
+  applyBestLineMove({ from, to, promotion, san }) {
+    const move = promotion
+      ? this.chess.move({ from, to, promotion })
+      : this.chess.move({ from, to });
+
+    if (!move) {
+      console.error("Best-line move rejected by chess.js", { from, to, promotion, san });
+      return;
+    }
+
+    const turnColor = this.chess.turn() === "w" ? "white" : "black";
+
+    this.ground.set({
+      fen: this.chess.fen(),
+      turnColor,
+      movable: { color: null, dests: new Map() },
+    });
+
+    this.pushEvent("best_line_move_applied", {
+      fen: this.chess.fen(),
+      san: move.san,
     });
   },
 
