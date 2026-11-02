@@ -1,18 +1,16 @@
-defmodule Chesstrainer.Cache.Backup do
+defmodule Chesstrainer.Cache.BackupSchedule do
   @moduledoc """
   Daily off-peak schedule for cache backups.
 
   The cache backs up once a day at a configurable UTC time (03:00 by default).
   The delay is computed from the wall clock, so restarts and clock drift do not
   shift the run towards peak hours the way a fixed interval from boot would.
+
+  This module only computes the schedule; writing the backup is
+  `Chesstrainer.Cache.Persist.backup/1`.
   """
 
   @default_time {3, 0}
-
-  @doc """
-  The time of day the cache backs up, as `{hour, minute}` in UTC.
-  """
-  def default_time, do: @default_time
 
   @doc """
   Parses a backup time given as `{hour, minute}` or an `"HH:MM"` string.

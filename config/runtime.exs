@@ -22,17 +22,53 @@ end
 
 # Tablebase cache: size and the UTC time of the daily backup. Environment
 # variables win over the defaults in config/config.exs so deployments can tune
-# the cache without a rebuild.
+# the cache without a rebuild. Invalid values are reported and ignored rather
+# than crashing boot with an opaque parse error.
 cache_config = Application.get_env(:chesstrainer, Chesstrainer.Cache, [])
+default_max_size = Keyword.fetch!(cache_config, :max_size)
+default_backup_time = Keyword.fetch!(cache_config, :backup_time)
 
 cache_max_size =
   case System.get_env("TABLEBASE_CACHE_MAX_SIZE") do
-    nil -> Keyword.get(cache_config, :max_size, 100_000)
-    value -> String.to_integer(value)
+    nil ->
+      default_max_size
+
+    value ->
+      case Integer.parse(value) do
+        {size, ""} when size > 0 ->
+          size
+
+        _ ->
+          IO.warn(
+            "ignoring TABLEBASE_CACHE_MAX_SIZE=#{inspect(value)}: " <>
+              "expected a positive integer, using #{default_max_size}",
+            []
+          )
+
+          default_max_size
+      end
   end
 
 cache_backup_time =
-  System.get_env("TABLEBASE_BACKUP_TIME") || Keyword.get(cache_config, :backup_time, {3, 0})
+  case System.get_env("TABLEBASE_BACKUP_TIME") do
+    nil ->
+      default_backup_time
+
+    value ->
+      case Chesstrainer.Cache.BackupSchedule.parse_time(value) do
+        {:ok, time} ->
+          time
+
+        :error ->
+          IO.warn(
+            "ignoring TABLEBASE_BACKUP_TIME=#{inspect(value)}: " <>
+              "expected HH:MM in UTC, using #{inspect(default_backup_time)}",
+            []
+          )
+
+          default_backup_time
+      end
+  end
 
 config :chesstrainer, Chesstrainer.Cache,
   max_size: cache_max_size,
