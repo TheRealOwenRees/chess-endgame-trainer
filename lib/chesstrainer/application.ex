@@ -7,6 +7,8 @@ defmodule Chesstrainer.Application do
 
   @impl true
   def start(_type, _args) do
+    cache_opts = Application.get_env(:chesstrainer, Chesstrainer.Cache, [])
+
     children = [
       ChesstrainerWeb.Telemetry,
       Chesstrainer.Repo,
@@ -17,7 +19,8 @@ defmodule Chesstrainer.Application do
       # Start to serve requests, typically the last entry
       ChesstrainerWeb.Endpoint,
       {Registry, keys: :unique, name: Chesstrainer.CacheRegistry},
-      {Chesstrainer.Cache, :tablebase}
+      {Task.Supervisor, name: Chesstrainer.Cache.BackupSupervisor},
+      {Chesstrainer.Cache, {:tablebase, cache_opts}}
     ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html
