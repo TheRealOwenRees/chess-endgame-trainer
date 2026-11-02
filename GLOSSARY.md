@@ -24,6 +24,12 @@ A label describing an endgame's technique or goal, such as "mate in 2", "Lucena"
 "opposition"; an endgame can carry several.
 _Avoid_: Tag, label, category
 
+**Key**:
+The canonical material signature of an endgame's starting position — which
+pieces each side has, written strongest side first and colour-agnostic
+(e.g. "KQ v KR"). Used to group and search endgames by material.
+_Avoid_: Material signature, hash
+
 ## Play
 
 **Winning side**:

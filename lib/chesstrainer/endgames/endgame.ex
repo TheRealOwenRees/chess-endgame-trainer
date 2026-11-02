@@ -6,6 +6,8 @@ defmodule Chesstrainer.Endgames.Endgame do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Chesstrainer.Key
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "endgames" do
@@ -30,12 +32,9 @@ defmodule Chesstrainer.Endgames.Endgame do
   @doc false
   def changeset(endgame, attrs) do
     endgame
-    |> cast(normalize_attrs(attrs), [:fen, :key, :message, :notes, :result, :rating, :color])
+    |> cast(normalize_attrs(attrs), [:fen, :message, :notes, :result, :rating, :color])
     |> validate_required([:fen, :color], message: "Invalid FEN")
-    |> validate_required([:key, :result, :rating])
-    |> validate_format(:key, ~r/^(?=.{5,10}$)KQ*R*[NB]*P*\sv\sKQ*R*[NB]*P*$/,
-      message: "Key must follow pattern KQ.. v KQR.., max pieces 7"
-    )
+    |> validate_required([:result, :rating])
     |> validate_change(:fen, fn :fen, fen ->
       case fen_issues(fen) do
         [] -> []
@@ -43,6 +42,14 @@ defmodule Chesstrainer.Endgames.Endgame do
       end
     end)
     |> unique_constraint(:fen, message: "FEN already exists")
+    |> put_key()
+  end
+
+  defp put_key(changeset) do
+    case Key.from_fen(get_field(changeset, :fen)) do
+      {:ok, key} -> put_change(changeset, :key, key)
+      {:error, :invalid_fen} -> changeset
+    end
   end
 
   defp normalize_attrs(%{"fen" => fen} = attrs) when is_binary(fen),

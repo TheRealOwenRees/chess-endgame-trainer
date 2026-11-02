@@ -20,7 +20,7 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
 
     view
     |> form("#endgame-form",
-      endgame: %{fen: @fen, key: "KR v K", rating: 1500, result: "win"}
+      endgame: %{fen: @fen, rating: 1500, result: "win"}
     )
     |> render_submit()
 
@@ -62,7 +62,7 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
 
   test "removes a theme from an existing endgame", %{conn: conn} do
     theme = theme_fixture(%{name: "Lucena"})
-    attrs = %{fen: @fen, color: :white, key: "KR v K", result: :win, rating: 1500}
+    attrs = %{fen: @fen, color: :white, result: :win, rating: 1500}
     {:ok, endgame} = Endgames.create_endgame(attrs, [theme])
 
     {:ok, view, _html} = live(conn, ~p"/admin/endgames/#{endgame}/edit")
@@ -72,7 +72,7 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
     view |> element("button[aria-label='Remove Lucena']") |> render_click()
 
     view
-    |> form("#endgame-form", endgame: %{key: "KR v K", rating: 1500, result: "win"})
+    |> form("#endgame-form", endgame: %{rating: 1500, result: "win"})
     |> render_submit()
 
     assert_redirect(view, ~p"/admin/endgames")

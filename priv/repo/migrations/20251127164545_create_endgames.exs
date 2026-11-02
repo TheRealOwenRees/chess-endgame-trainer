@@ -19,5 +19,6 @@ defmodule Chesstrainer.Repo.Migrations.CreateEndgames do
     end
 
     create unique_index(:endgames, [:fen])
+    create index(:endgames, [:key])
   end
 end

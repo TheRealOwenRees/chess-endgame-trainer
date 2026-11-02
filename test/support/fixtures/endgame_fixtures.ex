@@ -24,15 +24,13 @@ defmodule Chesstrainer.EndgamesFixtures do
   @doc """
   Generate an endgame.
 
-  A simple K v K position with a unique FEN, color,
-  key, rating, and result.
+  A simple K v K position with a unique FEN, color, rating, and result.
   """
   def endgame_fixture(attrs \\ %{}) do
     {:ok, endgame} =
       attrs
       |> Enum.into(%{
         fen: unique_endgame_fen(),
-        key: "KQ v K",
         color: :white,
         result: :win,
         rating: 1500

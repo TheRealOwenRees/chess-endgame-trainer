@@ -78,7 +78,14 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     end
 
     test "shows endgame metadata in the header", %{conn: conn} do
-      endgame = endgame_fixture(key: "KQ v K", color: :white, result: :win, rating: 1800)
+      endgame =
+        endgame_fixture(
+          fen: "8/8/3k4/8/8/3K1Q2/8/8 w - - 0 1",
+          color: :white,
+          result: :win,
+          rating: 1800
+        )
+
       seed_tablebase(endgame.fen)
 
       {:ok, _view, html} = live(conn, ~p"/endgames/#{endgame}/play")

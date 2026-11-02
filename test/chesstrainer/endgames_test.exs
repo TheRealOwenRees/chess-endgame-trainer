@@ -6,23 +6,47 @@ defmodule Chesstrainer.EndgamesTest do
   alias Chesstrainer.Themes
 
   describe "create_endgame/1 FEN validation" do
-    test "accepts a standard valid FEN" do
+    test "accepts a standard valid FEN and derives its key" do
       attrs = %{
         fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1",
         color: :white,
-        key: "KR v K",
         result: :win,
         rating: 1500
       }
 
-      assert {:ok, %Endgame{}} = Endgames.create_endgame(attrs)
+      assert {:ok, %Endgame{} = endgame} = Endgames.create_endgame(attrs)
+      assert endgame.key == "KR v K"
+    end
+
+    test "derives the key from the strongest side, colour-agnostically" do
+      attrs = %{
+        fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 0",
+        color: :black,
+        result: :win,
+        rating: 1500
+      }
+
+      assert {:ok, endgame} = Endgames.create_endgame(attrs)
+      assert endgame.key == "KPPP v KPP"
+    end
+
+    test "ignores a supplied key and derives it from the FEN" do
+      attrs = %{
+        fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1",
+        color: :white,
+        key: "KQ v K",
+        result: :win,
+        rating: 1500
+      }
+
+      assert {:ok, endgame} = Endgames.create_endgame(attrs)
+      assert endgame.key == "KR v K"
     end
 
     test "normalizes fullmove 0 to 1 before inserting" do
       attrs = %{
         fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 0",
         color: :black,
-        key: "KPPP v KPP",
         result: :win,
         rating: 1500
       }
@@ -35,7 +59,6 @@ defmodule Chesstrainer.EndgamesTest do
       attrs = %{
         fen: "  8/8/3k4/8/8/3K1R2/8/8 w - - 0 1\t\n",
         color: :white,
-        key: "KR v K",
         result: :win,
         rating: 1500
       }
@@ -48,7 +71,6 @@ defmodule Chesstrainer.EndgamesTest do
       attrs = %{
         fen: "4k3/8/8/8/8/8/8/0K7 w - - 0 1",
         color: :white,
-        key: "KQ v K",
         result: :win,
         rating: 1500
       }
@@ -62,7 +84,6 @@ defmodule Chesstrainer.EndgamesTest do
       attrs = %{
         fen: "8/8/3k4/8/8/3K1R2/8/8",
         color: :white,
-        key: "KQ v K",
         result: :win,
         rating: 1500
       }
@@ -76,7 +97,6 @@ defmodule Chesstrainer.EndgamesTest do
       attrs = %{
         fen: "8/8/3k4/8/8/3K1R2/8/8 x - - 0 1",
         color: :white,
-        key: "KQ v K",
         result: :win,
         rating: 1500
       }
@@ -94,7 +114,6 @@ defmodule Chesstrainer.EndgamesTest do
       attrs = %{
         fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1",
         color: :white,
-        key: "KR v K",
         result: :win,
         rating: 1500
       }
@@ -110,7 +129,6 @@ defmodule Chesstrainer.EndgamesTest do
       attrs = %{
         fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 1",
         color: :black,
-        key: "KPPP v KPP",
         result: :win,
         rating: 1500
       }
@@ -118,6 +136,7 @@ defmodule Chesstrainer.EndgamesTest do
       assert {:ok, endgame} = Endgames.create_endgame(attrs, [lucena])
       assert {:ok, updated} = Endgames.update_endgame(endgame, %{rating: 1600}, [philidor])
       assert Enum.map(updated.themes, & &1.id) == [philidor.id]
+      assert updated.key == "KPPP v KPP"
     end
   end
 end
