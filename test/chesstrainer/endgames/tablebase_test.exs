@@ -32,6 +32,18 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
     end
   end
 
+  describe "struct shape" do
+    test "Tablebase carries only the fields the trainer reads" do
+      assert %Tablebase{} |> Map.from_struct() |> Map.keys() |> Enum.sort() ==
+               [:category, :checkmate, :dtc, :dtm, :moves]
+    end
+
+    test "Tablebase.Move carries only the fields the trainer reads" do
+      assert %Tablebase.Move{} |> Map.from_struct() |> Map.keys() |> Enum.sort() ==
+               [:category, :dtc, :dtm, :dtz, :san, :uci]
+    end
+  end
+
   describe "Parser.from_map/1" do
     test "normalises the position and move categories" do
       assert {:ok, tablebase} =
@@ -40,32 +52,78 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
                  "checkmate" => false,
                  "dtc" => nil,
                  "dtm" => 20,
-                 "dtw" => nil,
                  "dtz" => 3,
-                 "insufficient_material" => false,
                  "moves" => [
                    %{
                      "category" => "blessed-loss",
-                     "checkmate" => false,
-                     "conversion" => false,
                      "dtc" => nil,
                      "dtm" => -19,
-                     "dtw" => nil,
                      "dtz" => -2,
-                     "insufficient_material" => false,
-                     "precise_dtz" => -2,
                      "san" => "Kd7",
-                     "stalemate" => false,
-                     "uci" => "e8d7",
-                     "variant_loss" => false,
-                     "variant_win" => false,
-                     "zeroing" => false
+                     "uci" => "e8d7"
                    }
                  ]
                })
 
-      assert tablebase.category == :draw
-      assert [%Tablebase.Move{category: :draw, uci: "e8d7"}] = tablebase.moves
+      assert %Tablebase{category: :draw, checkmate: false, dtc: nil, dtm: 20} = tablebase
+
+      assert [%Tablebase.Move{category: :draw, dtc: nil, dtm: -19, dtz: -2}] = tablebase.moves
+      assert [%Tablebase.Move{san: "Kd7", uci: "e8d7"}] = tablebase.moves
+    end
+
+    test "drops the fields the trainer never reads" do
+      assert {:ok, tablebase} =
+               Parser.from_map(%{
+                 "category" => "win",
+                 "checkmate" => true,
+                 "dtc" => 1,
+                 "dtm" => 2,
+                 "dtw" => 3,
+                 "dtz" => 4,
+                 "insufficient_material" => false,
+                 "moves" => [
+                   %{
+                     "category" => "loss",
+                     "checkmate" => true,
+                     "conversion" => true,
+                     "dtc" => 5,
+                     "dtm" => 6,
+                     "dtw" => 7,
+                     "dtz" => 8,
+                     "insufficient_material" => false,
+                     "precise_dtz" => 9,
+                     "san" => "Qd7#",
+                     "stalemate" => false,
+                     "uci" => "d1d7",
+                     "variant_loss" => false,
+                     "variant_win" => false,
+                     "zeroing" => true
+                   }
+                 ]
+               })
+
+      assert %Tablebase{} |> Map.from_struct() |> Map.keys() |> Enum.sort() ==
+               [:category, :checkmate, :dtc, :dtm, :moves]
+
+      assert [move] = tablebase.moves
+
+      assert move |> Map.from_struct() |> Map.keys() |> Enum.sort() ==
+               [:category, :dtc, :dtm, :dtz, :san, :uci]
+    end
+
+    test "keeps checkmate and empty moves, which drive terminal detection" do
+      assert {:ok, tablebase} =
+               Parser.from_map(%{
+                 "category" => "win",
+                 "checkmate" => true,
+                 "dtc" => 1,
+                 "dtm" => 2,
+                 "dtz" => 3,
+                 "moves" => []
+               })
+
+      assert tablebase.checkmate
+      assert tablebase.moves == []
     end
   end
 

@@ -1,6 +1,11 @@
 defmodule Chesstrainer.Endgames.Tablebase do
   @moduledoc """
   All endgame tablebase related functions.
+
+  The cached value carries only what the trainer reads: `category`,
+  `checkmate`, and `moves` drive play, while `dtm`/`dtc` are small distance
+  hedges. Cursed-win/blessed-loss are normalised to `:draw` at parse time, so
+  the raw `dtw`/`dtz`/`insufficient_material` fields are not kept here.
   """
 
   alias Chesstrainer.Endgames.Tablebase
@@ -12,9 +17,6 @@ defmodule Chesstrainer.Endgames.Tablebase do
           checkmate: boolean(),
           dtc: integer() | nil,
           dtm: integer() | nil,
-          dtw: integer() | nil,
-          dtz: integer() | nil,
-          insufficient_material: boolean(),
           moves: [Tablebase.Move.t()]
         }
 
@@ -22,9 +24,6 @@ defmodule Chesstrainer.Endgames.Tablebase do
             checkmate: false,
             dtc: nil,
             dtm: nil,
-            dtw: nil,
-            dtz: nil,
-            insufficient_material: false,
             moves: nil
 
   @doc """
