@@ -2,6 +2,9 @@ defmodule Chesstrainer.Endgames.Tablebase do
   @moduledoc """
   All endgame tablebase related functions.
 
+  Lookups are routed by piece count through `Tablebase.Router`, which picks the
+  backend that can answer the position.
+
   The cached value carries only what the trainer reads: `category`,
   `checkmate`, and `moves`. Cursed-win/blessed-loss are normalised to `:draw` at
   parse time, and distance fields (`dtm`/`dtc`/`dtw`) are not kept because the
@@ -51,7 +54,7 @@ defmodule Chesstrainer.Endgames.Tablebase do
         {:ok, tablebase}
 
       _ ->
-        case Tablebase.Parser.from_fen(fen) do
+        case Tablebase.Router.probe(fen) do
           {:error, reason} ->
             {:error, reason}
 

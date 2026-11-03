@@ -150,5 +150,12 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
 
       assert {:ok, ^tablebase} = Tablebase.new(fen)
     end
+
+    test "returns {:error, :not_covered} for a position with more than seven pieces" do
+      fen = "3k4/2n2B2/1KP5/2B2p2/5b1p/7P/8/8 b - - 0 1"
+      TablebaseCache.delete(fen)
+
+      assert Tablebase.new(fen) == {:error, :not_covered}
+    end
   end
 end

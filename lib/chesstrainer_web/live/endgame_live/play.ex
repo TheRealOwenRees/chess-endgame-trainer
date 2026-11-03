@@ -572,6 +572,10 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
     "This position is not covered by the tablebase."
   end
 
+  defp blocked_reason({:error, :not_covered}) do
+    "This position is not covered by the tablebase."
+  end
+
   defp blocked_reason({:error, reason}) do
     "The tablebase is unavailable (#{inspect(reason)})."
   end

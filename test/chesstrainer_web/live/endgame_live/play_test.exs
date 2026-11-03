@@ -57,6 +57,21 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     })
   end
 
+  # >7-piece positions short-circuit to "not covered" before any backend, but
+  # the changeset now rejects them, so insert one directly to exercise the path.
+  defp insert_out_of_range_endgame do
+    fen = "3k4/2n2B2/1KP5/2B2p2/5b1p/7P/8/8 b - - 0 1"
+    {:ok, key} = Chesstrainer.Key.from_fen(fen)
+
+    Chesstrainer.Repo.insert!(%Chesstrainer.Endgames.Endgame{
+      fen: fen,
+      color: :black,
+      key: key,
+      result: :win,
+      rating: 1500
+    })
+  end
+
   # Plays one optimal move, applies the opponent's reply, then a losing move,
   # leaving a three-ply failed attempt to review.
   defp seeded_attempt(conn) do
@@ -169,6 +184,16 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
       play_move(view, endgame, "d1", "d7", "Qd7+")
       assert render(view) =~ "cannot be graded"
+    end
+
+    test "blocks an out-of-range endgame as not covered", %{conn: conn} do
+      endgame = insert_out_of_range_endgame()
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      html = render(view)
+      assert html =~ "Tablebase unavailable"
+      assert html =~ "not covered by the tablebase"
     end
   end
 
