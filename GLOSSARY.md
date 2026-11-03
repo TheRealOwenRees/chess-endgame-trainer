@@ -16,7 +16,8 @@ side correctly against tablebase-optimal defence.
 _Avoid_: Endgame (the stored record), exercise
 
 **Attempt**:
-One playthrough of a puzzle by a user, ending solved or failed.
+A recorded playthrough of a puzzle by a user, ending solved or failed; a
+per-user record, distinct from an endgame's global attempt and solve counts.
 _Avoid_: Run, session, game
 
 **Theme**:
@@ -72,6 +73,28 @@ The decisive zeroing move — a promotion — that ends a conversion-type puzzle
 **Cutoff**:
 The terminal condition short of mate at which a puzzle counts as solved:
 promotion (still winning) for conversion puzzles, mate otherwise.
+
+## Ratings
+
+**Rating**:
+A user's estimated solving skill, or an endgame's estimated difficulty, on a
+scale that lets the two be compared.
+_Avoid_: Score, ELO, rank
+
+**Rating deviation**:
+The uncertainty around a rating; it widens with inactivity and narrows with
+rated results, so a less certain rating moves further per result.
+_Avoid_: Error margin, variance
+
+**Rating window**:
+The minimum interval before the same user replaying the same endgame can change
+either rating again.
+_Avoid_: Cooldown (reserved for tablebase rate-limiting)
+
+**Volatility**:
+A measure of how erratic a competitor's recent results are, used by some rating
+systems; the trainer deliberately does not track it.
+_Avoid_: Variance, inconsistency
 
 ## Infrastructure
 
