@@ -66,27 +66,35 @@ defmodule Chesstrainer.Endgames.Endgame do
   defp fen_issues(fen) do
     case String.split(fen, " ") do
       [board, active, _castling, _en_passant, halfmove, fullmove] ->
+        board_valid? = valid_board?(board)
+        pieces = Chesstrainer.FEN.piece_count(fen)
+
         issues = []
 
         issues =
-          if valid_board?(board),
+          if board_valid?,
             do: issues,
-            else: ["board must be 8 ranks of 8 squares each"]
+            else: issues ++ ["board must be 8 ranks of 8 squares each"]
 
         issues =
           if active in ["w", "b"],
             do: issues,
-            else: ["active color must be 'w' or 'b'"]
+            else: issues ++ ["active color must be 'w' or 'b'"]
 
         issues =
           if non_negative_integer?(halfmove),
             do: issues,
-            else: ["halfmove clock must be a non-negative integer"]
+            else: issues ++ ["halfmove clock must be a non-negative integer"]
 
         issues =
           if positive_integer?(fullmove),
             do: issues,
-            else: ["fullmove number must be a positive integer"]
+            else: issues ++ ["fullmove number must be a positive integer"]
+
+        issues =
+          if board_valid? and is_integer(pieces) and pieces > 7,
+            do: issues ++ ["positions with more than 7 pieces are not covered by tablebases"],
+            else: issues
 
         issues
 

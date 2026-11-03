@@ -59,4 +59,27 @@ defmodule Chesstrainer.FENTest do
       assert FEN.normalize(fen) == fen
     end
   end
+
+  describe "piece_count/1" do
+    test "counts kings and pieces, ignoring empty squares and slashes" do
+      assert FEN.piece_count("8/8/3k4/8/8/3K1R2/8/8 w - - 0 1") == 3
+    end
+
+    test "counts a full seven-piece position" do
+      assert FEN.piece_count("6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 0") == 7
+    end
+
+    test "counts a position beyond the tablebase range" do
+      assert FEN.piece_count("3k4/2n2B2/1KP5/2B2p2/5b1p/7P/8/8 b - - 0 1") == 10
+    end
+
+    test "counts a board field without clocks" do
+      assert FEN.piece_count("8/8/3k4/8/8/3K1R2/8/8") == 3
+    end
+
+    test "returns nil for a malformed board" do
+      assert FEN.piece_count("not a fen") == nil
+      assert FEN.piece_count(nil) == nil
+    end
+  end
 end

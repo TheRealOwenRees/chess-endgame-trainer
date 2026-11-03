@@ -9,11 +9,6 @@ defmodule Chesstrainer.Repo.Seeds.Endgames do
       result: :win
     },
     %{
-      fen: "3k4/2n2B2/1KP5/2B2p2/5b1p/7P/8/8 b - - 0 0",
-      color: :black,
-      result: :win
-    },
-    %{
       fen: "r7/4R2P/3p4/3k1K2/2p5/8/8/8 b - - 0 0",
       color: :black,
       result: :draw

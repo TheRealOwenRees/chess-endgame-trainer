@@ -115,6 +115,30 @@ defmodule Chesstrainer.EndgamesTest do
       assert [msg] = errors_on(changeset).fen
       assert msg =~ "active color"
     end
+
+    test "rejects a FEN with more than 7 pieces" do
+      attrs = %{
+        fen: "3k4/2n2B2/1KP5/2B2p2/5b1p/7P/8/8 b - - 0 1",
+        color: :black,
+        result: :win,
+        rating: 1500
+      }
+
+      assert {:error, changeset} = Endgames.create_endgame(attrs)
+      assert [msg] = errors_on(changeset).fen
+      assert msg =~ "more than 7 pieces"
+    end
+
+    test "accepts a FEN with exactly 7 pieces" do
+      attrs = %{
+        fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 1",
+        color: :black,
+        result: :win,
+        rating: 1500
+      }
+
+      assert {:ok, %Endgame{}} = Endgames.create_endgame(attrs)
+    end
   end
 
   describe "themes" do

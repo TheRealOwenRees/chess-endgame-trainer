@@ -40,6 +40,50 @@ defmodule Chesstrainer.FEN do
     end
   end
 
+  @doc """
+  Counts the pieces on the board, or returns `nil` if the board field is not a
+  well-formed FEN board.
+
+  Kings count as pieces; empty-square digits are ignored. This is the number
+  tablebases are sized by, so a position with more than seven pieces is beyond
+  every tablebase.
+
+  ## Examples
+
+      iex> Chesstrainer.FEN.piece_count("8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+      3
+
+      iex> Chesstrainer.FEN.piece_count("not a fen")
+      nil
+  """
+  @spec piece_count(String.t() | nil) :: non_neg_integer() | nil
+  def piece_count(fen) when is_binary(fen) do
+    case String.split(fen, " ") do
+      [board | _] -> board_piece_count(board)
+      _ -> nil
+    end
+  end
+
+  def piece_count(_fen), do: nil
+
+  defp board_piece_count(board) do
+    board
+    |> String.graphemes()
+    |> Enum.reduce_while(0, fn
+      "/", acc ->
+        {:cont, acc}
+
+      <<c>>, acc when c in ?1..?8 ->
+        {:cont, acc}
+
+      piece, acc when piece in ~w(p n b r q k P N B R Q K) ->
+        {:cont, acc + 1}
+
+      _other, _acc ->
+        {:halt, nil}
+    end)
+  end
+
   defp color_initial_to_color_atom("b"), do: :black
   defp color_initial_to_color_atom("w"), do: :white
   defp color_initial_to_color_atom(_), do: nil
