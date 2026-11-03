@@ -25,10 +25,12 @@ import { LiveSocket } from "phoenix_live_view";
 import { hooks as colocatedHooks } from "phoenix-colocated/chesstrainer";
 import topbar from "../vendor/topbar";
 import { ChessBoard } from "./hooks/chessBoard";
+import { CopyFen } from "./hooks/copyFen"
 
 let Hooks = {
   ...colocatedHooks,
   ChessBoard,
+  CopyFen
 };
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");

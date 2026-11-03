@@ -10,37 +10,29 @@
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
 
+Code.require_file("seeds/endgames.ex", __DIR__)
+Code.require_file("seeds/themes.ex", __DIR__)
+
 alias Chesstrainer.Repo
 alias Chesstrainer.Endgames.Endgame
 alias Chesstrainer.Themes.Theme
+alias Chesstrainer.Repo.Seeds.Endgames
+alias Chesstrainer.Repo.Seeds.Themes
 
 now = DateTime.utc_now() |> DateTime.truncate(:second)
 
 IO.puts("🌱 Seeding basic endgames into DB...")
 
-endgames = [
-  %{
-    fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1",
-    color: :white,
-    message: "Rook vs king endgame",
-    notes: "Basic rook endgame",
-    result: :win
-  },
-  %{
-    fen: "6k1/5p2/6p1/8/7p/8/6PP/6K1 b - - 0 1",
-    color: :black,
-    message: "3 pawns vs 2 pawns",
-    notes: "https://www.chessgames.com/perl/chessgame?gid=1017147",
-    result: :win
-  }
-]
+endgames = Endgames.all()
 
 Repo.insert_all(
   Endgame,
   Enum.map(endgames, fn endgame ->
-    {:ok, key} = Chesstrainer.Key.from_fen(endgame.fen)
+    fen = Chesstrainer.FEN.normalize(endgame.fen)
+    {:ok, key} = Chesstrainer.Key.from_fen(fen)
 
     endgame
+    |> Map.put(:fen, fen)
     |> Map.put(:id, Ecto.UUID.generate())
     |> Map.put(:key, key)
     |> Map.merge(%{inserted_at: now, updated_at: now})
@@ -52,15 +44,7 @@ IO.puts("✅ Done seeding endgames.")
 
 IO.puts("🌱 Seeding endgame themes into DB...")
 
-theme_names = [
-  "mate in 2",
-  "mate in 3",
-  "Lucena",
-  "Philidor",
-  "opposition",
-  "promotion",
-  "stalemate"
-]
+theme_names = Themes.all()
 
 Repo.insert_all(
   Theme,
