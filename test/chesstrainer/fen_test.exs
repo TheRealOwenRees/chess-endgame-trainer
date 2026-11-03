@@ -60,6 +60,38 @@ defmodule Chesstrainer.FENTest do
     end
   end
 
+  describe "position_key/1" do
+    test "drops the halfmove and fullmove clocks" do
+      assert FEN.position_key("8/8/3k4/8/8/3K1R2/8/8 w - - 0 1") ==
+               "8/8/3k4/8/8/3K1R2/8/8 w - -"
+    end
+
+    test "shares a key for FENs that differ only in the clocks" do
+      a = "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
+      b = "8/8/3k4/8/8/3K1R2/8/8 w - - 37 99"
+
+      assert FEN.position_key(a) == FEN.position_key(b)
+    end
+
+    test "keeps board, side to move, castling and en-passant distinct" do
+      base = "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
+
+      refute FEN.position_key(base) == FEN.position_key("8/8/3k4/8/8/3K1R2/8/8 b - - 0 1")
+      refute FEN.position_key(base) == FEN.position_key("8/8/3k4/8/8/3K1R3/8/8 w - - 0 1")
+      refute FEN.position_key(base) == FEN.position_key("8/8/3k4/8/8/3K1R2/8/8 w K - 0 1")
+      refute FEN.position_key(base) == FEN.position_key("8/8/3k4/8/8/3K1R2/8/8 w - e3 0 1")
+    end
+
+    test "trims surrounding whitespace" do
+      assert FEN.position_key("  8/8/3k4/8/8/3K1R2/8/8 w - - 0 1\n") ==
+               "8/8/3k4/8/8/3K1R2/8/8 w - -"
+    end
+
+    test "passes through a non-FEN string" do
+      assert FEN.position_key("not a fen") == "not a fen"
+    end
+  end
+
   describe "piece_count/1" do
     test "counts kings and pieces, ignoring empty squares and slashes" do
       assert FEN.piece_count("8/8/3k4/8/8/3K1R2/8/8 w - - 0 1") == 3

@@ -41,6 +41,32 @@ defmodule Chesstrainer.FEN do
   end
 
   @doc """
+  Returns the position key for a FEN: the board, side to move, castling and
+  en-passant fields, with the halfmove and fullmove clocks dropped.
+
+  A tablebase answer depends only on the position, so two FENs that differ only
+  in their clocks resolve to the same position key and share a cache entry.
+
+  ## Examples
+
+      iex> Chesstrainer.FEN.position_key("8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+      "8/8/3k4/8/8/3K1R2/8/8 w - -"
+
+      iex> Chesstrainer.FEN.position_key("8/8/3k4/8/8/3K1R2/8/8 w - - 37 99")
+      "8/8/3k4/8/8/3K1R2/8/8 w - -"
+  """
+  @spec position_key(String.t()) :: String.t()
+  def position_key(fen) when is_binary(fen) do
+    case String.split(fen) do
+      [board, active, castling, en_passant | _] ->
+        Enum.join([board, active, castling, en_passant], " ")
+
+      _ ->
+        String.trim(fen)
+    end
+  end
+
+  @doc """
   Counts the pieces on the board, or returns `nil` if the board field is not a
   well-formed FEN board.
 

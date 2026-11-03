@@ -7,6 +7,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Endgames.Tablebase.Cache, as: TablebaseCache
+  alias Chesstrainer.FEN
   alias Chesstrainer.Ratelimiters
 
   defp assert_init_board(view, expected_fen, expected_orientation, expected_player_color) do
@@ -27,8 +28,9 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       moves: Keyword.get(opts, :moves, [])
     }
 
-    TablebaseCache.put(fen, tablebase)
-    on_exit(fn -> TablebaseCache.delete(fen) end)
+    key = FEN.position_key(fen)
+    TablebaseCache.put(key, tablebase)
+    on_exit(fn -> TablebaseCache.delete(key) end)
   end
 
   defp grading_moves do
@@ -77,9 +79,11 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   defp seeded_attempt(conn) do
     endgame = endgame_fixture()
 
+    # The tablebase cache is keyed by position (clocks ignored), so these must
+    # differ by more than the move clocks to stay distinct cache entries.
     after_first = "8/8/8/8/8/8/8/8 b - - 0 1"
     after_reply = "8/8/8/8/8/8/8/8 w - - 0 1"
-    after_losing = "8/8/8/8/8/8/8/8 b - - 1 1"
+    after_losing = "8/8/8/8/8/8/8/7K b - - 1 1"
     reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :loss, dtz: -3}
     losing_reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :draw, dtz: 0}
 
@@ -174,7 +178,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   describe "tablebase availability" do
     test "blocks the attempt when the tablebase is cooling down", %{conn: conn} do
       endgame = endgame_fixture()
-      TablebaseCache.delete(endgame.fen)
+      TablebaseCache.delete(FEN.position_key(endgame.fen))
       Ratelimiters.lichess_add_cooldown()
       on_exit(fn -> Ratelimiters.lichess_reset_cooldown() end)
 
@@ -735,7 +739,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     test "degrades gracefully and reuses played-position snapshots", %{conn: conn} do
       {view, fens} = seeded_attempt(conn)
 
-      TablebaseCache.delete(fens.after_losing)
+      TablebaseCache.delete(FEN.position_key(fens.after_losing))
       Ratelimiters.lichess_add_cooldown()
       on_exit(fn -> Ratelimiters.lichess_reset_cooldown() end)
 

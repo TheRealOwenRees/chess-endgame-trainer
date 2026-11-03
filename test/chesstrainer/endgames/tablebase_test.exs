@@ -4,6 +4,7 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Endgames.Tablebase.Cache, as: TablebaseCache
   alias Chesstrainer.Endgames.Tablebase.Parser
+  alias Chesstrainer.FEN
   alias Chesstrainer.Ratelimiters
 
   describe "normalize_category/1" do
@@ -144,16 +145,29 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
     test "returns {:ok, tablebase} on a cache hit" do
       fen = "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
       tablebase = %Tablebase{category: :win, moves: []}
+      key = FEN.position_key(fen)
 
-      TablebaseCache.put(fen, tablebase)
-      on_exit(fn -> TablebaseCache.delete(fen) end)
+      TablebaseCache.put(key, tablebase)
+      on_exit(fn -> TablebaseCache.delete(key) end)
 
       assert {:ok, ^tablebase} = Tablebase.new(fen)
     end
 
+    test "shares a cache entry for FENs that differ only in the clocks" do
+      fen = "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
+      other_clock = "8/8/3k4/8/8/3K1R2/8/8 w - - 7 42"
+      tablebase = %Tablebase{category: :win, moves: []}
+      key = FEN.position_key(fen)
+
+      TablebaseCache.put(key, tablebase)
+      on_exit(fn -> TablebaseCache.delete(key) end)
+
+      assert {:ok, ^tablebase} = Tablebase.new(other_clock)
+    end
+
     test "returns {:error, :not_covered} for a position with more than seven pieces" do
       fen = "3k4/2n2B2/1KP5/2B2p2/5b1p/7P/8/8 b - - 0 1"
-      TablebaseCache.delete(fen)
+      TablebaseCache.delete(FEN.position_key(fen))
 
       assert Tablebase.new(fen) == {:error, :not_covered}
     end

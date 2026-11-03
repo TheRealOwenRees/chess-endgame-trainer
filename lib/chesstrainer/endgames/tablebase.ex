@@ -12,6 +12,7 @@ defmodule Chesstrainer.Endgames.Tablebase do
   """
 
   alias Chesstrainer.Endgames.Tablebase
+  alias Chesstrainer.FEN
 
   @type result :: :win | :draw | :loss | :unknown
 
@@ -49,7 +50,9 @@ defmodule Chesstrainer.Endgames.Tablebase do
           | {:error, :invalid_endgame}
           | {:error, term()}
   def new(fen) do
-    case Tablebase.Cache.get(fen) do
+    key = FEN.position_key(fen)
+
+    case Tablebase.Cache.get(key) do
       {:ok, tablebase} ->
         {:ok, tablebase}
 
@@ -65,7 +68,7 @@ defmodule Chesstrainer.Endgames.Tablebase do
             {:error, :invalid_endgame}
 
           {:ok, tablebase} ->
-            Tablebase.Cache.put(fen, tablebase)
+            Tablebase.Cache.put(key, tablebase)
             {:ok, tablebase}
         end
     end
