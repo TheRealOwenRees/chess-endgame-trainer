@@ -67,6 +67,7 @@ defmodule Chesstrainer.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:chex, git: "https://github.com/therealowenrees/chex.git", tag: "v0.2.0-alpha.2"},
+      {:rustler, "~> 0.38", runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
