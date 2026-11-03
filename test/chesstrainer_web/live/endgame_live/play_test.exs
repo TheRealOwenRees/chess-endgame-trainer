@@ -175,6 +175,30 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     end
   end
 
+  describe "current scope" do
+    test "carries the signed-in user into the play screen", %{conn: conn} do
+      user = Chesstrainer.AccountsFixtures.user_fixture()
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen)
+
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user)
+        |> live(~p"/endgames/#{endgame}/play")
+
+      assert :sys.get_state(view.pid).socket.assigns.current_scope.user.id == user.id
+    end
+
+    test "is nil for an anonymous visitor", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen)
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      assert :sys.get_state(view.pid).socket.assigns.current_scope == nil
+    end
+  end
+
   describe "tablebase availability" do
     test "blocks the attempt when the tablebase is cooling down", %{conn: conn} do
       # Six pieces routes to Lichess, so the cooldown applies (five or fewer

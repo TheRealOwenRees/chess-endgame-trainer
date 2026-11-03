@@ -25,7 +25,6 @@ defmodule ChesstrainerWeb.Router do
     live "/chess-test", ChessTestLive
 
     live "/endgames", EndgameLive.PlayerIndex, :index
-    live "/endgames/:id/play", EndgameLive.Play, :play
   end
 
   scope "/admin", ChesstrainerWeb do
@@ -81,6 +80,7 @@ defmodule ChesstrainerWeb.Router do
 
     live_session :current_user,
       on_mount: [{ChesstrainerWeb.UserAuth, :mount_current_scope}] do
+      live "/endgames/:id/play", EndgameLive.Play, :play
       live "/users/register", UserLive.Registration, :new
       live "/users/log-in", UserLive.Login, :new
     end
