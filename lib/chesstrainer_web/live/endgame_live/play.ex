@@ -178,8 +178,8 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
   end
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
-    endgame = Endgames.get_endgame!(id)
+  def mount(%{"public_code" => public_code}, _session, socket) do
+    endgame = Endgames.get_endgame_by_public_code!(public_code)
 
     socket =
       socket

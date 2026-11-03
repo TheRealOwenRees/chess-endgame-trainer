@@ -43,14 +43,66 @@ defmodule ChesstrainerWeb.EndgameLive.IndexTest do
     {:ok, view, html} = live(conn, ~p"/admin/endgames")
 
     # collapsed: the endgame row (and its themes) are not rendered yet
-    refute html =~ ~p"/endgames/#{endgame}/play"
+    refute html =~ ~p"/endgames/#{endgame.public_code}/play"
     refute html =~ "Lucena"
 
     view |> element("#key-group-K-v-K button") |> render_click()
 
     html = render(view)
-    assert html =~ ~p"/endgames/#{endgame}/play"
+    assert html =~ ~p"/endgames/#{endgame.public_code}/play"
     assert html =~ "Lucena"
+  end
+
+  describe "search" do
+    test "opens the endgame found by public code", %{conn: conn} do
+      endgame = endgame_fixture()
+
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames")
+
+      assert {:error, {:live_redirect, %{to: path}}} =
+               view
+               |> form("#endgame-search-form", %{query: endgame.public_code})
+               |> render_submit()
+
+      assert path == "/admin/endgames/#{endgame.id}"
+    end
+
+    test "opens the endgame found by database id", %{conn: conn} do
+      endgame = endgame_fixture()
+
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames")
+
+      assert {:error, {:live_redirect, %{to: path}}} =
+               view |> form("#endgame-search-form", %{query: endgame.id}) |> render_submit()
+
+      assert path == "/admin/endgames/#{endgame.id}"
+    end
+
+    test "lists every endgame containing a FEN fragment", %{conn: conn} do
+      kr = endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+      kq = endgame_fixture(fen: "8/8/3k4/8/8/3K1Q2/8/8 w - - 0 1")
+
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames")
+
+      html = view |> form("#endgame-search-form", %{query: "3k4"}) |> render_submit()
+
+      assert html =~ ~s{/admin/endgames/#{kr.id}}
+      assert html =~ ~s{/admin/endgames/#{kq.id}}
+    end
+
+    test "reports when nothing matches, and clears back to the grouped list", %{conn: conn} do
+      endgame_fixture()
+
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames")
+
+      html = view |> form("#endgame-search-form", %{query: "no such endgame"}) |> render_submit()
+      assert html =~ "No endgame matches"
+
+      view |> element("#clear-endgame-search") |> render_click()
+
+      assert has_element?(view, "#key-group-K-v-K")
+      refute render(view) =~ "No endgame matches"
+    end
   end
 
   test "filters by theme", %{conn: conn} do

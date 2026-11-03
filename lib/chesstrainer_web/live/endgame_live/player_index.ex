@@ -32,14 +32,23 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
         </:header>
 
         <:row :let={endgame}>
-          <tr id={"endgame-" <> endgame.id}>
-            <td phx-click={JS.navigate(~p"/endgames/#{endgame}/play")} class="hover:cursor-pointer">
+          <tr id={"endgame-" <> endgame.public_code}>
+            <td
+              phx-click={JS.navigate(~p"/endgames/#{endgame.public_code}/play")}
+              class="hover:cursor-pointer"
+            >
               {endgame.color}
             </td>
-            <td phx-click={JS.navigate(~p"/endgames/#{endgame}/play")} class="hover:cursor-pointer">
+            <td
+              phx-click={JS.navigate(~p"/endgames/#{endgame.public_code}/play")}
+              class="hover:cursor-pointer"
+            >
               {endgame.result}
             </td>
-            <td phx-click={JS.navigate(~p"/endgames/#{endgame}/play")} class="hover:cursor-pointer">
+            <td
+              phx-click={JS.navigate(~p"/endgames/#{endgame.public_code}/play")}
+              class="hover:cursor-pointer"
+            >
               {round(endgame.rating)}
             </td>
             <td>
@@ -51,7 +60,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
               <span :if={endgame.themes == []} class="text-base-content/50">None</span>
             </td>
             <td class="w-0 font-semibold">
-              <.link navigate={~p"/endgames/#{endgame}/play"}>Play</.link>
+              <.link navigate={~p"/endgames/#{endgame.public_code}/play"}>Play</.link>
             </td>
           </tr>
         </:row>

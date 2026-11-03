@@ -69,6 +69,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     {:ok, key} = Chesstrainer.Key.from_fen(fen)
 
     Chesstrainer.Repo.insert!(%Chesstrainer.Endgames.Endgame{
+      public_code: Chesstrainer.Endgames.Endgame.generate_public_code(),
       fen: fen,
       color: :black,
       key: key,
@@ -95,7 +96,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     seed_tablebase(after_reply, category: :win, moves: grading_moves())
     seed_tablebase(after_losing, category: :draw, moves: [losing_reply])
 
-    {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+    {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
     %{proxy: {ref, _topic, _}} = view
     assert_receive {^ref, {:push_event, "init_board", _payload}}, 100
@@ -137,7 +138,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture(color: :white)
       seed_tablebase(endgame.fen)
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       assert has_element?(view, "#endgame-board")
       assert_init_board(view, endgame.fen, "white", "white")
@@ -147,7 +148,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture(color: :black)
       seed_tablebase(endgame.fen)
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       assert_init_board(view, endgame.fen, "black", "black")
     end
@@ -163,7 +164,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
       seed_tablebase(endgame.fen)
 
-      {:ok, _view, html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, _view, html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       assert html =~ "KQ v K"
       assert html =~ "White to move"
@@ -174,6 +175,14 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     test "raises when the endgame does not exist", %{conn: conn} do
       assert_raise Ecto.NoResultsError, fn ->
         live(conn, ~p"/endgames/00000000-0000-0000-0000-000000000000/play")
+      end
+    end
+
+    test "does not resolve by database id", %{conn: conn} do
+      endgame = endgame_fixture()
+
+      assert_raise Ecto.NoResultsError, fn ->
+        live(conn, "/endgames/#{endgame.id}/play")
       end
     end
   end
@@ -187,7 +196,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       {:ok, view, _html} =
         conn
         |> log_in_user(user)
-        |> live(~p"/endgames/#{endgame}/play")
+        |> live(~p"/endgames/#{endgame.public_code}/play")
 
       assert :sys.get_state(view.pid).socket.assigns.current_scope.user.id == user.id
     end
@@ -196,7 +205,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen)
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       assert :sys.get_state(view.pid).socket.assigns.current_scope == nil
     end
@@ -211,7 +220,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       Ratelimiters.lichess_add_cooldown()
       on_exit(fn -> Ratelimiters.lichess_reset_cooldown() end)
 
-      {:ok, view, html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       assert html =~ "Tablebase unavailable"
 
@@ -222,7 +231,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     test "blocks an out-of-range endgame as not covered", %{conn: conn} do
       endgame = insert_out_of_range_endgame()
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       html = render(view)
       assert html =~ "Tablebase unavailable"
@@ -235,7 +244,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen)
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       view
       |> render_hook("chess_fen_invalid", %{
@@ -254,7 +263,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       play_move(view, endgame, "d1", "d7", "Qd7+")
       html = render(view)
@@ -267,7 +276,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       play_move(view, endgame, "d1", "d5", "Qd5")
 
@@ -278,7 +287,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       play_move(view, endgame, "d1", "d4", "Qd4")
 
@@ -289,7 +298,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -315,7 +324,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       seed_tablebase(fen_after, category: :loss, moves: [reply])
       seed_tablebase(fen_after_reply, category: :win, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -341,7 +350,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       play_move(view, endgame, "d1", "d4", "Qd4")
 
@@ -357,7 +366,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen)
 
-      {:ok, _view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, _view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       assert Endgames.get_endgame!(endgame.id).times_attempted == 1
     end
@@ -369,7 +378,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       seed_tablebase(endgame.fen, moves: grading_moves())
       seed_tablebase(fen_after, checkmate: true, moves: [])
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -389,7 +398,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       moves = [%Tablebase.Move{uci: "a7a8q", san: "a8=Q", category: :loss, dtz: -1}]
       seed_tablebase(endgame.fen, moves: moves)
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "a7",
@@ -409,7 +418,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       play_move(view, endgame, "d1", "d4", "Qd4")
 
@@ -430,7 +439,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       seed_tablebase(endgame.fen, moves: grading_moves())
       seed_tablebase(fen_after, checkmate: true, moves: [])
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -452,7 +461,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       play_move(view, endgame, "d1", "d4", "Qd4")
 
@@ -469,7 +478,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       seed_tablebase(endgame.fen, moves: grading_moves())
       seed_tablebase(fen_after, checkmate: true, moves: [])
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -494,7 +503,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       seed_tablebase(endgame.fen, moves: grading_moves())
       seed_tablebase(fen_after, checkmate: true, moves: [])
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       play = fn ->
         render_hook(view, "endgame_move_played", %{
@@ -527,7 +536,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture(rating: 1800)
       seed_tablebase(endgame.fen, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       play_move(view, endgame, "d1", "d4", "Qd4")
 
@@ -545,7 +554,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture(result: :draw)
       seed_tablebase(endgame.fen, category: :draw, moves: [])
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       assert has_element?(view, "#endgame-board")
       assert render(view) =~ "Make a move"
@@ -559,7 +568,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       seed_tablebase(endgame.fen, category: :draw, moves: draw_moves())
       seed_tablebase(fen_after, category: :draw, moves: [reply])
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -581,7 +590,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture(result: :draw)
       seed_tablebase(endgame.fen, category: :draw, moves: draw_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -603,7 +612,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture(result: :draw)
       seed_tablebase(endgame.fen, category: :draw, moves: draw_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -627,7 +636,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       seed_tablebase(endgame.fen, category: :draw, moves: draw_moves())
       seed_tablebase(fen_after, category: :draw, moves: [reply])
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -651,7 +660,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       play_move(view, endgame, "d1", "d7", "Qd7+")
       assert render(view) =~ "Qd7+"
@@ -694,7 +703,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
       seed_tablebase(endgame.fen, category: :draw, moves: moves)
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "d1",
@@ -730,7 +739,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       moves = [%Tablebase.Move{uci: "a7a8q", san: "a8=Q", category: :loss, dtz: -1}]
       seed_tablebase(endgame.fen, moves: moves)
 
-      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       render_hook(view, "endgame_move_played", %{
         "from" => "a7",

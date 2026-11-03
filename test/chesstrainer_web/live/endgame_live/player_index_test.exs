@@ -23,9 +23,20 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
     view |> element("#key-group-K-v-K button") |> render_click()
 
     html = render(view)
-    assert html =~ ~p"/endgames/#{endgame}/play"
-    assert html =~ ~p"/endgames/#{other}/play"
+    assert html =~ ~p"/endgames/#{endgame.public_code}/play"
+    assert html =~ ~p"/endgames/#{other.public_code}/play"
     assert html =~ "Lucena"
+  end
+
+  test "links to the public code, never the database id", %{conn: conn} do
+    endgame = endgame_fixture()
+
+    {:ok, view, _html} = live(conn, ~p"/endgames")
+    view |> element("#key-group-K-v-K button") |> render_click()
+
+    html = render(view)
+    assert html =~ ~s{/endgames/#{endgame.public_code}/play}
+    refute html =~ endgame.id
   end
 
   test "filters by theme", %{conn: conn} do
@@ -49,7 +60,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
   test "navigating to a play page renders the board", %{conn: conn} do
     endgame = endgame_fixture()
 
-    {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+    {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
     assert has_element?(view, "#endgame-board")
     assert has_element?(view, ~s{a[href="/endgames"]})

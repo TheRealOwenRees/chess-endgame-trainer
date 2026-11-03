@@ -38,7 +38,7 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
       attrs = %{fen: @fen, color: :white, result: :win, rating: 1625}
       {:ok, endgame} = Endgames.create_endgame(attrs)
 
-      {:ok, view, _html} = live(conn, ~p"/admin/endgames/#{endgame}/edit")
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames/#{endgame.id}/edit")
 
       html = view |> element("#endgame-form input[name='endgame[rating]']") |> render()
 
@@ -103,7 +103,7 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
     attrs = %{fen: @fen, color: :white, result: :win, rating: 1500}
     {:ok, endgame} = Endgames.create_endgame(attrs, [theme])
 
-    {:ok, view, _html} = live(conn, ~p"/admin/endgames/#{endgame}/edit")
+    {:ok, view, _html} = live(conn, ~p"/admin/endgames/#{endgame.id}/edit")
 
     assert render(view) =~ "Lucena"
 

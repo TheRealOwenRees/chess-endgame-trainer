@@ -33,10 +33,10 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
           <.button navigate={~p"/admin/endgames"}>
             <.icon name="hero-arrow-left" />
           </.button>
-          <.button navigate={~p"/endgames/#{@endgame}/play"}>
+          <.button navigate={~p"/endgames/#{@endgame.public_code}/play"}>
             <.icon name="hero-play" /> Play (opens trainer)
           </.button>
-          <.button variant="primary" navigate={~p"/admin/endgames/#{@endgame}/edit?return_to=show"}>
+          <.button variant="primary" navigate={~p"/admin/endgames/#{@endgame.id}/edit?return_to=show"}>
             <.icon name="hero-pencil-square" /> Edit endgame
           </.button>
         </:actions>
@@ -47,6 +47,19 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
       <.list>
         <:item title="Fen">{@endgame.fen}</:item>
         <:item title="Key">{@endgame.key}</:item>
+        <:item title="Public code">
+          <span id="public-code" class="select-all">{@endgame.public_code}</span>
+          <button
+            id="copy-public-code"
+            type="button"
+            phx-hook=".CopyPublicCode"
+            data-code={@endgame.public_code}
+            class="ml-2 inline-flex cursor-pointer items-center"
+            title="Copy public code"
+          >
+            <.icon name="hero-document-duplicate" class="w-3.5 h-3.5" />
+          </button>
+        </:item>
         <:item title="Color">{@endgame.color}</:item>
         <:item title="Rating">{round(@endgame.rating)}</:item>
         <:item title="Message">{@endgame.message}</:item>
@@ -56,6 +69,16 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
         <:item title="Attempted">{@endgame.times_attempted}</:item>
         <:item title="Solved">{@endgame.times_solved}</:item>
       </.list>
+
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyPublicCode">
+        export default {
+          mounted() {
+            this.el.addEventListener("click", () => {
+              navigator.clipboard.writeText(this.el.dataset.code)
+            })
+          }
+        }
+      </script>
     </Layouts.app>
     """
   end

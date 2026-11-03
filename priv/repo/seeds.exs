@@ -34,6 +34,7 @@ Repo.insert_all(
     endgame
     |> Map.put(:fen, fen)
     |> Map.put(:id, Ecto.UUID.generate())
+    |> Map.put(:public_code, Endgame.generate_public_code())
     |> Map.put(:key, key)
     |> Map.merge(%{inserted_at: now, updated_at: now})
   end),

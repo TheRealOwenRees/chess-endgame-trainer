@@ -31,6 +31,11 @@ pieces each side has, written strongest side first and colour-agnostic
 (e.g. "KQ v KR"). Used to group and search endgames by material.
 _Avoid_: Material signature, hash
 
+**Public code**:
+The short, stable identifier an endgame is played under in player-facing
+links, distinct from its database id and safe to share.
+_Avoid_: Slug, UUID, endgame id, token
+
 ## Identity & access
 
 **User**:

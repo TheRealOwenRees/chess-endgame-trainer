@@ -8,9 +8,13 @@ defmodule Chesstrainer.Endgames.Endgame do
 
   alias Chesstrainer.Key
 
+  @public_code_alphabet ~c"0123456789abcdefghjkmnpqrstvwxyz"
+  @public_code_length 10
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "endgames" do
+    field :public_code, :string
     field :fen, :string
     field :color, Ecto.Enum, values: [:white, :black]
     field :key, :string
@@ -42,7 +46,33 @@ defmodule Chesstrainer.Endgames.Endgame do
       end
     end)
     |> unique_constraint(:fen, message: "FEN already exists")
+    |> unique_constraint(:public_code)
     |> put_key()
+    |> put_public_code()
+  end
+
+  @doc """
+  Generates a public code: a short, random identifier for player-facing URLs.
+
+  10 characters of Crockford base32 (no `i`, `l`, `o` or `u`) give roughly 50
+  bits, so collisions are vanishingly rare; the unique index is the backstop.
+  """
+  @spec generate_public_code() :: String.t()
+  def generate_public_code do
+    @public_code_length
+    |> :crypto.strong_rand_bytes()
+    |> :binary.bin_to_list()
+    |> Enum.map(fn byte ->
+      Enum.at(@public_code_alphabet, rem(byte, length(@public_code_alphabet)))
+    end)
+    |> List.to_string()
+  end
+
+  defp put_public_code(changeset) do
+    case get_field(changeset, :public_code) do
+      nil -> put_change(changeset, :public_code, generate_public_code())
+      _ -> changeset
+    end
   end
 
   defp put_key(changeset) do

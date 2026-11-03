@@ -174,11 +174,87 @@ defmodule Chesstrainer.EndgamesTest do
     end
   end
 
+  describe "public code" do
+    test "create_endgame/1 assigns a 10-character lowercase Crockford code" do
+      endgame = create_endgame!(@kr)
+
+      assert String.length(endgame.public_code) == 10
+      assert endgame.public_code =~ ~r/^[0-9abcdefghjkmnpqrstvwxyz]{10}$/
+    end
+
+    test "create_endgame/1 gives each endgame a distinct code" do
+      one = create_endgame!(@kr)
+      two = create_endgame!(@kr_other)
+
+      refute one.public_code == two.public_code
+    end
+
+    test "get_endgame_by_public_code!/1 finds the endgame" do
+      endgame = create_endgame!(@kr)
+
+      assert Endgames.get_endgame_by_public_code!(endgame.public_code).id == endgame.id
+    end
+  end
+
   describe "rating default" do
     test "a new endgame changeset defaults rating to 1500" do
       changeset = Endgames.change_endgame(%Endgame{})
 
       assert Ecto.Changeset.get_field(changeset, :rating) == 1500
+    end
+  end
+
+  describe "search/1" do
+    test "finds an endgame by its public code" do
+      endgame = create_endgame!(@kr)
+      create_endgame!(@kq)
+
+      assert [found] = Endgames.search(endgame.public_code)
+      assert found.id == endgame.id
+    end
+
+    test "finds an endgame by its database id" do
+      endgame = create_endgame!(@kr)
+
+      assert [found] = Endgames.search(endgame.id)
+      assert found.id == endgame.id
+    end
+
+    test "finds an endgame by an exactly matching FEN, ignoring surrounding whitespace" do
+      endgame = create_endgame!(@kr)
+
+      assert [found] = Endgames.search("  #{@kr}  ")
+      assert found.id == endgame.id
+    end
+
+    test "normalizes a fullmove 0 FEN before matching" do
+      endgame = create_endgame!("8/8/3k4/8/8/3K1R2/8/8 w - - 0 0")
+
+      assert [found] = Endgames.search("8/8/3k4/8/8/3K1R2/8/8 w - - 0 0")
+      assert found.id == endgame.id
+    end
+
+    test "finds endgames containing a FEN fragment" do
+      kr = create_endgame!(@kr)
+      kq = create_endgame!(@kq)
+
+      assert Enum.sort(Enum.map(Endgames.search("3k4"), & &1.id)) == Enum.sort([kr.id, kq.id])
+    end
+
+    test "preloads themes" do
+      {:ok, lucena} = Themes.create_theme(%{name: "Lucena", category: :endgame})
+      create_endgame!(@kr, [lucena])
+
+      assert [found] = Endgames.search(@kr)
+      assert Enum.map(found.themes, & &1.name) == ["Lucena"]
+    end
+
+    test "returns no results for an unknown search or a blank query" do
+      create_endgame!(@kr)
+
+      assert Endgames.search("8/8/8/8/8/8/8/8 w - - 0 1") == []
+      assert Endgames.search("not an identifier") == []
+      assert Endgames.search("   ") == []
     end
   end
 

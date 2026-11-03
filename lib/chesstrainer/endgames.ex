@@ -93,6 +93,63 @@ defmodule Chesstrainer.Endgames do
   def get_endgame!(id), do: Repo.get!(Endgame, id)
 
   @doc """
+  Gets a single endgame by its public code, raising if it does not exist.
+  """
+  def get_endgame_by_public_code!(public_code) do
+    Repo.get_by!(Endgame, public_code: public_code)
+  end
+
+  @doc """
+  Finds endgames by database id, public code, or FEN.
+
+  A full FEN matches exactly (after normalisation); a fragment matches any FEN
+  containing it. Themes are preloaded. A blank query returns `[]`.
+  """
+  def search(query) do
+    query = String.trim(query || "")
+
+    if query == "" do
+      []
+    else
+      [search_by_id(query), search_by_public_code(query), search_by_fen(query)]
+      |> Enum.reject(&is_nil/1)
+      |> List.flatten()
+      |> Enum.uniq_by(& &1.id)
+    end
+  end
+
+  defp search_by_id(query) do
+    case Ecto.UUID.cast(query) do
+      {:ok, id} -> Repo.get(Endgame, id) |> preload_themes()
+      :error -> nil
+    end
+  end
+
+  defp search_by_public_code(query) do
+    Repo.get_by(Endgame, public_code: query) |> preload_themes()
+  end
+
+  defp search_by_fen(query) do
+    pattern = "%" <> escape_like(Chesstrainer.FEN.normalize(query)) <> "%"
+
+    Endgame
+    |> where([e], like(e.fen, ^pattern))
+    |> preload(:themes)
+    |> order_by([e], asc: e.key, asc: e.fen)
+    |> Repo.all()
+  end
+
+  defp preload_themes(nil), do: nil
+  defp preload_themes(endgame), do: Repo.preload(endgame, :themes)
+
+  defp escape_like(value) do
+    value
+    |> String.replace("\\", "\\\\")
+    |> String.replace("%", "\\%")
+    |> String.replace("_", "\\_")
+  end
+
+  @doc """
   Creates a endgame.
 
   ## Examples
@@ -104,11 +161,24 @@ defmodule Chesstrainer.Endgames do
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_endgame(attrs, themes \\ []) do
-    %Endgame{}
-    |> Endgame.changeset(attrs)
-    |> Ecto.Changeset.put_assoc(:themes, themes)
-    |> Repo.insert()
+  def create_endgame(attrs, themes \\ []), do: insert_endgame(attrs, themes, 3)
+
+  defp insert_endgame(attrs, themes, attempts) do
+    result =
+      %Endgame{}
+      |> Endgame.changeset(attrs)
+      |> Ecto.Changeset.put_assoc(:themes, themes)
+      |> Repo.insert()
+
+    case result do
+      {:error, changeset} when attempts > 1 ->
+        if Keyword.has_key?(changeset.errors, :public_code),
+          do: insert_endgame(attrs, themes, attempts - 1),
+          else: result
+
+      other ->
+        other
+    end
   end
 
   @doc """

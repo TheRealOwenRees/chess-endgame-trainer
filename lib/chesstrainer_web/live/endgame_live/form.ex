@@ -256,5 +256,5 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
   defp rating_display(%Phoenix.HTML.FormField{value: value}), do: value
 
   defp return_path("index", _endgame), do: ~p"/admin/endgames"
-  defp return_path("show", endgame), do: ~p"/admin/endgames/#{endgame}"
+  defp return_path("show", endgame), do: ~p"/admin/endgames/#{endgame.id}"
 end
