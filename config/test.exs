@@ -1,5 +1,8 @@
 import Config
 
+# Only in tests, remove the complexity from the password hashing algorithm
+config :bcrypt_elixir, :log_rounds, 1
+
 # Point the local Fathom backend at the committed 3-piece fixtures.
 config :chesstrainer, :tablebase_path, Path.expand("../test/fixtures/tablebase", __DIR__)
 

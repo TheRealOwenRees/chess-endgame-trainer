@@ -7,6 +7,8 @@ defmodule ChesstrainerWeb.EndgameLive.IndexTest do
 
   alias Chesstrainer.Endgames
 
+  setup :register_and_log_in_admin
+
   test "groups endgames by Key with a count", %{conn: conn} do
     endgame_fixture()
     endgame_fixture()

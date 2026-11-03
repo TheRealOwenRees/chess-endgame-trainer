@@ -5,6 +5,8 @@ defmodule ChesstrainerWeb.Layouts do
   """
   use ChesstrainerWeb, :html
 
+  alias Chesstrainer.Accounts.Role
+
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
@@ -51,6 +53,10 @@ defmodule ChesstrainerWeb.Layouts do
   @doc """
   Renders the application navbar.
   """
+  attr :current_scope, :map,
+    default: nil,
+    doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
+
   def navbar(assigns) do
     ~H"""
     <header class="navbar px-4 sm:px-6 lg:px-8">
@@ -65,17 +71,32 @@ defmodule ChesstrainerWeb.Layouts do
           <li>
             <a href="/endgames" class="btn btn-ghost">Endgames</a>
           </li>
-          <li>
+          <li :if={@current_scope && Role.admin?(@current_scope.user.role)}>
             <a href="/admin/endgames" class="btn btn-ghost">Admin</a>
           </li>
           <li>
             <.theme_toggle />
           </li>
-          <li>
-            <a href="/" class="btn btn-primary">
-              Login / Signup
-            </a>
-          </li>
+          <%= if @current_scope do %>
+            <li>
+              <span class="text-sm">{@current_scope.user.username}</span>
+            </li>
+            <li>
+              <.link navigate={~p"/users/settings"} class="btn btn-ghost">Settings</.link>
+            </li>
+            <li>
+              <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost">
+                Log out
+              </.link>
+            </li>
+          <% else %>
+            <li>
+              <.link navigate={~p"/users/register"} class="btn btn-ghost">Register</.link>
+            </li>
+            <li>
+              <.link navigate={~p"/users/log-in"} class="btn btn-primary">Log in</.link>
+            </li>
+          <% end %>
         </ul>
       </div>
     </header>

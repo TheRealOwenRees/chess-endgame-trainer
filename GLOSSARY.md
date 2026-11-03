@@ -30,6 +30,20 @@ pieces each side has, written strongest side first and colour-agnostic
 (e.g. "KQ v KR"). Used to group and search endgames by material.
 _Avoid_: Material signature, hash
 
+## Identity & access
+
+**User**:
+A person who can sign in to the trainer, identified by a unique email address and a unique username.
+_Avoid_: Account, player
+
+**Role**:
+A user's authority tier — `member`, `moderator`, `admin` or `super_admin` — deciding access to the admin area and the power to manage other users.
+_Avoid_: Permission, access level
+
+**Plan**:
+A user's subscription tier — `free` or `premium` — independent of their role.
+_Avoid_: Tier, subscription, membership
+
 ## Play
 
 **Winning side**:

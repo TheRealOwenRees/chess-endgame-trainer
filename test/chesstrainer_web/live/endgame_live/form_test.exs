@@ -10,6 +10,8 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
 
   @fen "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
 
+  setup :register_and_log_in_admin
+
   describe "rating default" do
     test "new endgame form pre-fills rating with 1500", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")

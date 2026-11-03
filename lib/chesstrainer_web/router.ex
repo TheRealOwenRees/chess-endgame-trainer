@@ -1,6 +1,8 @@
 defmodule ChesstrainerWeb.Router do
   use ChesstrainerWeb, :router
 
+  import ChesstrainerWeb.UserAuth
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -8,6 +10,7 @@ defmodule ChesstrainerWeb.Router do
     plug :put_root_layout, html: {ChesstrainerWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :fetch_current_scope_for_user
   end
 
   pipeline :api do
@@ -26,9 +29,10 @@ defmodule ChesstrainerWeb.Router do
   end
 
   scope "/admin", ChesstrainerWeb do
-    pipe_through :browser
+    pipe_through [:browser, :require_admin_user]
 
-    live_session :endgames do
+    live_session :endgames,
+      on_mount: [{ChesstrainerWeb.UserAuth, :require_admin}] do
       live "/endgames", EndgameLive.Index, :index
       live "/endgames/new", EndgameLive.Form, :new
       live "/endgames/:id", EndgameLive.Show, :show
@@ -56,5 +60,32 @@ defmodule ChesstrainerWeb.Router do
       live_dashboard "/dashboard", metrics: ChesstrainerWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
+  end
+
+  ## Authentication routes
+
+  scope "/", ChesstrainerWeb do
+    pipe_through [:browser, :require_authenticated_user]
+
+    live_session :require_authenticated_user,
+      on_mount: [{ChesstrainerWeb.UserAuth, :require_authenticated}] do
+      live "/users/settings", UserLive.Settings, :edit
+      live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+    end
+
+    post "/users/update-password", UserSessionController, :update_password
+  end
+
+  scope "/", ChesstrainerWeb do
+    pipe_through [:browser]
+
+    live_session :current_user,
+      on_mount: [{ChesstrainerWeb.UserAuth, :mount_current_scope}] do
+      live "/users/register", UserLive.Registration, :new
+      live "/users/log-in", UserLive.Login, :new
+    end
+
+    post "/users/log-in", UserSessionController, :create
+    delete "/users/log-out", UserSessionController, :delete
   end
 end
