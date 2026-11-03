@@ -690,11 +690,19 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
   defp record_attempt(socket, outcome) do
     case Attempts.record_attempt(socket.assigns.current_scope, socket.assigns.endgame, outcome) do
       {:ok, attempt} ->
-        {:ok, %{user: user, endgame: endgame}} = Ratings.rate_attempt(attempt)
+        case Ratings.rate_attempt(attempt) do
+          {:ok, %{user: user, endgame: endgame}} ->
+            socket
+            |> assign(:endgame, endgame)
+            |> assign(:user_rating, user.rating)
 
-        socket
-        |> assign(:endgame, endgame)
-        |> assign(:user_rating, user.rating)
+          {:skipped, _attempt} ->
+            put_flash(
+              socket,
+              :info,
+              "Replay recorded. Your rating is unchanged because you played this recently."
+            )
+        end
 
       _ ->
         socket

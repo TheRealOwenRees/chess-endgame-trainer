@@ -24,9 +24,17 @@ config :chesstrainer,
   ecto_repos: [Chesstrainer.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-# Glicko rating system. `system_constant` is the volatility constraint passed
-# through to the Glicko package.
-config :chesstrainer, :ratings, system_constant: 0.8
+# Glicko rating system.
+#
+# `system_constant` is the volatility constraint passed through to the Glicko
+# package. `window_days` is the minimum gap before replaying the same
+# user/endgame pair may change either rating again. `rd_inflation_c` widens a
+# rating deviation by sqrt(c^2 * days) while that side is inactive, capped at
+# the Glicko maximum (350).
+config :chesstrainer, :ratings,
+  system_constant: 0.8,
+  window_days: 7,
+  rd_inflation_c: 10.0
 
 # Configure the endpoint
 config :chesstrainer, ChesstrainerWeb.Endpoint,

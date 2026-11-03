@@ -486,6 +486,40 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert rated_user.rating > 1500.0
       assert Endgames.get_endgame!(endgame.id).rating < 1800.0
     end
+
+    test "does not re-rate a replay within the window", %{conn: conn, user: user} do
+      endgame = endgame_fixture(rating: 1800)
+      fen_after = "8/8/8/8/8/8/8/8 b - - 0 1"
+
+      seed_tablebase(endgame.fen, moves: grading_moves())
+      seed_tablebase(fen_after, checkmate: true, moves: [])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      play = fn ->
+        render_hook(view, "endgame_move_played", %{
+          "from" => "d1",
+          "to" => "d7",
+          "san" => "Qd7+",
+          "prev_fen" => endgame.fen,
+          "fen" => fen_after,
+          "endgame_id" => endgame.id
+        })
+      end
+
+      play.()
+      rated_user = Repo.get!(User, user.id)
+      rated_endgame = Endgames.get_endgame!(endgame.id)
+
+      render_click(view, "reset")
+      play.()
+
+      html = render(view)
+
+      assert html =~ "rating is unchanged"
+      assert Repo.get!(User, user.id).rating == rated_user.rating
+      assert Endgames.get_endgame!(endgame.id).rating == rated_endgame.rating
+    end
   end
 
   describe "per-user attempt records without a signed-in user" do
