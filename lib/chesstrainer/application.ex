@@ -20,7 +20,8 @@ defmodule Chesstrainer.Application do
       ChesstrainerWeb.Endpoint,
       {Registry, keys: :unique, name: Chesstrainer.CacheRegistry},
       {Task.Supervisor, name: Chesstrainer.Cache.BackupSupervisor},
-      {Chesstrainer.Cache, {:tablebase, cache_opts}}
+      {Chesstrainer.Cache, {:tablebase, cache_opts}},
+      Chesstrainer.Endgames.Tablebase.Local
     ]
 
     # See https://elixir.hexdocs.pm/Supervisor.html

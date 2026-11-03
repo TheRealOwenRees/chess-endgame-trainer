@@ -13,6 +13,7 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.FathomTest do
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Endgames.Tablebase.Backend.Fathom, as: FathomBackend
   alias Chesstrainer.Endgames.Tablebase.Cache, as: TablebaseCache
+  alias Chesstrainer.Endgames.Tablebase.Local
   alias Chesstrainer.FEN
 
   @krk "4k3/8/8/8/8/8/8/R3K3 w - - 0 1"
@@ -34,6 +35,11 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.FathomTest do
   test "detects checkmate" do
     assert {:ok, %Tablebase{category: :loss, checkmate: true, moves: []}} =
              FathomBackend.probe(@mate)
+  end
+
+  test "Local.check/0 reports the configured fixture set" do
+    assert is_binary(Local.path())
+    assert {:ok, 3} = Local.check()
   end
 
   test "answers through Tablebase.new without a cached entry" do

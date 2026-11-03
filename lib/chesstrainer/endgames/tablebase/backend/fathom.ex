@@ -15,13 +15,13 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.Fathom do
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Endgames.Tablebase.Backend.Lichess
   alias Chesstrainer.Endgames.Tablebase.Fathom, as: Nif
+  alias Chesstrainer.Endgames.Tablebase.Local
   alias Chesstrainer.Endgames.Tablebase.Move
   alias Chesstrainer.Endgames.Tablebase.San
 
   @impl true
   def probe(fen) do
-    with {:ok, path} <- tablebase_path(),
-         {:ok, _largest} <- Nif.init(path),
+    with {:ok, _largest} <- Local.check(),
          {:ok, {root, moves}} <- Nif.probe(fen) do
       case root do
         :failed -> fallback(fen)
@@ -29,13 +29,6 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.Fathom do
       end
     else
       _ -> fallback(fen)
-    end
-  end
-
-  defp tablebase_path do
-    case Application.get_env(:chesstrainer, :tablebase_path) do
-      path when is_binary(path) and path != "" -> {:ok, path}
-      _ -> :error
     end
   end
 
