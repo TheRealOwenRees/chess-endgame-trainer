@@ -33,6 +33,17 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
     end
   end
 
+  describe "normalize_wdl/1" do
+    test "maps Fathom WDL atoms, treating 50-move-rule draws as draws" do
+      assert Tablebase.normalize_wdl(:win) == :win
+      assert Tablebase.normalize_wdl(:loss) == :loss
+      assert Tablebase.normalize_wdl(:draw) == :draw
+      assert Tablebase.normalize_wdl(:cursed_win) == :draw
+      assert Tablebase.normalize_wdl(:blessed_loss) == :draw
+      assert Tablebase.normalize_wdl(:unknown) == :unknown
+    end
+  end
+
   describe "struct shape" do
     test "Tablebase carries only the fields the trainer reads" do
       assert %Tablebase{} |> Map.from_struct() |> Map.keys() |> Enum.sort() ==

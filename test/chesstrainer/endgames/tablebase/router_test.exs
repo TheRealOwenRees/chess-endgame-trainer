@@ -1,6 +1,7 @@
 defmodule Chesstrainer.Endgames.Tablebase.RouterTest do
   use ExUnit.Case, async: true
 
+  alias Chesstrainer.Endgames.Tablebase.Backend.Fathom, as: FathomBackend
   alias Chesstrainer.Endgames.Tablebase.Backend.Lichess
   alias Chesstrainer.Endgames.Tablebase.Router
 
@@ -11,7 +12,7 @@ defmodule Chesstrainer.Endgames.Tablebase.RouterTest do
 
   describe "backend/1" do
     test "routes five or fewer pieces to the local slot" do
-      assert Router.backend(@three) == {:ok, Lichess}
+      assert Router.backend(@three) == {:ok, FathomBackend}
     end
 
     test "routes six and seven pieces to the remote slot" do

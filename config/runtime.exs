@@ -20,6 +20,13 @@ if System.get_env("PHX_SERVER") do
   config :chesstrainer, ChesstrainerWeb.Endpoint, server: true
 end
 
+# Local Syzygy tablebases: set TABLEBASE_PATH to the directory holding the
+# .rtbw/.rtbz files. When unset, the local backend stays disabled and lookups
+# fall back to Lichess.
+if tablebase_path = System.get_env("TABLEBASE_PATH") do
+  config :chesstrainer, :tablebase_path, tablebase_path
+end
+
 # Tablebase cache: size and the UTC time of the daily backup. Environment
 # variables win over the defaults in config/config.exs so deployments can tune
 # the cache without a rebuild. Invalid values are reported and ignored rather

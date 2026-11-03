@@ -11,14 +11,14 @@ defmodule Chesstrainer.Endgames.Tablebase.Router do
   """
 
   alias Chesstrainer.Endgames.Tablebase
+  alias Chesstrainer.Endgames.Tablebase.Backend.Fathom, as: FathomBackend
   alias Chesstrainer.Endgames.Tablebase.Backend.Lichess
   alias Chesstrainer.FEN
 
   @max_local_pieces 5
   @max_pieces 7
 
-  # The local Syzygy backend will replace Lichess here once it exists.
-  @local_backend Lichess
+  @local_backend FathomBackend
   @remote_backend Lichess
 
   @spec backend(String.t()) :: {:ok, module()} | {:error, :not_covered | :invalid_endgame}
@@ -30,6 +30,12 @@ defmodule Chesstrainer.Endgames.Tablebase.Router do
       _ -> {:error, :invalid_endgame}
     end
   end
+
+  @doc """
+  True when the position is answered by the remote (Lichess) backend.
+  """
+  @spec remote?(String.t()) :: boolean()
+  def remote?(fen), do: backend(fen) == {:ok, @remote_backend}
 
   @spec probe(String.t()) ::
           {:ok, Tablebase.t()} | {:cooldown, non_neg_integer()} | {:error, term()}

@@ -44,6 +44,29 @@ defmodule Chesstrainer.Endgames.Tablebase do
 
   def normalize_category(_category), do: :unknown
 
+  @doc """
+  Normalises a Fathom WDL atom into a trainer result.
+
+  Like `normalize_category/1`, cursed-win and blessed-loss are draws because the
+  50-move rule prevents the decisive result.
+  """
+  @spec normalize_wdl(atom()) :: result()
+  def normalize_wdl(:win), do: :win
+  def normalize_wdl(:cursed_win), do: :draw
+  def normalize_wdl(:draw), do: :draw
+  def normalize_wdl(:blessed_loss), do: :draw
+  def normalize_wdl(:loss), do: :loss
+  def normalize_wdl(_wdl), do: :unknown
+
+  @doc """
+  Flips an outcome to the other side's perspective.
+  """
+  @spec flip(atom()) :: result()
+  def flip(:win), do: :loss
+  def flip(:loss), do: :win
+  def flip(:draw), do: :draw
+  def flip(_outcome), do: :unknown
+
   @spec new(String.t()) ::
           {:ok, t()}
           | {:cooldown, non_neg_integer()}
@@ -68,7 +91,8 @@ defmodule Chesstrainer.Endgames.Tablebase do
             {:error, :invalid_endgame}
 
           {:ok, tablebase} ->
-            Tablebase.Cache.put(key, tablebase)
+            # Local probes are cheap; only remote (Lichess) answers are cached.
+            if Tablebase.Router.remote?(fen), do: Tablebase.Cache.put(key, tablebase)
             {:ok, tablebase}
         end
     end

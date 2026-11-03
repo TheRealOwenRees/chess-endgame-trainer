@@ -177,7 +177,9 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
   describe "tablebase availability" do
     test "blocks the attempt when the tablebase is cooling down", %{conn: conn} do
-      endgame = endgame_fixture()
+      # Six pieces routes to Lichess, so the cooldown applies (five or fewer
+      # would be answered locally).
+      endgame = endgame_fixture(fen: "8/8/5p2/1P1K1k2/8/2r5/8/7R w - - 0 1")
       TablebaseCache.delete(FEN.position_key(endgame.fen))
       Ratelimiters.lichess_add_cooldown()
       on_exit(fn -> Ratelimiters.lichess_reset_cooldown() end)

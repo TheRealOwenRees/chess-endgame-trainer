@@ -1,5 +1,8 @@
 import Config
 
+# Point the local Fathom backend at the committed 3-piece fixtures.
+config :chesstrainer, :tablebase_path, Path.expand("../test/fixtures/tablebase", __DIR__)
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used
