@@ -13,6 +13,18 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         <:subtitle>
           {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {@endgame.rating} · Attempts: {@endgame.times_attempted ||
             0} · Solved: {@endgame.times_solved || 0}
+          <p class="text-xs text-gray-500 flex items-center mt-1">
+            <span>FEN: {@endgame.fen}</span>
+            <button
+              id="copy-fen-btn"
+              phx-hook="CopyFen"
+              data-fen={@endgame.fen}
+              class="inline-flex items-center cursor-pointer"
+              title="Copy FEN to clipboard"
+            >
+              <.icon name="hero-document-duplicate" class="w-3.5 h-3.5" />
+            </button>
+          </p>
         </:subtitle>
         <:actions>
           <.button navigate={~p"/endgames"}>
