@@ -3,9 +3,9 @@ defmodule Chesstrainer.Endgames.Tablebase do
   All endgame tablebase related functions.
 
   The cached value carries only what the trainer reads: `category`,
-  `checkmate`, and `moves` drive play, while `dtm`/`dtc` are small distance
-  hedges. Cursed-win/blessed-loss are normalised to `:draw` at parse time, so
-  the raw `dtw`/`dtz`/`insufficient_material` fields are not kept here.
+  `checkmate`, and `moves`. Cursed-win/blessed-loss are normalised to `:draw` at
+  parse time, and distance fields (`dtm`/`dtc`/`dtw`) are not kept because the
+  local Syzygy backend cannot produce them.
   """
 
   alias Chesstrainer.Endgames.Tablebase
@@ -15,15 +15,11 @@ defmodule Chesstrainer.Endgames.Tablebase do
   @type t :: %__MODULE__{
           category: result,
           checkmate: boolean(),
-          dtc: integer() | nil,
-          dtm: integer() | nil,
           moves: [Tablebase.Move.t()]
         }
 
   defstruct category: nil,
             checkmate: false,
-            dtc: nil,
-            dtm: nil,
             moves: nil
 
   @doc """

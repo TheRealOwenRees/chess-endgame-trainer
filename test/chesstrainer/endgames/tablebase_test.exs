@@ -35,12 +35,12 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
   describe "struct shape" do
     test "Tablebase carries only the fields the trainer reads" do
       assert %Tablebase{} |> Map.from_struct() |> Map.keys() |> Enum.sort() ==
-               [:category, :checkmate, :dtc, :dtm, :moves]
+               [:category, :checkmate, :moves]
     end
 
     test "Tablebase.Move carries only the fields the trainer reads" do
       assert %Tablebase.Move{} |> Map.from_struct() |> Map.keys() |> Enum.sort() ==
-               [:category, :dtc, :dtm, :dtz, :san, :uci]
+               [:category, :dtz, :san, :uci]
     end
   end
 
@@ -65,9 +65,9 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
                  ]
                })
 
-      assert %Tablebase{category: :draw, checkmate: false, dtc: nil, dtm: 20} = tablebase
+      assert %Tablebase{category: :draw, checkmate: false} = tablebase
 
-      assert [%Tablebase.Move{category: :draw, dtc: nil, dtm: -19, dtz: -2}] = tablebase.moves
+      assert [%Tablebase.Move{category: :draw, dtz: -2}] = tablebase.moves
       assert [%Tablebase.Move{san: "Kd7", uci: "e8d7"}] = tablebase.moves
     end
 
@@ -103,12 +103,12 @@ defmodule Chesstrainer.Endgames.TablebaseTest do
                })
 
       assert %Tablebase{} |> Map.from_struct() |> Map.keys() |> Enum.sort() ==
-               [:category, :checkmate, :dtc, :dtm, :moves]
+               [:category, :checkmate, :moves]
 
       assert [move] = tablebase.moves
 
       assert move |> Map.from_struct() |> Map.keys() |> Enum.sort() ==
-               [:category, :dtc, :dtm, :dtz, :san, :uci]
+               [:category, :dtz, :san, :uci]
     end
 
     test "keeps checkmate and empty moves, which drive terminal detection" do
