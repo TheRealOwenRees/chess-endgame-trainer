@@ -4,11 +4,13 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   import Phoenix.LiveViewTest
   import Chesstrainer.EndgamesFixtures
 
+  alias Chesstrainer.Attempts.Attempt
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Endgames.Tablebase.Cache, as: TablebaseCache
   alias Chesstrainer.FEN
   alias Chesstrainer.Ratelimiters
+  alias Chesstrainer.Repo
 
   defp assert_init_board(view, expected_fen, expected_orientation, expected_player_color) do
     %{proxy: {ref, _topic, _}} = view
@@ -414,6 +416,63 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert html =~ "Failed"
       assert html =~ "Qd7+"
       assert Endgames.get_endgame!(endgame.id).times_solved == 0
+    end
+  end
+
+  describe "per-user attempt records" do
+    setup :register_and_log_in_user
+
+    test "records a solved attempt for the signed-in user", %{conn: conn, user: user} do
+      endgame = endgame_fixture()
+      fen_after = "8/8/8/8/8/8/8/8 b - - 0 1"
+
+      seed_tablebase(endgame.fen, moves: grading_moves())
+      seed_tablebase(fen_after, checkmate: true, moves: [])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d7",
+        "san" => "Qd7+",
+        "prev_fen" => endgame.fen,
+        "fen" => fen_after,
+        "endgame_id" => endgame.id
+      })
+
+      assert render(view) =~ "Solved!"
+      assert [attempt] = Repo.all(Attempt)
+      assert attempt.user_id == user.id
+      assert attempt.endgame_id == endgame.id
+      assert attempt.outcome == :solved
+    end
+
+    test "records a failed attempt for the signed-in user", %{conn: conn, user: user} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen, moves: grading_moves())
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      play_move(view, endgame, "d1", "d4", "Qd4")
+
+      assert render(view) =~ "Failed"
+      assert [attempt] = Repo.all(Attempt)
+      assert attempt.user_id == user.id
+      assert attempt.outcome == :failed
+    end
+  end
+
+  describe "per-user attempt records without a signed-in user" do
+    test "records nothing for an anonymous visitor", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen, moves: grading_moves())
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      play_move(view, endgame, "d1", "d4", "Qd4")
+
+      assert render(view) =~ "Failed"
+      assert Repo.aggregate(Attempt, :count) == 0
     end
   end
 

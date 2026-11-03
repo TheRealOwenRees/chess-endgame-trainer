@@ -1,6 +1,7 @@
 defmodule ChesstrainerWeb.EndgameLive.Play do
   use ChesstrainerWeb, :live_view
 
+  alias Chesstrainer.Attempts
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
 
@@ -657,6 +658,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
   defp solve_attempt(socket) do
     {:ok, endgame} = Endgames.record_solve(socket.assigns.endgame)
+    record_attempt(socket, :solved)
 
     {:noreply,
      socket
@@ -667,11 +669,17 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
   end
 
   defp fail_attempt(socket) do
+    record_attempt(socket, :failed)
+
     {:noreply,
      socket
      |> assign(:status, :failed)
      |> assign(:awaiting_reply, false)
      |> assign(:best_move, best_move_text(socket.assigns.tablebase))}
+  end
+
+  defp record_attempt(socket, outcome) do
+    Attempts.record_attempt(socket.assigns.current_scope, socket.assigns.endgame, outcome)
   end
 
   defp best_move_text(tablebase) do
