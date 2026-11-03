@@ -63,13 +63,26 @@ promotion (still winning) for conversion puzzles, mate otherwise.
 
 **Tablebase**:
 A database of precomputed optimal outcomes for every position with at most
-seven pieces, queried via the lichess API and cached. The trainer caches only
-the outcome data it grades on — enough to tell a winning move from a losing
-one — not every metric the tablebase reports, and refetches anything else.
+seven pieces. Positions with five or fewer pieces are answered from local
+Syzygy files; six and seven piece positions come from the lichess API. The
+trainer keeps only the outcome data it grades on — enough to tell a winning
+move from a losing one — and caches API answers only; local answers are cheap
+enough to refetch.
+
+**Probe**:
+A single lookup of one position in the tablebase, returning its result and its
+legal moves. A probe is answered locally or by the API.
+
+**Position key**:
+The identity of a tablebase position — board, side to move, castling and
+en-passant — excluding the move clocks. FENs that differ only in their clocks
+share a position key.
+_Avoid_: Full FEN
 
 **Cooldown**:
-Rate-limit state entered after a 429 from the lichess tablebase API, during
-which the trainer blocks play.
+Rate-limit state entered after a 429 from the lichess API, during which the
+trainer blocks play for positions that need the API (six or seven pieces).
+Local positions are unaffected.
 
 **Cache sweep**:
 The periodic halving of LFU cache frequencies (weekly) that lets rarely-used
