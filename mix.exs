@@ -70,7 +70,8 @@ defmodule Chesstrainer.MixProject do
       {:bandit, "~> 1.5"},
       {:chex, git: "https://github.com/therealowenrees/chex.git", tag: "v0.2.0-alpha.2"},
       {:rustler, "~> 0.38", runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:glicko, "~> 0.8.1"}
     ]
   end
 
