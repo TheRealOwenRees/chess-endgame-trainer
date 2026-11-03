@@ -40,7 +40,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
               {endgame.result}
             </td>
             <td phx-click={JS.navigate(~p"/endgames/#{endgame}/play")} class="hover:cursor-pointer">
-              {endgame.rating}
+              {round(endgame.rating)}
             </td>
             <td>
               <span :for={theme <- endgame.themes} class="badge badge-sm">

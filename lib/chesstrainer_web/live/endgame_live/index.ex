@@ -58,7 +58,7 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
               <span :if={endgame.themes == []} class="text-base-content/50">None</span>
             </td>
             <td phx-click={JS.navigate(~p"/admin/endgames/#{endgame}")} class="hover:cursor-pointer">
-              {endgame.rating}
+              {round(endgame.rating)}
             </td>
             <td class="w-0 font-semibold">
               <div class="flex gap-4">

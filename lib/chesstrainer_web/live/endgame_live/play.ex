@@ -4,6 +4,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
   alias Chesstrainer.Attempts
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
+  alias Chesstrainer.Ratings
 
   @impl true
   def render(assigns) do
@@ -12,8 +13,12 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
       <.header>
         Play endgame {@endgame.key}
         <:subtitle>
-          {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {@endgame.rating} · Attempts: {@endgame.times_attempted ||
-            0} · Solved: {@endgame.times_solved || 0}
+          {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {round(
+            @endgame.rating
+          )} · Attempts: {@endgame.times_attempted ||
+            0} · Solved: {@endgame.times_solved || 0}<span :if={@user_rating}> · Your rating: {round(
+            @user_rating
+          )}</span>
           <p class="text-xs text-gray-500 flex items-center mt-1">
             <span>FEN: {@endgame.fen}</span>
             <button
@@ -180,6 +185,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
       socket
       |> assign(:page_title, "Play endgame")
       |> assign(:endgame, endgame)
+      |> assign(:user_rating, user_rating(socket.assigns.current_scope))
       |> assign(:fen, endgame.fen)
       |> assign(:tablebase, nil)
       |> assign(:status, :loading)
@@ -658,18 +664,21 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
   defp solve_attempt(socket) do
     {:ok, endgame} = Endgames.record_solve(socket.assigns.endgame)
-    record_attempt(socket, :solved)
+
+    socket =
+      socket
+      |> assign(:endgame, endgame)
+      |> record_attempt(:solved)
 
     {:noreply,
      socket
      |> assign(:status, :solved)
-     |> assign(:endgame, endgame)
      |> assign(:awaiting_reply, false)
      |> assign(:best_move, nil)}
   end
 
   defp fail_attempt(socket) do
-    record_attempt(socket, :failed)
+    socket = record_attempt(socket, :failed)
 
     {:noreply,
      socket
@@ -679,8 +688,21 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
   end
 
   defp record_attempt(socket, outcome) do
-    Attempts.record_attempt(socket.assigns.current_scope, socket.assigns.endgame, outcome)
+    case Attempts.record_attempt(socket.assigns.current_scope, socket.assigns.endgame, outcome) do
+      {:ok, attempt} ->
+        {:ok, %{user: user, endgame: endgame}} = Ratings.rate_attempt(attempt)
+
+        socket
+        |> assign(:endgame, endgame)
+        |> assign(:user_rating, user.rating)
+
+      _ ->
+        socket
+    end
   end
+
+  defp user_rating(%{user: %{rating: rating}}), do: rating
+  defp user_rating(_), do: nil
 
   defp best_move_text(tablebase) do
     san =

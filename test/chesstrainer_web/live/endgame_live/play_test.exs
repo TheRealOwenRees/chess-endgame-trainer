@@ -4,6 +4,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   import Phoenix.LiveViewTest
   import Chesstrainer.EndgamesFixtures
 
+  alias Chesstrainer.Accounts.User
   alias Chesstrainer.Attempts.Attempt
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
@@ -72,7 +73,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       color: :black,
       key: key,
       result: :win,
-      rating: 1500
+      rating: 1500.0
     })
   end
 
@@ -460,19 +461,48 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert attempt.user_id == user.id
       assert attempt.outcome == :failed
     end
+
+    test "rates the user and the endgame on a solve", %{conn: conn, user: user} do
+      endgame = endgame_fixture(rating: 1800)
+      fen_after = "8/8/8/8/8/8/8/8 b - - 0 1"
+
+      seed_tablebase(endgame.fen, moves: grading_moves())
+      seed_tablebase(fen_after, checkmate: true, moves: [])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d7",
+        "san" => "Qd7+",
+        "prev_fen" => endgame.fen,
+        "fen" => fen_after,
+        "endgame_id" => endgame.id
+      })
+
+      rated_user = Repo.get!(User, user.id)
+
+      assert render(view) =~ "Your rating: #{round(rated_user.rating)}"
+      assert rated_user.rating > 1500.0
+      assert Endgames.get_endgame!(endgame.id).rating < 1800.0
+    end
   end
 
   describe "per-user attempt records without a signed-in user" do
-    test "records nothing for an anonymous visitor", %{conn: conn} do
-      endgame = endgame_fixture()
+    test "records nothing and leaves ratings untouched", %{conn: conn} do
+      endgame = endgame_fixture(rating: 1800)
       seed_tablebase(endgame.fen, moves: grading_moves())
 
       {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame}/play")
 
       play_move(view, endgame, "d1", "d4", "Qd4")
 
-      assert render(view) =~ "Failed"
+      html = render(view)
+
+      assert html =~ "Failed"
+      refute html =~ "Your rating"
       assert Repo.aggregate(Attempt, :count) == 0
+      assert Endgames.get_endgame!(endgame.id).rating == 1800.0
     end
   end
 

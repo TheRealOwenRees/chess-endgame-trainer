@@ -11,6 +11,8 @@ defmodule Chesstrainer.Accounts.User do
     field :hashed_password, :string, redact: true
     field :role, Ecto.Enum, values: [:member, :moderator, :admin, :super_admin], default: :member
     field :plan, Ecto.Enum, values: [:free, :premium], default: :free
+    field :rating, :float, default: 1500.0
+    field :rating_deviation, :float, default: 350.0
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
 

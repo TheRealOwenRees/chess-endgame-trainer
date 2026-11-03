@@ -17,8 +17,8 @@ defmodule Chesstrainer.Endgames.Endgame do
     field :message, :string
     field :notes, :string
     field :result, Ecto.Enum, values: [:win, :loss, :draw]
-    field :rating, :integer, default: 1500
-    field :rating_deviation, :integer
+    field :rating, :float, default: 1500.0
+    field :rating_deviation, :float, default: 350.0
     field :times_attempted, :integer
     field :times_solved, :integer
 

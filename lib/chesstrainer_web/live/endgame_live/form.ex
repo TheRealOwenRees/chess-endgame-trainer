@@ -73,7 +73,12 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
       <.form for={@form} id="endgame-form" phx-change="validate" phx-submit="save">
         <.input field={@form[:fen]} type="text" label="Fen" disabled={@live_action == :edit} />
         <.input field={@form[:color]} type="text" label="Color" disabled />
-        <.input field={@form[:rating]} type="number" label="Rating" />
+        <.input
+          field={@form[:rating]}
+          type="number"
+          value={rating_display(@form[:rating])}
+          label="Rating"
+        />
         <.input field={@form[:message]} type="textarea" label="Message" />
         <.input field={@form[:notes]} type="textarea" label="Notes" />
         <.input
@@ -243,6 +248,12 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
       assign(socket, :selected_themes, socket.assigns.selected_themes ++ [theme])
     end
   end
+
+  # Ratings are stored as floats (Glicko); the admin form presents them as whole numbers.
+  defp rating_display(%Phoenix.HTML.FormField{value: value}) when is_float(value),
+    do: round(value)
+
+  defp rating_display(%Phoenix.HTML.FormField{value: value}), do: value
 
   defp return_path("index", _endgame), do: ~p"/admin/endgames"
   defp return_path("show", endgame), do: ~p"/admin/endgames/#{endgame}"

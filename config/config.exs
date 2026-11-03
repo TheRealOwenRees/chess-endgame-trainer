@@ -24,6 +24,10 @@ config :chesstrainer,
   ecto_repos: [Chesstrainer.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Glicko rating system. `system_constant` is the volatility constraint passed
+# through to the Glicko package.
+config :chesstrainer, :ratings, system_constant: 0.8
+
 # Configure the endpoint
 config :chesstrainer, ChesstrainerWeb.Endpoint,
   url: [host: "localhost"],
