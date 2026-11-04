@@ -9,6 +9,7 @@ defmodule ChesstrainerWeb.LandingComponents do
   use Phoenix.Component
 
   alias Chesstrainer.FEN
+  alias Chesstrainer.Themes
 
   @button_variants %{
     nav: "nav-cta",
@@ -127,6 +128,7 @@ defmodule ChesstrainerWeb.LandingComponents do
   attr :targets, :list, default: []
   attr :interactive, :boolean, default: false
   attr :disabled, :boolean, default: false
+  attr :target, :any, default: nil
 
   def board_grid(assigns) do
     rows = FEN.board(assigns.fen) || FEN.board(@fallback_fen)
@@ -147,6 +149,7 @@ defmodule ChesstrainerWeb.LandingComponents do
           ]}
           phx-click={@interactive && "square"}
           phx-value-square={@interactive && square.key}
+          phx-target={@target}
           disabled={@interactive && @disabled}
           aria-label={square_label(square)}
         >
@@ -161,6 +164,34 @@ defmodule ChesstrainerWeb.LandingComponents do
         </button>
       <% end %>
     </div>
+    """
+  end
+
+  @doc """
+  Renders a curated endgame card for the landing-page grid.
+
+  The card is an anchor to the board, so the browser scrolls to it, and the
+  click also selects the endgame in the LiveView.
+  """
+  attr :endgame, :map, required: true
+  attr :index, :integer, required: true
+  attr :active, :boolean, default: false
+
+  def puzzle_card(assigns) do
+    ~H"""
+    <a
+      href="#trainer"
+      class={["puzzle-card", @active && "active"]}
+      phx-click="select_endgame"
+      phx-value-code={@endgame.public_code}
+    >
+      <span class="card-number">{card_number(@index)}</span>
+      <span class="mini-piece">{mini_piece(@endgame)}</span>
+      <span class="difficulty">{difficulty(@endgame.rating)}</span>
+      <strong>{title(@endgame)}</strong>
+      <small>{meta(@endgame)}</small>
+      <span class="card-arrow"><.icon_arrow /></span>
+    </a>
     """
   end
 
@@ -234,4 +265,34 @@ defmodule ChesstrainerWeb.LandingComponents do
   defp title(%{key: key}) when is_binary(key) and key != "", do: key
   defp title(%{message: message}) when is_binary(message) and message != "", do: message
   defp title(_endgame), do: "Featured position"
+
+  defp card_number(index), do: (index + 1) |> Integer.to_string() |> String.pad_leading(2, "0")
+
+  defp mini_piece(%{key: key}) when is_binary(key) do
+    cond do
+      String.contains?(key, "Q") -> "♛"
+      String.contains?(key, "R") -> "♖"
+      String.contains?(key, "B") -> "♗"
+      String.contains?(key, "N") -> "♘"
+      true -> "♙"
+    end
+  end
+
+  defp mini_piece(_endgame), do: "♙"
+
+  defp difficulty(rating) when is_number(rating) and rating < 1600, do: "Beginner"
+  defp difficulty(rating) when is_number(rating) and rating < 1900, do: "Intermediate"
+  defp difficulty(_rating), do: "Advanced"
+
+  defp meta(%{themes: themes, rating: rating}) when is_list(themes) do
+    case Themes.names(themes) do
+      [] -> rating_label(rating)
+      names -> Enum.join(names, " · ")
+    end
+  end
+
+  defp meta(%{rating: rating}), do: rating_label(rating)
+
+  defp rating_label(nil), do: "Unrated"
+  defp rating_label(rating), do: "Rating #{round(rating)}"
 end

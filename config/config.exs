@@ -36,6 +36,11 @@ config :chesstrainer, :ratings,
   window_days: 7,
   rd_inflation_c: 10.0
 
+# Public codes of the endgames pinned to the landing-page puzzle grid, in
+# display order. When empty (or short) the grid is topped up with a date-seeded
+# selection from the database, so it stays stable for a given day.
+config :chesstrainer, :curated_endgame_codes, []
+
 # Configure the endpoint
 config :chesstrainer, ChesstrainerWeb.Endpoint,
   url: [host: "localhost"],

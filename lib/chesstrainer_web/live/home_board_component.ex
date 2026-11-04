@@ -1,14 +1,14 @@
-defmodule ChesstrainerWeb.HomeBoardLive do
+defmodule ChesstrainerWeb.HomeBoardComponent do
   @moduledoc """
   A compact, playable endgame board for the landing page.
 
-  The board is server-rendered and driven with `Chex`; the tablebase grades the
-  player's move and supplies the opponent's reply. This keeps the landing
-  board's look while reusing the same tablebase the trainer uses.
+  The parent LiveView owns the selected endgame; this component owns the game
+  state, tablebase grading, and opponent replies. It is server-rendered and
+  driven with `Chex`, so it keeps the landing board's look while reusing the
+  same tablebase the trainer uses.
   """
-  use ChesstrainerWeb, :live_view
+  use ChesstrainerWeb, :live_component
 
-  alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Themes
 
@@ -26,18 +26,32 @@ defmodule ChesstrainerWeb.HomeBoardLive do
   @promotions %{"q" => :queen, "r" => :rook, "b" => :bishop, "n" => :knight}
 
   @impl true
-  def mount(_params, session, socket) do
-    endgame = load_endgame(session)
+  def update(assigns, socket) do
+    endgame = assigns.endgame
+    previous = socket.assigns[:endgame]
 
     socket =
-      socket
-      |> assign(:endgame, endgame)
-      |> base_assigns(endgame)
+      if same_endgame?(previous, endgame) do
+        assign(socket, assigns)
+      else
+        socket
+        |> assign(assigns)
+        |> base_assigns(endgame)
+        |> maybe_load_position(endgame)
+      end
 
-    if connected?(socket) and endgame do
-      {:ok, load_position(socket)}
+    {:ok, socket}
+  end
+
+  defp same_endgame?(nil, _endgame), do: false
+  defp same_endgame?(%{public_code: code}, %{public_code: code}), do: true
+  defp same_endgame?(_previous, _endgame), do: false
+
+  defp maybe_load_position(socket, endgame) do
+    if connected?(socket) and not is_nil(endgame) do
+      load_position(socket)
     else
-      {:ok, socket}
+      socket
     end
   end
 
@@ -64,6 +78,7 @@ defmodule ChesstrainerWeb.HomeBoardLive do
         targets={@targets}
         interactive={@status == :playing}
         disabled={@status != :playing}
+        target={@myself}
       />
       <div :if={!@fen} class="chessboard board-empty">No position to play</div>
 
@@ -76,7 +91,12 @@ defmodule ChesstrainerWeb.HomeBoardLive do
         <div class="board-status">
           <span class={status_class(@status)}>{status_text(@status, @blocked_reason)}</span>
           <small :if={@message} class="board-message">{@message}</small>
-          <button :if={@status in [:solved, :failed, :blocked]} type="button" phx-click="reset">
+          <button
+            :if={@status in [:solved, :failed, :blocked]}
+            type="button"
+            phx-click="reset"
+            phx-target={@myself}
+          >
             Try again
           </button>
         </div>
@@ -103,14 +123,6 @@ defmodule ChesstrainerWeb.HomeBoardLive do
       {:noreply, socket}
     end
   end
-
-  defp load_endgame(%{"home_endgame_code" => code}) when is_binary(code) do
-    Endgames.get_endgame_by_public_code_with_themes!(code)
-  rescue
-    Ecto.NoResultsError -> nil
-  end
-
-  defp load_endgame(_session), do: nil
 
   defp base_assigns(socket, nil) do
     assign(socket,

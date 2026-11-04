@@ -229,7 +229,7 @@ h1 em { color: var(--coral); font-weight: 400; }
 .section-heading h2, .progress-banner h2 { font-size: clamp(43px, 5vw, 65px); line-height: .96; }
 .section-heading > p { max-width: 390px; color: var(--ink-soft); font-size: 14px; line-height: 1.7; }
 .puzzle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.puzzle-card { position: relative; min-height: 285px; padding: 25px; text-align: left; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.28); overflow: hidden; transition: transform .25s, background .25s, box-shadow .25s; }
+.puzzle-card { display: block; position: relative; min-height: 285px; padding: 25px; text-align: left; text-decoration: none; color: inherit; cursor: pointer; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.28); overflow: hidden; transition: transform .25s, background .25s, box-shadow .25s; }
 .puzzle-card:hover, .puzzle-card.active { transform: translateY(-5px); background: var(--cream); box-shadow: 0 18px 36px rgba(23,53,45,.08); }
 .puzzle-card.active { border-color: var(--mint-deep); }
 .card-number { color: var(--ink-soft); font-size: 10px; font-weight: 700; letter-spacing: .12em; }

@@ -28,6 +28,60 @@ defmodule Chesstrainer.Endgames do
     Repo.one(from e in Endgame, order_by: fragment("RANDOM()"), limit: 1)
   end
 
+  @curated_count 3
+
+  @doc """
+  Returns curated endgames for the landing page, with themes preloaded.
+
+  Curation is the configured list of `:curated_endgame_codes`; codes that do not
+  resolve are skipped. The list is topped up with a date-seeded selection from
+  the database so it is stable for a given day, and is empty when no endgames
+  exist.
+  """
+  def curated_endgames(count \\ @curated_count) do
+    codes = Application.get_env(:chesstrainer, :curated_endgame_codes, [])
+
+    curated =
+      codes
+      |> Enum.flat_map(&endgame_for_code/1)
+      |> Enum.uniq_by(& &1.id)
+
+    fill_curated(curated, count)
+  end
+
+  defp endgame_for_code(code) do
+    case Repo.get_by(Endgame, public_code: code) do
+      nil -> []
+      endgame -> [Repo.preload(endgame, :themes)]
+    end
+  end
+
+  defp fill_curated(endgames, count) when length(endgames) >= count,
+    do: Enum.take(endgames, count)
+
+  defp fill_curated(endgames, count) do
+    exclude_ids = Enum.map(endgames, & &1.id)
+    endgames ++ date_seeded_endgames(exclude_ids, count - length(endgames))
+  end
+
+  defp date_seeded_endgames([], limit), do: date_seeded_endgames_query(Endgame, limit)
+
+  defp date_seeded_endgames(exclude_ids, limit) do
+    Endgame
+    |> where([e], e.id not in ^exclude_ids)
+    |> date_seeded_endgames_query(limit)
+  end
+
+  defp date_seeded_endgames_query(query, limit) do
+    today = Date.utc_today()
+
+    query
+    |> preload(:themes)
+    |> Repo.all()
+    |> Enum.sort_by(fn endgame -> :erlang.phash2({today, endgame.id}) end)
+    |> Enum.take(limit)
+  end
+
   @doc """
   Returns the distinct Keys across all endgames, sorted.
   """
