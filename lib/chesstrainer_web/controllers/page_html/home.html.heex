@@ -35,7 +35,10 @@
     <div class="board-stage" id="trainer">
       <div class="coral-orbit" />
       <div class="mint-orbit" />
-      <%!-- <ChessBoard puzzle={puzzle} /> --%>
+      {live_render(@conn, ChesstrainerWeb.HomeBoardLive,
+        id: "home-board",
+        session: @board_session
+      )}
       <div class="streak-card">
         <span>♨</span>
         <div>

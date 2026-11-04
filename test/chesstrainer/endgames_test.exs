@@ -302,4 +302,17 @@ defmodule Chesstrainer.EndgamesTest do
       assert Endgames.list_key_groups(%{key: "KQ v K"}) == [{"KQ v K", 1}]
     end
   end
+
+  describe "random_endgame/0" do
+    test "returns nil when there are no endgames" do
+      assert Endgames.random_endgame() == nil
+    end
+
+    test "returns one of the existing endgames" do
+      kr = create_endgame!(@kr)
+      kq = create_endgame!(@kq)
+
+      assert Endgames.random_endgame().id in [kr.id, kq.id]
+    end
+  end
 end

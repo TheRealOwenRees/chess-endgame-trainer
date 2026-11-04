@@ -186,6 +186,7 @@ h1 em { color: var(--coral); font-weight: 400; }
 .square.dark { background: #81a996; }
 .square:hover::after, .square.selected::after { content: ''; position: absolute; inset: 15%; border-radius: 50%; background: rgba(239, 117, 93, .48); }
 .square.selected::after { inset: 4px; border-radius: 3px; background: transparent; border: 3px solid var(--coral); }
+.square.target::after { content: ''; position: absolute; inset: 38%; border-radius: 50%; background: rgba(239, 117, 93, .55); }
 .piece { position: relative; z-index: 2; font-family: Georgia, serif; font-size: clamp(25px, 4vw, 42px); line-height: 1; transform: translateY(-1px); }
 .white-piece { color: #fffdf5; text-shadow: 0 2px 0 #17352d, 1px 0 0 #17352d, -1px 0 0 #17352d, 0 -1px 0 #17352d; }
 .black-piece { color: var(--ink); text-shadow: 0 1px 0 rgba(255,255,255,.25); }
@@ -198,6 +199,15 @@ h1 em { color: var(--coral); font-weight: 400; }
 .board-caption span { color: var(--ink-soft); font-size: 9px; text-transform: uppercase; letter-spacing: .1em; }
 .board-caption strong { font-size: 13px; }
 .board-caption button { color: var(--coral-dark); font-size: 11px; font-weight: 700; }
+.board-themes { color: var(--coral-dark); font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.board-status { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.board-status span { font-size: 10px; font-weight: 700; }
+.board-message { color: var(--ink-soft); font-size: 8px; font-weight: 500; }
+.board-empty { display: grid; place-items: center; color: var(--ink-soft); font-size: 13px; }
+.status-solved { color: var(--mint-deep); }
+.status-failed { color: var(--coral-dark); }
+.status-blocked { color: var(--ink-soft); }
+.status-neutral { color: var(--ink-soft); }
 .streak-card { position: absolute; z-index: 3; right: -3px; bottom: 67px; display: flex; align-items: center; gap: 10px; padding: 12px 17px; border-radius: 9px; background: var(--cream); box-shadow: 0 12px 30px rgba(23,53,45,.2); transform: rotate(-4deg); }
 .streak-card > span { color: var(--coral); font-size: 20px; }
 .streak-card div { display: flex; flex-direction: column; }

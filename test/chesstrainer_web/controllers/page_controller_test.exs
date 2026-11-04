@@ -3,6 +3,11 @@ defmodule ChesstrainerWeb.PageControllerTest do
 
   import Chesstrainer.AccountsFixtures
 
+  alias Chesstrainer.Endgames
+  alias Chesstrainer.Themes
+
+  @fen "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
+
   test "GET / renders the landing page and navbar", %{conn: conn} do
     html = conn |> get(~p"/") |> html_response(200)
 
@@ -13,6 +18,24 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ "Start training"
     assert html =~ ~s(id="nav-links")
     assert html =~ "menu-button"
+    assert html =~ "No endgames yet"
+  end
+
+  test "GET / renders a random endgame board and its theme", %{conn: conn} do
+    {:ok, theme} = Themes.create_theme(%{name: "Opposition", category: :endgame})
+
+    {:ok, endgame} =
+      Endgames.create_endgame(
+        %{fen: @fen, color: :white, result: :win, rating: 1500},
+        [theme]
+      )
+
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ endgame.key
+    assert html =~ "Opposition"
+    assert html =~ "To move"
+    assert html =~ "White"
   end
 
   test "guest navbar links to log in and register", %{conn: conn} do

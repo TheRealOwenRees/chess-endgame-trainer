@@ -22,6 +22,13 @@ defmodule Chesstrainer.Endgames do
   end
 
   @doc """
+  Returns a random endgame, or `nil` when none exist.
+  """
+  def random_endgame do
+    Repo.one(from e in Endgame, order_by: fragment("RANDOM()"), limit: 1)
+  end
+
+  @doc """
   Returns the distinct Keys across all endgames, sorted.
   """
   def list_keys do
@@ -97,6 +104,15 @@ defmodule Chesstrainer.Endgames do
   """
   def get_endgame_by_public_code!(public_code) do
     Repo.get_by!(Endgame, public_code: public_code)
+  end
+
+  @doc """
+  Gets a single endgame by its public code with its themes preloaded.
+  """
+  def get_endgame_by_public_code_with_themes!(public_code) do
+    Endgame
+    |> Repo.get_by!(public_code: public_code)
+    |> Repo.preload(:themes)
   end
 
   @doc """
