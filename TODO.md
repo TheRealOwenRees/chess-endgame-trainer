@@ -5,7 +5,7 @@ Granular tasks and operational scratchpad for active development.
 ---
 
 ## In Progress 🟡
-- [ ] Puzzle of the day - show pass/fail/try again on top so that card does not resize
+- [ ] Puzzle of the day - show pass/fail/try again on top so that card does not resize, remove that streak badge
 - [ ] Basic design and colour scheme
 - [ ] Create reusable components such as button
 - [ ] Organise nav bar
