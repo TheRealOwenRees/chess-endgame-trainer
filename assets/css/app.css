@@ -135,6 +135,8 @@ main { overflow: hidden; }
 .nav-links { display: flex; align-items: center; gap: 34px; font-size: 14px; font-weight: 600; }
 .nav-links a { transition: opacity .2s; }
 .nav-links a:hover { opacity: .55; }
+.nav-links a.nav-cta:hover { opacity: 1; }
+.nav-user { color: var(--ink-soft); font-weight: 500; }
 .nav-cta, .primary-button, .light-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 13px;
   border-radius: 999px; font-weight: 600; transition: transform .2s, background .2s;
@@ -240,6 +242,7 @@ h1 em { color: var(--coral); font-weight: 400; }
   .coral-orbit { right: 6%; }
   .mint-orbit { left: 10%; }
   .streak-card { right: 9%; }
+  .nav-links { gap: 20px; }
   .learning-strip { grid-template-columns: 1fr repeat(3, .7fr); }
   .section-heading { grid-template-columns: 1fr .8fr; }
 }

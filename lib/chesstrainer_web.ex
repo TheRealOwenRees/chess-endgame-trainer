@@ -86,6 +86,8 @@ defmodule ChesstrainerWeb do
       import Phoenix.HTML
       # Core UI components
       import ChesstrainerWeb.CoreComponents
+      # Landing-page primitives (pill buttons, marketing icons)
+      import ChesstrainerWeb.LandingComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

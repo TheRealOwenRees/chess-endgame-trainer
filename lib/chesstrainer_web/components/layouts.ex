@@ -52,75 +52,90 @@ defmodule ChesstrainerWeb.Layouts do
 
   @doc """
   Renders the application navbar.
+
+  The marketing and account links are defined once in `nav_links/1` and rendered
+  in both the desktop bar and the mobile menu. Edit that list to change what
+  appears in either place.
   """
   attr :current_scope, :map,
     default: nil,
     doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
 
   def navbar(assigns) do
+    assigns = assign(assigns, :nav_links, nav_links(assigns.current_scope))
+
     ~H"""
     <header>
       <nav class="nav-wrap" aria-label="Main navigation">
-        <a class="brand" href="#" aria-label="Lucid Chess Home">
+        <a class="brand" href="/" aria-label="Lucid Chess home">
           <span class="brand-mark">♞</span>
           <span>LUCID</span>
         </a>
-        <%!-- Mobile menu --%>
-        <%!-- <button
-          className="menu-button"
+
+        <button
+          class="menu-button"
           type="button"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-expanded={menuOpen}
+          aria-expanded="false"
+          aria-controls="nav-links"
           aria-label="Toggle menu"
         >
-          <span />
-          <span />
-        </button> --%>
+          <span></span>
+          <span></span>
+        </button>
+
+        <div class="nav-links" id="nav-links">
+          <%= for link <- @nav_links do %>
+            <%= if link[:kind] == :text do %>
+              <span class="nav-user">{link.label}</span>
+            <% else %>
+              <.link href={link.href} method={link[:method]}>{link.label}</.link>
+            <% end %>
+          <% end %>
+
+          <.pill_button variant={:nav} href="/endgames">
+            Start training <.icon_arrow />
+          </.pill_button>
+        </div>
       </nav>
     </header>
-    <%!-- <header class="flex items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <.button variant="ghost" href="/endgames">Endgames</.button>
-          </li>
-          <li :if={@current_scope && Role.admin?(@current_scope.user.role)}>
-            <.button variant="ghost" href="/admin/endgames">Admin</.button>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <%= if @current_scope do %>
-            <li>
-              <span class="text-sm">{@current_scope.user.username}</span>
-            </li>
-            <li>
-              <.button variant="ghost" navigate={~p"/users/settings"}>Settings</.button>
-            </li>
-            <li>
-              <.button variant="ghost" href={~p"/users/log-out"} method="delete">
-                Log out
-              </.button>
-            </li>
-          <% else %>
-            <li>
-              <.button variant="ghost" navigate={~p"/users/register"}>Register</.button>
-            </li>
-            <li>
-              <.button variant="primary" navigate={~p"/users/log-in"}>Log in</.button>
-            </li>
-          <% end %>
-        </ul>
-      </div>
-    </header> --%>
     """
   end
+
+  defp nav_links(scope) do
+    marketing = [
+      %{label: "Method", href: "/#method"},
+      %{label: "Puzzles", href: "/#puzzles"},
+      %{label: "Progress", href: "/#progress"}
+    ]
+
+    admin =
+      if admin?(scope) do
+        [%{label: "Admin", href: ~p"/admin/endgames"}]
+      else
+        []
+      end
+
+    account =
+      case scope do
+        %{user: %{username: username}} ->
+          [
+            %{label: username, kind: :text},
+            %{label: "Settings", href: ~p"/users/settings"},
+            %{label: "Log out", href: ~p"/users/log-out", method: "delete"}
+          ]
+
+        _ ->
+          [
+            %{label: "Log in", href: ~p"/users/log-in"},
+            %{label: "Register", href: ~p"/users/register"}
+          ]
+      end
+
+    marketing ++ admin ++ account
+  end
+
+  defp admin?(%{user: %{role: role}}), do: Role.admin?(role)
+  defp admin?(_scope), do: false
 
   @doc """
   Shows the flash group with standard titles and content.
