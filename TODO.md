@@ -5,8 +5,10 @@ Granular tasks and operational scratchpad for active development.
 ---
 
 ## In Progress 🟡
+- [ ] Puzzle of the day - show pass/fail/try again on top so that card does not resize
 - [ ] Basic design and colour scheme
 - [ ] Create reusable components such as button
+- [ ] Organise nav bar
 - [ ] Self host font - google fonts not gdpr compliant
 - [ ] Display puzzles and move to next 
 
