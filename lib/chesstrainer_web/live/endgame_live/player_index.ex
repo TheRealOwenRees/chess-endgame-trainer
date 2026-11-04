@@ -52,11 +52,11 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
               {round(endgame.rating)}
             </td>
             <td>
-              <span :for={theme <- endgame.themes} class="badge badge-sm">
+              <.badge :for={theme <- endgame.themes} size="sm">
                 <button type="button" phx-click="add_theme" phx-value-id={theme.id}>
                   {theme.name}
                 </button>
-              </span>
+              </.badge>
               <span :if={endgame.themes == []} class="text-base-content/50">None</span>
             </td>
             <td class="w-0 font-semibold">

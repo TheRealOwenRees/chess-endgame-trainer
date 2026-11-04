@@ -59,7 +59,7 @@ defmodule ChesstrainerWeb.Layouts do
 
   def navbar(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
+    <header class="flex items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
       <div class="flex-1">
         <a href="/" class="flex-1 flex w-fit items-center gap-2">
           <img src={~p"/images/logo.svg"} width="36" />
@@ -69,10 +69,10 @@ defmodule ChesstrainerWeb.Layouts do
       <div class="flex-none">
         <ul class="flex flex-column px-1 space-x-4 items-center">
           <li>
-            <a href="/endgames" class="btn btn-ghost">Endgames</a>
+            <.button variant="ghost" href="/endgames">Endgames</.button>
           </li>
           <li :if={@current_scope && Role.admin?(@current_scope.user.role)}>
-            <a href="/admin/endgames" class="btn btn-ghost">Admin</a>
+            <.button variant="ghost" href="/admin/endgames">Admin</.button>
           </li>
           <li>
             <.theme_toggle />
@@ -82,19 +82,19 @@ defmodule ChesstrainerWeb.Layouts do
               <span class="text-sm">{@current_scope.user.username}</span>
             </li>
             <li>
-              <.link navigate={~p"/users/settings"} class="btn btn-ghost">Settings</.link>
+              <.button variant="ghost" navigate={~p"/users/settings"}>Settings</.button>
             </li>
             <li>
-              <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost">
+              <.button variant="ghost" href={~p"/users/log-out"} method="delete">
                 Log out
-              </.link>
+              </.button>
             </li>
           <% else %>
             <li>
-              <.link navigate={~p"/users/register"} class="btn btn-ghost">Register</.link>
+              <.button variant="ghost" navigate={~p"/users/register"}>Register</.button>
             </li>
             <li>
-              <.link navigate={~p"/users/log-in"} class="btn btn-primary">Log in</.link>
+              <.button variant="primary" navigate={~p"/users/log-in"}>Log in</.button>
             </li>
           <% end %>
         </ul>
@@ -159,8 +159,8 @@ defmodule ChesstrainerWeb.Layouts do
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
+    <div class="relative flex flex-row items-center rounded-full border-2 border-base-300 bg-base-300">
+      <div class="absolute w-1/3 h-full rounded-full border border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
 
       <button
         class="flex p-2 cursor-pointer w-1/3"

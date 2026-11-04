@@ -15,7 +15,7 @@ defmodule ChesstrainerWeb.UserLive.Login do
               <% else %>
                 Don't have an account? <.link
                   navigate={~p"/users/register"}
-                  class="font-semibold text-brand hover:underline"
+                  class="font-semibold text-primary hover:underline"
                   phx-no-format
                 >Sign up</.link> for an account now.
               <% end %>
@@ -47,10 +47,10 @@ defmodule ChesstrainerWeb.UserLive.Login do
             autocomplete="current-password"
             spellcheck="false"
           />
-          <.button class="btn btn-primary w-full" name={@form[:remember_me].name} value="true">
+          <.button variant="primary" class="w-full" name={@form[:remember_me].name} value="true">
             Log in and stay logged in <span aria-hidden="true">→</span>
           </.button>
-          <.button class="btn btn-primary btn-soft w-full mt-2">
+          <.button class="w-full mt-2">
             Log in only this time
           </.button>
         </.form>

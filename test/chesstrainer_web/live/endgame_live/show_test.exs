@@ -11,8 +11,8 @@ defmodule ChesstrainerWeb.EndgameLive.ShowTest do
 
     {:ok, view, _html} = live(conn, ~p"/admin/endgames/#{endgame.id}")
 
-    assert has_element?(view, "li.list-row", "Public code")
-    assert has_element?(view, "li.list-row", endgame.public_code)
+    assert has_element?(view, "li", "Public code")
+    assert has_element?(view, "#public-code", endgame.public_code)
     assert has_element?(view, "h1", endgame.id)
   end
 
