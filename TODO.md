@@ -11,6 +11,7 @@ Granular tasks and operational scratchpad for active development.
 - [ ] Organise nav bar
 - [ ] Self host font - google fonts not gdpr compliant
 - [ ] Display puzzles and move to next 
+- [ ] Create footer
 
 ---
 
