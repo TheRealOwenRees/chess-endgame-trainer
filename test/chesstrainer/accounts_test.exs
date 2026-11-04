@@ -4,7 +4,11 @@ defmodule Chesstrainer.AccountsTest do
   alias Chesstrainer.Accounts
 
   import Chesstrainer.AccountsFixtures
+  import Chesstrainer.EndgamesFixtures
   alias Chesstrainer.Accounts.{User, UserToken}
+  alias Chesstrainer.Attempts
+  alias Chesstrainer.Attempts.Attempt
+  alias Chesstrainer.Accounts.Scope
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -429,6 +433,30 @@ defmodule Chesstrainer.AccountsTest do
       dt = ~N[2020-01-01 00:00:00]
       {1, nil} = Repo.update_all(UserToken, set: [inserted_at: dt, authenticated_at: dt])
       refute Accounts.get_user_by_session_token(token)
+    end
+  end
+
+  describe "delete_user/1" do
+    test "deletes the user and their session tokens" do
+      user = user_fixture()
+      token = Accounts.generate_user_session_token(user)
+
+      assert {:ok, %User{}} = Accounts.delete_user(user)
+
+      refute Accounts.get_user_by_email(user.email)
+      refute Repo.get_by(UserToken, token: token)
+    end
+
+    test "deletes the user's attempts" do
+      user = user_fixture()
+      endgame = endgame_fixture()
+
+      assert {:ok, attempt} =
+               Attempts.record_attempt(Scope.for_user(user), endgame, :solved)
+
+      assert {:ok, %User{}} = Accounts.delete_user(user)
+
+      refute Repo.get(Attempt, attempt.id)
     end
   end
 

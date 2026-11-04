@@ -212,6 +212,24 @@ defmodule Chesstrainer.Accounts do
     |> update_user_and_delete_all_tokens()
   end
 
+  ## Deletion
+
+  @doc """
+  Permanently deletes a user and all of their data.
+
+  Attempts and session tokens are removed by database cascades. There is no
+  soft delete and no way to recover the account.
+
+  ## Examples
+
+      iex> delete_user(user)
+      {:ok, %User{}}
+
+  """
+  def delete_user(%User{} = user) do
+    Repo.delete(user)
+  end
+
   ## Session
 
   @doc """

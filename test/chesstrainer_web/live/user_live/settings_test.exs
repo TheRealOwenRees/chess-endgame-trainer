@@ -160,6 +160,44 @@ defmodule ChesstrainerWeb.UserLive.SettingsTest do
     end
   end
 
+  describe "delete account" do
+    setup %{conn: conn} do
+      user = user_fixture()
+      %{conn: log_in_user(conn, user), user: user}
+    end
+
+    test "renders the permanent deletion warning", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/settings")
+
+      assert html =~ "Delete account"
+      assert html =~ "permanent and cannot be undone"
+      assert html =~ "Nothing can be recovered"
+    end
+
+    test "deletes the user and redirects home", %{conn: conn, user: user} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      assert {:error, {:redirect, %{to: "/"}}} =
+               result = lv |> element("#delete_account_button") |> render_click()
+
+      refute Accounts.get_user_by_email(user.email)
+
+      {:ok, conn} = follow_redirect(result, conn, ~p"/")
+      assert conn.resp_body =~ "Your account has been deleted."
+    end
+
+    test "logs the deleted user out", %{conn: conn, user: user} do
+      {:ok, lv, _html} = live(conn, ~p"/users/settings")
+
+      lv |> element("#delete_account_button") |> render_click()
+
+      assert {:error, redirect} = live(conn, ~p"/users/settings")
+      assert {:redirect, %{to: path}} = redirect
+      assert path == ~p"/users/log-in"
+      refute Accounts.get_user_by_email(user.email)
+    end
+  end
+
   describe "confirm email" do
     setup %{conn: conn} do
       user = user_fixture()

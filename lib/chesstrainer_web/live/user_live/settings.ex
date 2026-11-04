@@ -65,6 +65,30 @@ defmodule ChesstrainerWeb.UserLive.Settings do
           Save Password
         </.button>
       </.form>
+
+      <div class="divider" />
+
+      <section id="delete_account" class="space-y-4">
+        <.header>
+          Delete account
+          <:subtitle>This action is permanent and cannot be undone.</:subtitle>
+        </.header>
+
+        <p class="text-sm text-base-content/70">
+          Deleting your account permanently removes your profile, rating and training history.
+          Nothing can be recovered.
+        </p>
+
+        <button
+          id="delete_account_button"
+          type="button"
+          class="btn btn-error"
+          phx-click="delete_account"
+          data-confirm="This permanently deletes your account and all of your data. Nothing can be recovered. Are you sure?"
+        >
+          Delete my account
+        </button>
+      </section>
     </Layouts.app>
     """
   end
@@ -156,5 +180,17 @@ defmodule ChesstrainerWeb.UserLive.Settings do
       changeset ->
         {:noreply, assign(socket, password_form: to_form(changeset, action: :insert))}
     end
+  end
+
+  def handle_event("delete_account", _params, socket) do
+    user = socket.assigns.current_scope.user
+    true = Accounts.sudo_mode?(user)
+
+    {:ok, _user} = Accounts.delete_user(user)
+
+    {:noreply,
+     socket
+     |> put_flash(:info, "Your account has been deleted.")
+     |> redirect(to: ~p"/")}
   end
 end
