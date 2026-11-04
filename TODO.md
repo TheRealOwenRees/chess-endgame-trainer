@@ -6,6 +6,7 @@ Granular tasks and operational scratchpad for active development.
 
 ## In Progress 🟡
 - [ ] Basic design and colour scheme
+- [ ] Self host font - google fonts not gdpr compliant
 - [ ] Display puzzles and move to next 
 
 ---

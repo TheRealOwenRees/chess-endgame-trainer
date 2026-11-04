@@ -1,5 +1,122 @@
 <Layouts.flash_group flash={@flash} />
-<div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32">
+<main>
+  <section class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow">
+        <%!-- icon --%>
+      </div>
+      <h1>
+        Learn to see the <em>winning move.</em>
+      </h1>
+      <p>
+        Short, focused endgame sessions that build the instincts you need
+        when every move matters.
+      </p>
+      <div class="hero-actions">
+        <%!-- <button
+          className="primary-button"
+          type="button"
+          onClick={() => selectPuzzle(activePuzzle)}
+        >
+          Try today’s puzzle <ArrowIcon />
+        </button> --%>
+        <div class="rating-note">
+          <span class="avatar-stack">
+            <i>♟</i>
+            <i>♙</i>
+            <i>♜</i>
+          </span>
+          <span>
+            <strong>12,400+</strong> players training
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="board-stage" id="trainer">
+      <div class="coral-orbit" />
+      <div class="mint-orbit" />
+      <%!-- <ChessBoard puzzle={puzzle} /> --%>
+      <div class="streak-card">
+        <span>♨</span>
+        <div>
+          <strong>7 day streak</strong>
+          <small>Keep it going</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="learning-strip" id="method">
+    <p>Built for the part of chess that decides everything.</p>
+    <div class="stat">
+      <strong>10</strong>
+      <span>minutes a day</span>
+    </div>
+    <div class="stat">
+      <strong>240+</strong>
+      <span>curated positions</span>
+    </div>
+    <div class="stat">
+      <strong>3.2×</strong>
+      <span>faster pattern recall</span>
+    </div>
+  </section>
+
+  <section class="puzzle-section" id="puzzles">
+    <div class="section-heading">
+      <div>
+        <span class="section-kicker">Choose your challenge</span>
+        <h2>
+          One position. <br /> One clear idea.
+        </h2>
+      </div>
+      <p>
+        No noise, no endless variations. Each exercise teaches a pattern
+        you’ll recognize over the board.
+      </p>
+    </div>
+    <div class="puzzle-grid">
+      <%!-- {puzzles.map((item, index) => (
+            <button
+              className={`puzzle-card ${
+                index === activePuzzle ? "active" : ""
+              }`}
+              type="button"
+              key={item.title}
+              onClick={() => selectPuzzle(index)}
+            >
+              <span className="card-number">0{index + 1}</span>
+              <span className="mini-piece">
+                {index === 0 ? "♙" : index === 1 ? "♖" : "♛"}
+              </span>
+              <span className="difficulty">{item.difficulty}</span>
+              <strong>{item.title}</strong>
+              <small>{item.meta}</small>
+              <span className="card-arrow">
+                <ArrowIcon />
+              </span>
+            </button>
+          ))} --%>
+    </div>
+  </section>
+
+  <section class="progress-banner" id="progress">
+    <div>
+      <span class="section-kicker">A calmer way to improve</span>
+      <h2>
+        Make the endgame <br /> your strongest phase.
+      </h2>
+    </div>
+    <%!-- <button
+          className="light-button"
+          type="button"
+          onClick={() => selectPuzzle(0)}
+        >
+          Begin with the basics <ArrowIcon />
+        </button> --%>
+  </section>
+</main>
+<%!-- <div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32">
   <div class="mx-auto max-w-xl lg:mx-0">
     <svg viewBox="0 0 71 48" class="h-12" aria-hidden="true">
       <path
@@ -157,4 +274,4 @@
       </div>
     </div>
   </div>
-</div>
+</div> --%>

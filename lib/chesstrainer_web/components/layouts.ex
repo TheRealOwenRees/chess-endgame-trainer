@@ -59,7 +59,26 @@ defmodule ChesstrainerWeb.Layouts do
 
   def navbar(assigns) do
     ~H"""
-    <header class="flex items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
+    <header>
+      <nav class="nav-wrap" aria-label="Main navigation">
+        <a class="brand" href="#" aria-label="Lucid Chess Home">
+          <span class="brand-mark">♞</span>
+          <span>LUCID</span>
+        </a>
+        <%!-- Mobile menu --%>
+        <%!-- <button
+          className="menu-button"
+          type="button"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-expanded={menuOpen}
+          aria-label="Toggle menu"
+        >
+          <span />
+          <span />
+        </button> --%>
+      </nav>
+    </header>
+    <%!-- <header class="flex items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
       <div class="flex-1">
         <a href="/" class="flex-1 flex w-fit items-center gap-2">
           <img src={~p"/images/logo.svg"} width="36" />
@@ -99,7 +118,7 @@ defmodule ChesstrainerWeb.Layouts do
           <% end %>
         </ul>
       </div>
-    </header>
+    </header> --%>
     """
   end
 
