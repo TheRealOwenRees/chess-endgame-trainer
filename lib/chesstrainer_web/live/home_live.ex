@@ -28,8 +28,13 @@ defmodule ChesstrainerWeb.HomeLive do
     end
   end
 
+  defp puzzle_path(nil), do: "/endgames"
+  defp puzzle_path(endgame), do: ~p"/endgames/#{endgame.public_code}/play"
+
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, :puzzle_path, puzzle_path(assigns.active_endgame))
+
     ~H"""
     <Layouts.flash_group flash={@flash} />
     <main>
@@ -44,6 +49,9 @@ defmodule ChesstrainerWeb.HomeLive do
             when every move matters.
           </p>
           <div class="hero-actions">
+            <.pill_button variant={:primary} navigate={@puzzle_path}>
+              Try today's puzzle <.icon_arrow />
+            </.pill_button>
             <div class="rating-note">
               <span class="avatar-stack">
                 <i>♟</i>
@@ -64,13 +72,13 @@ defmodule ChesstrainerWeb.HomeLive do
             id="home-board"
             endgame={@active_endgame}
           />
-          <div class="streak-card">
+          <%!-- <div class="streak-card">
             <span>♨</span>
             <div>
               <strong>7 day streak</strong>
               <small>Keep it going</small>
             </div>
-          </div>
+          </div> --%>
         </div>
       </section>
 
