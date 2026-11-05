@@ -19,7 +19,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
             0} · Solved: {@endgame.times_solved || 0}<span :if={@user_rating}> · Your rating: {round(
             @user_rating
           )}</span>
-          <p class="text-xs text-gray-500 flex items-center mt-1">
+          <p class="text-xs text-muted flex items-center mt-1">
             <span>FEN: {@endgame.fen}</span>
             <button
               id="copy-fen-btn"
@@ -39,7 +39,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         </:actions>
       </.header>
 
-      <div class="flex gap-2 bg-gray-200 p-4 rounded-xl shadow-inner">
+      <div class="flex gap-2 bg-base-200 p-4 rounded-xl shadow-inner">
         <div
           id="endgame-board"
           phx-hook="ChessBoard"
@@ -50,78 +50,78 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         </div>
 
         <div class="w-48 h-100 flex flex-col gap-3">
-          <div class="rounded-lg bg-white p-3 text-sm">
+          <div class="rounded-lg bg-canvas-raised p-3 text-sm">
             <%= cond do %>
               <% @status == :loading -> %>
-                <p class="text-gray-500">Loading tablebase…</p>
+                <p class="text-muted">Loading tablebase…</p>
               <% @status == :blocked -> %>
-                <p class="font-semibold text-red-600">Tablebase unavailable</p>
-                <p class="text-red-500">{@blocked_reason}</p>
+                <p class="font-semibold text-error">Tablebase unavailable</p>
+                <p class="text-error">{@blocked_reason}</p>
               <% @status == :solved -> %>
-                <p class="font-semibold text-emerald-600">
+                <p class="font-semibold text-success-text">
                   {if @endgame.result == :draw, do: "Draw held!", else: "Solved!"}
                 </p>
               <% @status == :failed -> %>
-                <p class="font-semibold text-red-600">Failed</p>
-                <p class="text-red-500">
+                <p class="font-semibold text-error">Failed</p>
+                <p class="text-error">
                   {if @endgame.result == :draw,
                     do: "That move loses the draw.",
                     else: "That move throws away the win."}
                 </p>
                 <%= if @best_move && @plies != [] do %>
-                  <p class="text-gray-600">
+                  <p class="text-muted">
                     You played {List.last(@plies).san}; best was: {@best_move}
                   </p>
                 <% end %>
               <% @awaiting_reply -> %>
-                <p class="text-gray-500">Opponent is replying…</p>
+                <p class="text-muted">Opponent is replying…</p>
               <% @last_grade == :optimal -> %>
-                <p class="font-semibold text-emerald-600">Optimal move</p>
+                <p class="font-semibold text-success-text">Optimal move</p>
               <% @last_grade == :winning -> %>
-                <p class="font-semibold text-amber-600">
+                <p class="font-semibold text-warning">
                   {if @endgame.result == :draw,
                     do: "Keeps the draw — but not the sharpest",
                     else: "Winning — but not the sharpest"}
                 </p>
               <% @last_grade == :losing -> %>
-                <p class="font-semibold text-red-600">
+                <p class="font-semibold text-error">
                   {if @endgame.result == :draw,
                     do: "Losing move — this loses the draw",
                     else: "Losing move — this throws away the win"}
                 </p>
               <% @last_grade == :unknown -> %>
-                <p class="font-semibold text-gray-600">Could not grade that move</p>
+                <p class="font-semibold text-muted">Could not grade that move</p>
               <% true -> %>
-                <p class="text-gray-500">Make a move to have it graded.</p>
+                <p class="text-muted">Make a move to have it graded.</p>
             <% end %>
           </div>
 
-          <div :if={@reviewing} id="best-move-panel" class="rounded-lg bg-white p-3 text-sm">
+          <div :if={@reviewing} id="best-move-panel" class="rounded-lg bg-canvas-raised p-3 text-sm">
             <%= cond do %>
               <% @review_blocked -> %>
-                <p class="text-gray-500">Best move unavailable here</p>
-                <p class="text-gray-400">{@review_blocked}</p>
+                <p class="text-muted">Best move unavailable here</p>
+                <p class="text-muted">{@review_blocked}</p>
               <% @review_tablebase -> %>
-                <p class="text-gray-600 font-semibold mb-1">Best move:</p>
-                <p class="text-emerald-600">{best_move_text(@review_tablebase) || "—"}</p>
+                <p class="text-muted font-semibold mb-1">Best move:</p>
+                <p class="text-success-text">{best_move_text(@review_tablebase) || "—"}</p>
                 <%= if played_ply = played_ply_at(@line, @review_index) do %>
                   <p class={["mt-1", grade_class(played_ply.grade)]}>Played: {played_ply.san}</p>
                 <% end %>
               <% true -> %>
-                <p class="text-gray-500">No best move.</p>
+                <p class="text-muted">No best move.</p>
             <% end %>
           </div>
 
-          <div id="move-list" class="flex-1 min-h-0 flex flex-col bg-white rounded-lg p-3">
+          <div id="move-list" class="flex-1 min-h-0 flex flex-col bg-canvas-raised rounded-lg p-3">
             <% plies = display_plies(@reviewing, @line, @plies) %>
-            <p class="text-sm text-gray-600 font-semibold mb-2">Moves:</p>
+            <p class="text-sm text-muted font-semibold mb-2">Moves:</p>
             <div class="flex-1 overflow-y-auto">
               <%= if plies == [] do %>
-                <p class="text-sm text-gray-500">No Moves</p>
+                <p class="text-sm text-muted">No Moves</p>
               <% else %>
                 <%= for {[white_ply, black_ply], move_no} <- move_rows(plies, @endgame.color) do %>
                   <div class="font-mono text-sm leading-6">
-                    <span class="text-gray-500 mr-2">{move_no}.</span>
+                    <span class="text-muted mr-2">{move_no}.</span>
                     <%= if white_ply do %>
                       <.ply
                         ply={white_ply}
@@ -130,7 +130,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
                         result={@endgame.result}
                       />
                     <% else %>
-                      <span class="text-gray-900">...</span>
+                      <span class="text-body">...</span>
                     <% end %>
                     <%= if black_ply do %>
                       <.ply
@@ -504,16 +504,16 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
     end
   end
 
-  defp ply_class(%{best_line: true}), do: "text-sky-600 italic"
+  defp ply_class(%{best_line: true}), do: "text-info italic"
   defp ply_class(ply), do: grade_class(ply.grade)
 
   defp ply_title(%{best_line: true}, _result), do: "Best line"
   defp ply_title(ply, result), do: grade_label(ply.grade, result)
 
-  defp grade_class(:optimal), do: "text-emerald-600"
-  defp grade_class(:winning), do: "text-amber-600"
-  defp grade_class(:losing), do: "text-red-600"
-  defp grade_class(_), do: "text-gray-900"
+  defp grade_class(:optimal), do: "text-success-text"
+  defp grade_class(:winning), do: "text-warning"
+  defp grade_class(:losing), do: "text-error"
+  defp grade_class(_), do: "text-body"
 
   defp grade_label(nil, _result), do: nil
   defp grade_label(:optimal, _result), do: "Optimal move"
