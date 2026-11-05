@@ -10,7 +10,41 @@
       rel="stylesheet"
     />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Chesstrainer" suffix=" · Phoenix Framework" phx-no-format>{assigns[:page_title]}</.live_title>
+    <.live_title
+      default="Lucid Chess — Endgame Trainer"
+      suffix={assigns[:title_suffix] || " · Lucid Chess"}
+      phx-no-format
+    >{assigns[:page_title]}</.live_title>
+    <meta
+      :if={assigns[:meta_description]}
+      name="description"
+      content={assigns[:meta_description]}
+    />
+    <link :if={assigns[:canonical_url]} rel="canonical" href={assigns[:canonical_url]} />
+    <meta :if={assigns[:meta_description]} property="og:type" content="website" />
+    <meta :if={assigns[:meta_description]} property="og:site_name" content="Lucid Chess" />
+    <meta
+      :if={assigns[:meta_description]}
+      property="og:title"
+      content={assigns[:page_title] || "Lucid Chess — Endgame Trainer"}
+    />
+    <meta
+      :if={assigns[:meta_description]}
+      property="og:description"
+      content={assigns[:meta_description]}
+    />
+    <meta :if={assigns[:canonical_url]} property="og:url" content={assigns[:canonical_url]} />
+    <meta :if={assigns[:meta_description]} name="twitter:card" content="summary" />
+    <meta
+      :if={assigns[:meta_description]}
+      name="twitter:title"
+      content={assigns[:page_title] || "Lucid Chess — Endgame Trainer"}
+    />
+    <meta
+      :if={assigns[:meta_description]}
+      name="twitter:description"
+      content={assigns[:meta_description]}
+    />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
 
     <script

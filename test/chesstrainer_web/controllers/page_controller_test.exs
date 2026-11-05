@@ -39,8 +39,12 @@ defmodule ChesstrainerWeb.PageControllerTest do
     {beginner, intermediate, advanced}
   end
 
+  @description "Short, focused endgame puzzles against tablebase-perfect defence. " <>
+                 "Learn to see the winning move and make the endgame your strongest phase."
+
   test "GET / renders the landing page, navbar, and footer", %{conn: conn} do
     html = conn |> get(~p"/") |> html_response(200)
+    document = LazyHTML.from_document(html)
 
     assert html =~ "Learn to see the"
     assert html =~ "LUCID"
@@ -54,6 +58,30 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ ~p"/endgames"
     assert html =~ "/assets/js/marketing.js"
     refute html =~ "/assets/js/app.js"
+
+    assert LazyHTML.text(LazyHTML.query(document, "title")) =~ "Lucid Chess — Endgame Trainer"
+    refute html =~ "Phoenix Framework"
+
+    assert LazyHTML.attribute(LazyHTML.query(document, ~s(meta[name="description"])), "content") ==
+             [@description]
+
+    assert [canonical] =
+             LazyHTML.attribute(LazyHTML.query(document, ~s(link[rel="canonical"])), "href")
+
+    assert URI.parse(canonical).path == "/"
+
+    for {selector, content} <- [
+          {~s(meta[property="og:type"]), "website"},
+          {~s(meta[property="og:site_name"]), "Lucid Chess"},
+          {~s(meta[property="og:title"]), "Lucid Chess — Endgame Trainer"},
+          {~s(meta[property="og:description"]), @description},
+          {~s(meta[property="og:url"]), canonical},
+          {~s(meta[name="twitter:card"]), "summary"},
+          {~s(meta[name="twitter:title"]), "Lucid Chess — Endgame Trainer"},
+          {~s(meta[name="twitter:description"]), @description}
+        ] do
+      assert LazyHTML.attribute(LazyHTML.query(document, selector), "content") == [content]
+    end
   end
 
   test "guest navbar links to log in and register", %{conn: conn} do
