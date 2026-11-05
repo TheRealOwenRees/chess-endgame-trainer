@@ -5,11 +5,10 @@ Granular tasks and operational scratchpad for active development.
 ---
 
 ## In Progress 🟡
-- [ ] Puzzle of the day - show pass/fail/try again on top so that card does not resize, remove that streak badge
-- [ ] Basic design and colour scheme
-- [ ] Create reusable components such as button
-- [ ] Organise nav bar
-- [ ] Self host font - google fonts not gdpr compliant
+- [x] Basic design and colour scheme
+- [x] Apply design to the rest of the site
+- [x] Create reusable components such as button
+- [x] Organise nav bar
 - [ ] Display puzzles and move to next 
 - [x] Create footer
 
@@ -18,10 +17,13 @@ Granular tasks and operational scratchpad for active development.
 ## Next Up (Sprint Backlog) 🟢
 - [ ] Forgot password  
 - [ ] Anonymous trial of 10 puzzles without logging in
-
+- [ ] Light / Dark mode
+- [ ] WCAG compliance
+- [x] Self host font - google fonts not gdpr compliant
 ---
 
 ## Tech Debt & Refactoring 🧹
+- [ ] Split CSS into modules
 
 ---
 
