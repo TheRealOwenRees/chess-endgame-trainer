@@ -3,6 +3,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
 
   import Chesstrainer.AccountsFixtures
 
+  alias Chesstrainer.DailyPuzzles
   alias Chesstrainer.Endgames
   alias Chesstrainer.Themes
 
@@ -108,8 +109,9 @@ defmodule ChesstrainerWeb.PageControllerTest do
     refute html =~ ~p"/users/register"
   end
 
-  test "renders curated cards linked by public code and a static board", %{conn: conn} do
+  test "renders curated cards and the daily board", %{conn: conn} do
     {beginner, intermediate, advanced} = curated!()
+    daily = DailyPuzzles.today()
 
     html = conn |> get(~p"/") |> html_response(200)
     document = LazyHTML.from_document(html)
@@ -120,21 +122,26 @@ defmodule ChesstrainerWeb.PageControllerTest do
              "/endgames/#{advanced.public_code}/play"
            ]
 
-    assert html =~ beginner.key
-    assert html =~ "Opposition"
-    assert html =~ "To move"
-    assert html =~ "White"
+    board = LazyHTML.text(LazyHTML.query(document, ".board-caption"))
+    assert board =~ daily.key
+
+    for theme <- daily.themes do
+      assert board =~ theme.name
+    end
+
+    assert LazyHTML.text(LazyHTML.query(document, ".board-topline")) =~ "White"
     assert html =~ "Try today's puzzle"
     assert html =~ "Begin with the basics"
     assert html =~ "<span>puzzles</span>"
   end
 
-  test "hero and progress CTAs link to the first curated puzzle", %{conn: conn} do
-    {beginner, _intermediate, _advanced} = curated!()
+  test "hero and progress CTAs link to the daily puzzle", %{conn: conn} do
+    curated!()
+    daily = DailyPuzzles.today()
 
     html = conn |> get(~p"/") |> html_response(200)
     document = LazyHTML.from_document(html)
-    play_path = "/endgames/#{beginner.public_code}/play"
+    play_path = "/endgames/#{daily.public_code}/play"
 
     assert LazyHTML.attribute(LazyHTML.query(document, ".hero-actions a"), "href") == [play_path]
 
@@ -143,6 +150,19 @@ defmodule ChesstrainerWeb.PageControllerTest do
            ]
 
     refute html =~ "/endgames//play"
+  end
+
+  test "shows the same daily puzzle across requests", %{conn: conn} do
+    curated!()
+    daily = DailyPuzzles.today()
+
+    first = conn |> get(~p"/") |> html_response(200)
+    second = conn |> get(~p"/") |> html_response(200)
+
+    for html <- [first, second] do
+      board = LazyHTML.text(LazyHTML.query(LazyHTML.from_document(html), ".board-caption"))
+      assert board =~ daily.key
+    end
   end
 
   test "renders without endgames", %{conn: conn} do

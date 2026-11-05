@@ -1,6 +1,7 @@
 defmodule ChesstrainerWeb.PageController do
   use ChesstrainerWeb, :controller
 
+  alias Chesstrainer.DailyPuzzles
   alias Chesstrainer.Endgames
 
   @description "Short, focused endgame puzzles against tablebase-perfect defence. " <>
@@ -17,7 +18,7 @@ defmodule ChesstrainerWeb.PageController do
     |> assign(:canonical_url, current_url(conn))
     |> render(:home,
       endgames: endgames,
-      active_endgame: List.first(endgames),
+      active_endgame: DailyPuzzles.today(),
       puzzle_count: Endgames.count_endgames()
     )
   end

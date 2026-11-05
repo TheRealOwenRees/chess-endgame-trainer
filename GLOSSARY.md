@@ -16,6 +16,11 @@ side correctly against tablebase-optimal defence. Each endgame currently
 yields one puzzle.
 _Avoid_: Endgame (the stored record), exercise
 
+**Daily puzzle**:
+The one endgame assigned to a UTC date and shared by every user; the
+assignment is persisted so it stays stable for that day.
+_Avoid_: Random puzzle, featured puzzle
+
 **Attempt**:
 A recorded playthrough of a puzzle by a user, ending solved or failed; a
 per-user record, distinct from an endgame's global attempt and solve counts.
