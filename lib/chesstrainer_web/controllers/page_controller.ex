@@ -19,7 +19,8 @@ defmodule ChesstrainerWeb.PageController do
     |> render(:home,
       endgames: endgames,
       active_endgame: DailyPuzzles.today(),
-      puzzle_count: Endgames.count_endgames()
+      puzzle_count: Endgames.count_endgames(),
+      today: Date.utc_today()
     )
   end
 end

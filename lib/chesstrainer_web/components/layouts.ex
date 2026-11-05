@@ -109,9 +109,14 @@ defmodule ChesstrainerWeb.Layouts do
   end
 
   defp nav_links(scope) do
-    marketing = [
-      %{label: "Puzzle Search", href: "/endgames"}
-    ]
+    marketing =
+      if premium?(scope) do
+        [
+          %{label: "Puzzle Search", href: "/endgames"}
+        ]
+      else
+        []
+      end
 
     admin =
       if admin?(scope) do
@@ -141,6 +146,8 @@ defmodule ChesstrainerWeb.Layouts do
 
   defp admin?(%{user: %{role: role}}), do: Role.admin?(role)
   defp admin?(_scope), do: false
+
+  defp premium?(scope), do: match?(%{user: %{plan: :premium}}, scope)
 
   # Signed-in users start a puzzle session; visitors browse the public list.
   defp start_href(%{user: %{}}), do: ~p"/train"

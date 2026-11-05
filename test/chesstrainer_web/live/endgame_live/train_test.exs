@@ -2,6 +2,7 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
   use ChesstrainerWeb.ConnCase
 
   import Phoenix.LiveViewTest
+  import Chesstrainer.AccountsFixtures
   import Chesstrainer.EndgamesFixtures
 
   alias Chesstrainer.Attempts.Attempt
@@ -87,6 +88,7 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert has_element?(view, "#difficulty-hard")
       assert has_element?(view, "#close-difficulty[href='/']")
       assert has_element?(view, "a", "Cancel")
+      refute has_element?(view, "#puzzle-search")
       assert render(view) =~ "Choose a difficulty"
     end
 
@@ -109,6 +111,21 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       session = :sys.get_state(view.pid).socket.assigns.session
       assert session.difficulty == :medium
       assert session.count == 0
+    end
+  end
+
+  describe "premium access" do
+    test "shows the puzzle search link for premium users", %{conn: conn} do
+      {:ok, user} =
+        user_fixture()
+        |> Ecto.Changeset.change(plan: :premium)
+        |> Repo.update()
+
+      conn = log_in_user(conn, user)
+      {:ok, view, _html} = live(conn, ~p"/train")
+
+      assert has_element?(view, "#puzzle-search[href='/endgames']")
+      assert render(view) =~ "Puzzle Search"
     end
   end
 
@@ -154,6 +171,23 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       solve_current(view)
 
       assert :sys.get_state(view.pid).socket.assigns.session.count == 1
+    end
+
+    test "stopping shows the finished session in the picker", %{conn: conn} do
+      {view, [_endgame]} = start_medium_session(conn, 1)
+      solve_current(view)
+
+      view |> element("button", "Stop session") |> render_click()
+
+      assert has_element?(view, "#last-session")
+      assert render(view) =~ "Last session"
+
+      last = :sys.get_state(view.pid).socket.assigns.last_session
+      assert last.difficulty == :medium
+      assert last.count == 1
+      assert is_float(last.gain)
+      assert last.gain > 0
+      assert last.duration_ms >= 0
     end
 
     test "stopping a session returns to the picker so a new one can start", %{conn: conn} do

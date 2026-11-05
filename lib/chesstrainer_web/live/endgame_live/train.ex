@@ -30,8 +30,12 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
           <.button :if={@session} phx-click="stop_session">
             <.icon name="hero-x-mark" /> Stop session
           </.button>
-          <.button navigate={~p"/endgames"}>
-            <.icon name="hero-arrow-left" /> Endgames
+          <.button
+            :if={premium?(@current_scope)}
+            id="puzzle-search"
+            navigate={~p"/endgames"}
+          >
+            <.icon name="hero-magnifying-glass" /> Puzzle Search
           </.button>
         </:actions>
       </.header>
@@ -93,6 +97,38 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
       <% else %>
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div id="difficulty-picker" class="w-full max-w-md rounded-xl bg-base-100 p-6 shadow-xl">
+            <div
+              :if={@last_session}
+              id="last-session"
+              class="mb-4 rounded-lg bg-canvas-raised p-3 text-sm"
+            >
+              <p class="mb-1 font-semibold">Last session</p>
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                <span>
+                  <span class="text-muted">Difficulty</span>
+                  <span class="font-semibold">{difficulty_label(@last_session.difficulty)}</span>
+                </span>
+                <span>
+                  <span class="text-muted">Time</span>
+                  <span class="font-mono">{format_duration(@last_session.duration_ms)}</span>
+                </span>
+                <span>
+                  <span class="text-muted">Puzzles</span>
+                  <span class="font-mono">{@last_session.count}</span>
+                </span>
+                <span>
+                  <span class="text-muted">Avg/puzzle</span>
+                  <span class="font-mono">{format_duration(@last_session.avg_ms)}</span>
+                </span>
+                <span>
+                  <span class="text-muted">Rating</span>
+                  <span class={["font-mono", gain_class(@last_session.gain)]}>
+                    {format_delta(@last_session.gain)}
+                  </span>
+                </span>
+              </div>
+            </div>
+
             <div class="flex items-start justify-between gap-4">
               <div>
                 <h2 class="text-lg font-semibold">Choose a difficulty</h2>
@@ -139,6 +175,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
      socket
      |> assign(:page_title, "Train")
      |> assign(:session, nil)
+     |> assign(:last_session, nil)
      |> assign(:puzzle_started_mono, nil)
      |> assign(:puzzle_counted, false)
      |> assign(:user_rating, socket.assigns.current_scope.user.rating)}
@@ -199,6 +236,12 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
   end
 
   def handle_event("stop_session", _params, socket) do
+    socket =
+      case socket.assigns.session do
+        nil -> socket
+        session -> assign(socket, :last_session, summarise(session, socket.assigns.user_rating))
+      end
+
     {:noreply, assign(socket, :session, nil)}
   end
 
@@ -259,6 +302,19 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
   defp selection_user(socket) do
     user = socket.assigns.current_scope.user
     %{user | rating: socket.assigns.user_rating || user.rating}
+  end
+
+  defp premium?(%{user: %{plan: :premium}}), do: true
+  defp premium?(_scope), do: false
+
+  defp summarise(session, rating) do
+    %{
+      difficulty: session.difficulty,
+      duration_ms: elapsed_ms(session),
+      count: session.count,
+      avg_ms: avg_ms(session),
+      gain: net_gain(session, rating)
+    }
   end
 
   defp parse_difficulty(value) when value in ~w(easy medium hard),

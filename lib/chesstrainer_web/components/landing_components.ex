@@ -88,7 +88,8 @@ defmodule ChesstrainerWeb.LandingComponents do
         turn: turn_label(endgame),
         title: title(endgame),
         themes: theme_names(endgame),
-        orientation: orientation(endgame)
+        orientation: orientation(endgame),
+        date: Calendar.strftime(assigns.date || Date.utc_today(), "%d %b %Y")
       )
 
     ~H"""
@@ -101,6 +102,7 @@ defmodule ChesstrainerWeb.LandingComponents do
             <strong>{@turn}</strong>
           </span>
         </div>
+        <div>{@date}</div>
       </div>
 
       <.board_grid fen={@fen} orientation={@orientation} />
