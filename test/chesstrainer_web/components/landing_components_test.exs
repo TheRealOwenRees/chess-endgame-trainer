@@ -46,6 +46,14 @@ defmodule ChesstrainerWeb.LandingComponentsTest do
     assert html =~ "Lucena"
   end
 
+  test "renders the spark icon as a decorative primitive" do
+    html = render_component(&LandingComponents.icon_spark/1, %{})
+
+    assert html =~ "<svg"
+    assert html =~ ~s(aria-hidden="true")
+    assert html =~ "currentColor"
+  end
+
   describe "puzzle_count_label/1" do
     test "shows counts below 100 exactly" do
       assert LandingComponents.puzzle_count_label(0) == "0"

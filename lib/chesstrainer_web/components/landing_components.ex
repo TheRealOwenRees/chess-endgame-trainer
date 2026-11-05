@@ -212,6 +212,22 @@ defmodule ChesstrainerWeb.LandingComponents do
     "#{div(count, 1000) * 1000}+"
   end
 
+  @doc "The spark used by the landing-page eyebrow."
+  def icon_spark(assigns) do
+    ~H"""
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none">
+      <path
+        d="M10 1.75c.33 3.25 1.85 4.77 5.1 5.1-3.25.33-4.77 1.85-5.1 5.1-.33-3.25-1.85-4.77-5.1-5.1 3.25-.33 4.77-1.85 5.1-5.1Z"
+        fill="currentColor"
+      />
+      <path
+        d="M15.25 11.5c.18 1.8.95 2.57 2.75 2.75-1.8.18-2.57.95-2.75 2.75-.18-1.8-.95-2.57-2.75-2.75 1.8-.18 2.57-.95 2.75-2.75Z"
+        fill="currentColor"
+      />
+    </svg>
+    """
+  end
+
   @doc "The arrow used by landing-page CTAs."
   def icon_arrow(assigns) do
     ~H"""

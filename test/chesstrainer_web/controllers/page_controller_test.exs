@@ -62,6 +62,10 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert LazyHTML.text(LazyHTML.query(document, "title")) =~ "Lucid Chess — Endgame Trainer"
     refute html =~ "Phoenix Framework"
 
+    eyebrow = LazyHTML.query(document, ".eyebrow")
+    assert LazyHTML.text(eyebrow) =~ "Endgames, made clear"
+    assert LazyHTML.attribute(LazyHTML.query(eyebrow, "svg"), "aria-hidden") == ["true"]
+
     assert LazyHTML.attribute(LazyHTML.query(document, ~s(meta[name="description"])), "content") ==
              [@description]
 
