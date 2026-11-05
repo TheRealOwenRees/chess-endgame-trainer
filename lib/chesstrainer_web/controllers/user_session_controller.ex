@@ -17,9 +17,24 @@ defmodule ChesstrainerWeb.UserSessionController do
         |> redirect(to: ~p"/users/log-in")
 
       user ->
-        conn
-        |> put_flash(:info, "Welcome back!")
-        |> UserAuth.log_in_user(user, user_params)
+        if user.confirmed_at do
+          conn
+          |> put_flash(:info, "Welcome back!")
+          |> UserAuth.log_in_user(user, user_params)
+        else
+          {:ok, _} =
+            Accounts.deliver_user_confirmation_instructions(
+              user,
+              &url(~p"/users/confirm/#{&1}")
+            )
+
+          # In order to prevent user enumeration attacks, report the same error
+          # as invalid credentials.
+          conn
+          |> put_flash(:error, "Invalid email, username or password")
+          |> put_flash(:email, String.slice(login, 0, 160))
+          |> redirect(to: ~p"/users/log-in")
+        end
     end
   end
 

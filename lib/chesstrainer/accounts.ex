@@ -98,9 +98,6 @@ defmodule Chesstrainer.Accounts do
   def register_user(attrs) do
     %User{}
     |> User.registration_changeset(attrs)
-    # Accounts are usable straight away; email confirmation is intentionally off
-    # because no production mailer adapter is configured yet.
-    |> Ecto.Changeset.put_change(:confirmed_at, DateTime.utc_now(:second))
     |> Repo.insert()
   end
 
@@ -111,6 +108,48 @@ defmodule Chesstrainer.Accounts do
   """
   def change_user_registration(user, attrs \\ %{}, opts \\ []) do
     User.registration_changeset(user, attrs, opts)
+  end
+
+  @doc ~S"""
+  Delivers the confirmation email instructions to the given user.
+
+  ## Examples
+
+      iex> deliver_user_confirmation_instructions(user, &url(~p"/users/confirm/#{&1}"))
+      {:ok, %{to: ..., body: ...}}
+
+      iex> deliver_user_confirmation_instructions(confirmed_user, &url(~p"/users/confirm/#{&1}"))
+      {:error, :already_confirmed}
+
+  """
+  def deliver_user_confirmation_instructions(%User{} = user, confirmation_url_fun)
+      when is_function(confirmation_url_fun, 1) do
+    if user.confirmed_at do
+      {:error, :already_confirmed}
+    else
+      {encoded_token, user_token} = UserToken.build_email_token(user, "confirm")
+      Repo.insert!(user_token)
+      UserNotifier.deliver_confirmation_instructions(user, confirmation_url_fun.(encoded_token))
+    end
+  end
+
+  @doc """
+  Confirms a user by the given token.
+
+  If the token matches, the user account is marked as confirmed and the token is
+  deleted. The token is valid for one day.
+  """
+  def confirm_user(token) do
+    with {:ok, query} <- UserToken.verify_confirmation_token_query(token),
+         %UserToken{sent_to: email} <- Repo.one(query),
+         %User{} = user <- Repo.get_by(User, email: email),
+         {:ok, user} <- Repo.update(User.confirm_changeset(user)),
+         {_count, _result} <-
+           Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: "confirm"])) do
+      {:ok, user}
+    else
+      _ -> :error
+    end
   end
 
   @doc """

@@ -22,6 +22,17 @@ defmodule Chesstrainer.AccountsFixtures do
   end
 
   def user_fixture(attrs \\ %{}) do
+    user = unconfirmed_user_fixture(attrs)
+
+    {:ok, user} =
+      user
+      |> Chesstrainer.Accounts.User.confirm_changeset()
+      |> Chesstrainer.Repo.update()
+
+    user
+  end
+
+  def unconfirmed_user_fixture(attrs \\ %{}) do
     {:ok, user} =
       attrs
       |> valid_user_attributes()

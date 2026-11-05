@@ -85,6 +85,8 @@ defmodule ChesstrainerWeb.Router do
       live "/users/log-in", UserLive.Login, :new
     end
 
+    get "/users/confirm/:token", UserConfirmationController, :edit
+
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
   end

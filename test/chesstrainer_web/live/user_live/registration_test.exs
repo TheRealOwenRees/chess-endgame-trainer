@@ -3,6 +3,7 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
 
   import Phoenix.LiveViewTest
   import Chesstrainer.AccountsFixtures
+  import Swoosh.TestAssertions
 
   describe "Registration page" do
     test "renders registration page", %{conn: conn} do
@@ -56,7 +57,10 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
         render_submit(form)
         |> follow_redirect(conn, ~p"/users/log-in")
 
-      assert html =~ "Account created successfully"
+      assert html =~
+               "An email with instructions for how to confirm your email address has been sent to your inbox."
+
+      assert_email_sent(subject: "Confirmation instructions")
     end
 
     test "renders errors for duplicated email", %{conn: conn} do

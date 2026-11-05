@@ -81,10 +81,19 @@ defmodule ChesstrainerWeb.UserLive.Registration do
   @impl true
   def handle_event("save", %{"user" => user_params}, socket) do
     case Accounts.register_user(user_params) do
-      {:ok, _user} ->
+      {:ok, user} ->
+        {:ok, _} =
+          Accounts.deliver_user_confirmation_instructions(
+            user,
+            &url(~p"/users/confirm/#{&1}")
+          )
+
         {:noreply,
          socket
-         |> put_flash(:info, "Account created successfully. Please log in.")
+         |> put_flash(
+           :info,
+           "An email with instructions for how to confirm your email address has been sent to your inbox."
+         )
          |> push_navigate(to: ~p"/users/log-in")}
 
       {:error, %Ecto.Changeset{} = changeset} ->

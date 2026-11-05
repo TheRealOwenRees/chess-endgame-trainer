@@ -2,6 +2,7 @@ defmodule ChesstrainerWeb.UserSessionControllerTest do
   use ChesstrainerWeb.ConnCase, async: true
 
   import Chesstrainer.AccountsFixtures
+  import Swoosh.TestAssertions
 
   setup do
     %{user: user_fixture()}
@@ -74,6 +75,25 @@ defmodule ChesstrainerWeb.UserSessionControllerTest do
                "Invalid email, username or password"
 
       assert redirected_to(conn) == ~p"/users/log-in"
+    end
+
+    test "does not log in an unconfirmed user and resends confirmation instructions", %{
+      conn: conn
+    } do
+      user = unconfirmed_user_fixture()
+
+      conn =
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"email" => user.email, "password" => valid_user_password()}
+        })
+
+      refute get_session(conn, :user_token)
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "Invalid email, username or password"
+
+      assert redirected_to(conn) == ~p"/users/log-in"
+      assert_email_sent(subject: "Confirmation instructions")
     end
   end
 

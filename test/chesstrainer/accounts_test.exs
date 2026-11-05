@@ -163,7 +163,7 @@ defmodule Chesstrainer.AccountsTest do
       assert "has already been taken" in errors_on(changeset).username
     end
 
-    test "registers users with a password, a confirmed account and default access" do
+    test "registers users with a password, an unconfirmed account and default access" do
       email = unique_user_email()
       username = unique_username()
 
@@ -174,9 +174,67 @@ defmodule Chesstrainer.AccountsTest do
       assert user.username == username
       assert is_binary(user.hashed_password)
       assert is_nil(user.password)
-      assert user.confirmed_at
+      assert is_nil(user.confirmed_at)
       assert user.role == :member
       assert user.plan == :free
+    end
+  end
+
+  describe "deliver_user_confirmation_instructions/2" do
+    setup do
+      %{user: unconfirmed_user_fixture()}
+    end
+
+    test "sends token through notification", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_confirmation_instructions(user, url)
+        end)
+
+      {:ok, token} = Base.url_decode64(token, padding: false)
+      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
+      assert user_token.user_id == user.id
+      assert user_token.sent_to == user.email
+      assert user_token.context == "confirm"
+    end
+
+    test "does not send instructions when the account is already confirmed", %{user: user} do
+      {:ok, user} = Repo.update(User.confirm_changeset(user))
+
+      assert Accounts.deliver_user_confirmation_instructions(user, fn _ -> "" end) ==
+               {:error, :already_confirmed}
+    end
+  end
+
+  describe "confirm_user/1" do
+    setup do
+      user = unconfirmed_user_fixture()
+
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_confirmation_instructions(user, url)
+        end)
+
+      %{user: user, token: token}
+    end
+
+    test "confirms the user with a valid token", %{user: user, token: token} do
+      assert {:ok, %User{} = confirmed_user} = Accounts.confirm_user(token)
+      assert confirmed_user.id == user.id
+      assert confirmed_user.confirmed_at
+      refute Repo.get_by(UserToken, user_id: user.id, context: "confirm")
+    end
+
+    test "does not confirm with an invalid token", %{user: user} do
+      assert Accounts.confirm_user("oops") == :error
+      assert is_nil(Repo.get!(User, user.id).confirmed_at)
+    end
+
+    test "does not confirm if the token expired", %{user: user, token: token} do
+      {1, nil} = Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
+
+      assert Accounts.confirm_user(token) == :error
+      assert is_nil(Repo.get!(User, user.id).confirmed_at)
     end
   end
 
