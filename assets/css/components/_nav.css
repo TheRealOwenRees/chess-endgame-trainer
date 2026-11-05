@@ -1,0 +1,41 @@
+.nav-wrap {
+  width: min(1180px, calc(100% - 48px));
+  height: 92px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.nav-right { display: flex; align-items: center; gap: 22px; }
+
+.nav-links { display: flex; align-items: center; gap: 34px; font-size: 14px; font-weight: 600; }
+.nav-links a { transition: opacity .2s; }
+.nav-links a:hover { opacity: .55; }
+.nav-links a.nav-cta:hover { opacity: 1; }
+.nav-user { color: var(--color-muted); font-weight: 500; }
+.nav-cta, .primary-button, .light-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 13px;
+  border-radius: 999px; font-weight: 600; transition: transform .2s, background .2s;
+}
+.nav-cta { padding: 12px 19px; color: var(--color-on-deep); background: var(--color-deep); }
+.nav-cta svg, .primary-button svg, .light-button svg, .card-arrow svg { width: 18px; height: 18px; }
+.nav-cta:hover, .primary-button:hover, .light-button:hover { transform: translateY(-2px); }
+
+.brand { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; letter-spacing: .18em; }
+.brand-mark { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 50%; background: var(--color-deep); color: var(--color-on-deep); font-size: 21px; letter-spacing: 0; }
+
+@media (max-width: 900px) {
+    .nav-links { gap: 20px; }
+    .nav-right { gap: 16px; }
+}
+
+@media (max-width: 650px) {
+    .nav-wrap { width: calc(100% - 36px); height: 74px; position: relative; z-index: 10; }
+    .nav-right { gap: 12px; }
+    .nav-links.open { display: flex; }
+    .nav-cta { width: 100%; }
+    .nav-links { display: none; position: absolute; top: 65px; left: 0; right: 0; padding: 24px; flex-direction: column; align-items: stretch; gap: 22px; border-radius: 10px; background: var(--color-canvas-raised); box-shadow: 0 18px 40px rgba(23,53,45,.15); }
+    html[data-theme="dark"] .nav-links { box-shadow: 0 18px 40px rgba(0, 0, 0, .45); }
+}

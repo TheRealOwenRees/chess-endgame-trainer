@@ -1,0 +1,39 @@
+@font-face {
+  font-family: "DM Sans";
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url("/fonts/dm-sans-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "DM Sans";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/dm-sans-italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "DM Serif Display";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/dm-serif-display.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "DM Serif Display";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/dm-serif-display-italic.woff2") format("woff2");
+}
+
+h1, h2 { font-family: 'DM Serif Display', serif; font-weight: 400; letter-spacing: -.035em; }
+h1 { max-width: 590px; font-size: clamp(56px, 6vw, 87px); line-height: .93; }
+h1 em { color: var(--color-coral); font-weight: 400; }
+
+@media (max-width: 650px) {
+    h1 { font-size: clamp(51px, 15vw, 68px); }
+}
