@@ -93,10 +93,22 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
       <% else %>
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div id="difficulty-picker" class="w-full max-w-md rounded-xl bg-base-100 p-6 shadow-xl">
-            <h2 class="text-lg font-semibold">Choose a difficulty</h2>
-            <p class="mt-1 text-sm text-muted">
-              Your rating: {round(@user_rating)} · bands of ±{Puzzles.band_width()}
-            </p>
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h2 class="text-lg font-semibold">Choose a difficulty</h2>
+                <p class="mt-1 text-sm text-muted">
+                  Your rating: {round(@user_rating)} · bands of ±{Puzzles.band_width()}
+                </p>
+              </div>
+              <.link
+                id="close-difficulty"
+                navigate={~p"/"}
+                aria-label="Close and return home"
+                class="rounded-md p-1 text-muted hover:bg-base-200 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <.icon name="hero-x-mark" class="size-5" />
+              </.link>
+            </div>
             <div class="mt-4 grid gap-2">
               <%= for {difficulty, label, description} <- difficulty_options(@user_rating) do %>
                 <.button
@@ -111,6 +123,9 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
                 </.button>
               <% end %>
             </div>
+            <.button navigate={~p"/"} variant="ghost" class="mt-2 w-full justify-center">
+              Cancel
+            </.button>
           </div>
         </div>
       <% end %>
