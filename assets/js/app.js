@@ -19,18 +19,20 @@
 
 // Include phoenix_html to handle method=PUT/DELETE in forms and buttons.
 import "phoenix_html";
+// Plain-DOM mobile navigation (works on controller and LiveView pages).
+import "./nav";
 // Establish Phoenix Socket and LiveView configuration.
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import { hooks as colocatedHooks } from "phoenix-colocated/chesstrainer";
 import topbar from "../vendor/topbar";
 import { ChessBoard } from "./hooks/chessBoard";
-import { CopyFen } from "./hooks/copyFen"
+import { CopyFen } from "./hooks/copyFen";
 
 let Hooks = {
   ...colocatedHooks,
   ChessBoard,
-  CopyFen
+  CopyFen,
 };
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");

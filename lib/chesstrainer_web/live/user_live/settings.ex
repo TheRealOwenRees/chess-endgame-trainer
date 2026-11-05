@@ -28,7 +28,7 @@ defmodule ChesstrainerWeb.UserLive.Settings do
         <.button variant="primary" phx-disable-with="Changing...">Change Email</.button>
       </.form>
 
-      <div class="divider" />
+      <hr class="my-6 border-base-200" />
 
       <.form
         for={@password_form}
@@ -66,7 +66,7 @@ defmodule ChesstrainerWeb.UserLive.Settings do
         </.button>
       </.form>
 
-      <div class="divider" />
+      <hr class="my-6 border-base-200" />
 
       <section id="delete_account" class="space-y-4">
         <.header>
@@ -79,15 +79,14 @@ defmodule ChesstrainerWeb.UserLive.Settings do
           Nothing can be recovered.
         </p>
 
-        <button
+        <.button
           id="delete_account_button"
-          type="button"
-          class="btn btn-error"
+          variant="danger"
           phx-click="delete_account"
           data-confirm="This permanently deletes your account and all of your data. Nothing can be recovered. Are you sure?"
         >
           Delete my account
-        </button>
+        </.button>
       </section>
     </Layouts.app>
     """

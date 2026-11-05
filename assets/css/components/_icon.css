@@ -1,0 +1,2 @@
+.eyebrow { display: flex; align-items: center; gap: 9px; margin-bottom: 27px; color: var(--color-coral-text); text-transform: uppercase; letter-spacing: .13em; font-size: 12px; font-weight: 700; }
+.eyebrow svg { width: 20px; height: 20px; }

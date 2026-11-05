@@ -114,4 +114,35 @@ defmodule Chesstrainer.FENTest do
       assert FEN.piece_count(nil) == nil
     end
   end
+
+  describe "board/1" do
+    test "returns eight ranks of eight squares" do
+      board = FEN.board("8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+
+      assert length(board) == 8
+      assert Enum.all?(board, &(length(&1) == 8))
+    end
+
+    test "expands empty-square digits into nil squares" do
+      assert FEN.board("8/8/8/8/8/8/8/8") ==
+               List.duplicate(List.duplicate(nil, 8), 8)
+    end
+
+    test "maps each piece letter to its square" do
+      board = FEN.board("8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+
+      assert Enum.at(board, 2) == [nil, nil, nil, "k", nil, nil, nil, nil]
+      assert Enum.at(board, 5) == [nil, nil, nil, "K", nil, "R", nil, nil]
+    end
+
+    test "reads only the board field" do
+      assert FEN.board("8/8/3k4/8/8/3K1R2/8/8 w - - 37 99") ==
+               FEN.board("8/8/3k4/8/8/3K1R2/8/8")
+    end
+
+    test "returns nil for a malformed board" do
+      assert FEN.board("not a fen") == nil
+      assert FEN.board(nil) == nil
+    end
+  end
 end

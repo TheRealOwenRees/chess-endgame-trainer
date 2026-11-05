@@ -52,54 +52,122 @@ defmodule ChesstrainerWeb.Layouts do
 
   @doc """
   Renders the application navbar.
+
+  The marketing and account links are defined once in `nav_links/1` and rendered
+  in both the desktop bar and the mobile menu. Edit that list to change what
+  appears in either place.
   """
   attr :current_scope, :map,
     default: nil,
     doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
 
   def navbar(assigns) do
+    assigns = assign(assigns, :nav_links, nav_links(assigns.current_scope))
+
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
+    <header>
+      <nav class="nav-wrap" aria-label="Main navigation">
+        <a class="brand" href="/" aria-label="Lucid Chess home">
+          <span class="brand-mark">♞</span>
+          <span>LUCID</span>
         </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="/endgames" class="btn btn-ghost">Endgames</a>
-          </li>
-          <li :if={@current_scope && Role.admin?(@current_scope.user.role)}>
-            <a href="/admin/endgames" class="btn btn-ghost">Admin</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <%= if @current_scope do %>
-            <li>
-              <span class="text-sm">{@current_scope.user.username}</span>
-            </li>
-            <li>
-              <.link navigate={~p"/users/settings"} class="btn btn-ghost">Settings</.link>
-            </li>
-            <li>
-              <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost">
-                Log out
-              </.link>
-            </li>
-          <% else %>
-            <li>
-              <.link navigate={~p"/users/register"} class="btn btn-ghost">Register</.link>
-            </li>
-            <li>
-              <.link navigate={~p"/users/log-in"} class="btn btn-primary">Log in</.link>
-            </li>
-          <% end %>
-        </ul>
-      </div>
+
+        <div class="nav-right">
+          <.colour_mode_toggle />
+
+          <button
+            class="menu-button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="nav-links"
+            aria-label="Toggle menu"
+          >
+            <span></span>
+            <span></span>
+          </button>
+
+          <div class="nav-links" id="nav-links">
+            <%= for link <- @nav_links do %>
+              <%= if link[:kind] == :text do %>
+                <span class="nav-user">{link.label}</span>
+              <% else %>
+                <.link href={link.href} method={link[:method]}>{link.label}</.link>
+              <% end %>
+            <% end %>
+
+            <.pill_button variant={:nav} href="/endgames">
+              Start training <.icon_arrow />
+            </.pill_button>
+          </div>
+        </div>
+      </nav>
     </header>
+    """
+  end
+
+  defp nav_links(scope) do
+    marketing = [
+      %{label: "Puzzle Search", href: "/#puzzles"}
+    ]
+
+    admin =
+      if admin?(scope) do
+        [%{label: "Admin", href: ~p"/admin/endgames"}]
+      else
+        []
+      end
+
+    account =
+      case scope do
+        %{user: %{username: username}} ->
+          [
+            %{label: username, kind: :text},
+            %{label: "Settings", href: ~p"/users/settings"},
+            %{label: "Log out", href: ~p"/users/log-out", method: "delete"}
+          ]
+
+        _ ->
+          [
+            %{label: "Log in", href: ~p"/users/log-in"},
+            %{label: "Register", href: ~p"/users/register"}
+          ]
+      end
+
+    marketing ++ admin ++ account
+  end
+
+  defp admin?(%{user: %{role: role}}), do: Role.admin?(role)
+  defp admin?(_scope), do: false
+
+  @doc """
+  Renders the site-wide footer.
+
+  Rendered once from the root layout so it appears on every page, matching the
+  navbar. Links to the landing-page anchors keep working from other pages
+  because they point at `/` first.
+  """
+  def footer(assigns) do
+    assigns = assign(assigns, :year, DateTime.utc_now().year)
+
+    ~H"""
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="Lucid Chess home">
+          <span class="brand-mark">♞</span>
+          <span>LUCID</span>
+        </a>
+        <p>Short, focused endgame training.</p>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer">
+        <a href="/#method">Method</a>
+        <a href="/#puzzles">Puzzles</a>
+        <a href="/#progress">Progress</a>
+        <a href={~p"/endgames"}>Endgames</a>
+      </nav>
+
+      <small>© {@year} Lucid Chess</small>
+    </footer>
     """
   end
 
@@ -153,35 +221,54 @@ defmodule ChesstrainerWeb.Layouts do
   end
 
   @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
+  Provides the system / light / dark colour-mode switch.
 
-  See <head> in root.html.heex which applies the theme before page load.
+  The click handling and `aria-checked` syncing live in the script in
+  `root.html.heex`, which runs before paint and also on pages without LiveView
+  (the landing page uses the marketing bundle).
   """
-  def theme_toggle(assigns) do
+  def colour_mode_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
+    <div
+      class="relative flex flex-row items-center rounded-full border-2 border-base-300 bg-base-300"
+      role="radiogroup"
+      aria-label="Colour mode"
+    >
+      <div
+        class="absolute w-1/3 h-full rounded-full border border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]"
+        aria-hidden="true"
+      >
+      </div>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
+        type="button"
+        class="flex p-2 cursor-pointer w-1/3 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         data-phx-theme="system"
+        role="radio"
+        aria-checked="true"
+        aria-label="System colour mode"
       >
         <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
+        type="button"
+        class="flex p-2 cursor-pointer w-1/3 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         data-phx-theme="light"
+        role="radio"
+        aria-checked="false"
+        aria-label="Light colour mode"
       >
         <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
+        type="button"
+        class="flex p-2 cursor-pointer w-1/3 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         data-phx-theme="dark"
+        role="radio"
+        aria-checked="false"
+        aria-label="Dark colour mode"
       >
         <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>

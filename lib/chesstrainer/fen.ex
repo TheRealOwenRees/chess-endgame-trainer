@@ -1,4 +1,6 @@
 defmodule Chesstrainer.FEN do
+  @board_pieces ~w(p n b r q k P N B R Q K)
+
   @spec color_from_fen(String.t()) :: :white | :black | nil
   def color_from_fen(fen) do
     fen
@@ -91,6 +93,56 @@ defmodule Chesstrainer.FEN do
   end
 
   def piece_count(_fen), do: nil
+
+  @doc """
+  Returns the board field of a FEN as eight ranks, each a list of eight squares,
+  where each square is a piece letter or `nil`.
+
+  Returns `nil` when the board field is not a well-formed FEN board. Only the
+  board field is read; the active colour and clocks are ignored.
+
+  ## Examples
+
+      iex> Chesstrainer.FEN.board("8/8/3k4/8/8/3K1R2/8/8 w - - 0 1") |> Enum.at(2)
+      [nil, nil, nil, "k", nil, nil, nil, nil]
+
+      iex> Chesstrainer.FEN.board("not a fen")
+      nil
+  """
+  @spec board(String.t() | nil) :: [[String.t() | nil]] | nil
+  def board(fen) when is_binary(fen) do
+    case String.split(fen, " ") do
+      [board | _] -> parse_board(board)
+      _ -> nil
+    end
+  end
+
+  def board(_fen), do: nil
+
+  defp parse_board(board) do
+    case String.split(board, "/") do
+      ranks when length(ranks) == 8 ->
+        squares = Enum.map(ranks, &parse_rank/1)
+        if Enum.all?(squares, &is_list/1), do: squares, else: nil
+
+      _ ->
+        nil
+    end
+  end
+
+  defp parse_rank(rank) do
+    rank
+    |> String.graphemes()
+    |> Enum.reduce_while([], fn
+      <<c>>, acc when c in ?1..?8 -> {:cont, List.duplicate(nil, c - ?0) ++ acc}
+      piece, acc when piece in @board_pieces -> {:cont, [piece | acc]}
+      _other, _acc -> {:halt, nil}
+    end)
+    |> case do
+      squares when is_list(squares) and length(squares) == 8 -> Enum.reverse(squares)
+      _ -> nil
+    end
+  end
 
   defp board_piece_count(board) do
     board

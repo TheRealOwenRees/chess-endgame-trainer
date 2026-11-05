@@ -8,12 +8,10 @@ defmodule ChesstrainerWeb.CoreComponents do
   with doc strings and declarative assigns. You may customize and style
   them in any way you want, based on your application growth and needs.
 
-  The foundation for styling is Tailwind CSS, a utility-first CSS framework,
-  augmented with daisyUI, a Tailwind CSS plugin that provides UI components
-  and themes. Here are useful references:
-
-    * [daisyUI](https://daisyui.com/docs/intro/) - a good place to get
-      started and see the available components.
+  The foundation for styling is Tailwind CSS, a utility-first CSS framework.
+  Semantic colors such as `base-100`, `base-content` and `primary` are defined
+  in `assets/css/app.css` and switch with the `data-theme` attribute. Here are
+  useful references:
 
     * [Tailwind CSS](https://tailwindcss.com) - the foundational framework
       we build on. You will use it for layout, sizing, flexbox, grid, and
@@ -30,6 +28,24 @@ defmodule ChesstrainerWeb.CoreComponents do
   use Gettext, backend: ChesstrainerWeb.Gettext
 
   alias Phoenix.LiveView.JS
+
+  @input_class "w-full rounded-md border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content placeholder:text-base-content/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+  @input_error_class "border-error focus:border-error focus:ring-error/30"
+  @label_class "mb-1 block text-sm font-medium text-base-content"
+  @checkbox_class "size-4 rounded border-base-300 accent-primary"
+
+  defp input_class, do: @input_class
+  defp input_error_class, do: @input_error_class
+  defp label_class, do: @label_class
+  defp checkbox_class, do: @checkbox_class
+
+  @table_class "w-full border-collapse text-left text-sm [&_th]:border-b [&_th]:border-base-200 [&_th]:px-4 [&_th]:py-3 [&_th]:font-semibold [&_td]:border-b [&_td]:border-base-200 [&_td]:px-4 [&_td]:py-3 [&_tbody_tr:nth-child(odd)]:bg-base-200/50"
+
+  @doc """
+  Returns the shared data-table classes, for tables that render their own
+  `<thead>`/`<tbody>` markup.
+  """
+  def table_class, do: @table_class
 
   @doc """
   Renders flash notices.
@@ -63,13 +79,13 @@ defmodule ChesstrainerWeb.CoreComponents do
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
-      class="toast toast-top toast-end z-50"
+      class="fixed right-4 top-4 z-50 flex flex-col gap-2"
       {@rest}
     >
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
+        "flex w-80 max-w-80 items-start gap-3 rounded-lg border px-4 py-3 text-sm text-wrap shadow-lg sm:w-96 sm:max-w-96",
+        @kind == :info && "border-info bg-info text-info-content",
+        @kind == :error && "border-error bg-error text-error-content"
       ]}>
         <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
         <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
@@ -97,16 +113,24 @@ defmodule ChesstrainerWeb.CoreComponents do
   """
   attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
   attr :class, :any
-  attr :variant, :string, values: ~w(primary)
+  attr :variant, :string, values: ~w(primary secondary ghost danger)
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    variants = %{
+      "primary" => "bg-primary text-primary-content hover:bg-primary/90",
+      "secondary" => "border border-base-300 bg-base-100 text-base-content hover:bg-base-200",
+      "ghost" => "text-base-content hover:bg-base-200",
+      "danger" => "bg-error text-error-content hover:bg-error/90",
+      nil => "bg-primary/15 text-primary hover:bg-primary/25"
+    }
 
     assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+      assign(assigns, :class, [
+        "inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60",
+        Map.fetch!(variants, assigns[:variant]),
+        assigns[:class]
+      ])
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
@@ -181,8 +205,11 @@ defmodule ChesstrainerWeb.CoreComponents do
   attr :prompt, :string, default: nil, doc: "the prompt for select inputs"
   attr :options, :list, doc: "the options to pass to Phoenix.HTML.Form.options_for_select/2"
   attr :multiple, :boolean, default: false, doc: "the multiple flag for select inputs"
-  attr :class, :any, default: nil, doc: "the input class to use over defaults"
-  attr :error_class, :any, default: nil, doc: "the input error class to use over defaults"
+  attr :class, :any, default: nil, doc: "extra classes merged with the default input classes"
+
+  attr :error_class, :any,
+    default: nil,
+    doc: "extra classes merged with the default error classes"
 
   attr :rest, :global,
     include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
@@ -212,8 +239,8 @@ defmodule ChesstrainerWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
-      <label for={@id}>
+    <div class="mb-3">
+      <label for={@id} class="flex items-center gap-2">
         <input
           type="hidden"
           name={@name}
@@ -221,17 +248,16 @@ defmodule ChesstrainerWeb.CoreComponents do
           disabled={@rest[:disabled]}
           form={@rest[:form]}
         />
-        <span class="label">
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={@class || "checkbox checkbox-sm"}
-            {@rest}
-          />{@label}
-        </span>
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={[checkbox_class(), @class]}
+          {@rest}
+        />
+        <span class="text-sm text-base-content">{@label}</span>
       </label>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
@@ -240,13 +266,17 @@ defmodule ChesstrainerWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="mb-3">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class={label_class()}>{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[
+            input_class(),
+            @errors != [] && (@error_class || input_error_class()),
+            @class
+          ]}
           multiple={@multiple}
           {@rest}
         >
@@ -261,15 +291,16 @@ defmodule ChesstrainerWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="mb-3">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class={label_class()}>{@label}</span>
         <textarea
           id={@id}
           name={@name}
           class={[
-            @class || "w-full textarea",
-            @errors != [] && (@error_class || "textarea-error")
+            input_class(),
+            @errors != [] && (@error_class || input_error_class()),
+            @class
           ]}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
@@ -282,17 +313,18 @@ defmodule ChesstrainerWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="mb-3">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class={label_class()}>{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
-            @class || "w-full input",
-            @errors != [] && (@error_class || "input-error")
+            input_class(),
+            @errors != [] && (@error_class || input_error_class()),
+            @class
           ]}
           {@rest}
         />
@@ -367,7 +399,7 @@ defmodule ChesstrainerWeb.CoreComponents do
       end
 
     ~H"""
-    <table class="table table-zebra">
+    <table class={table_class()}>
       <thead>
         <tr>
           <th :for={col <- @col}>{col[:label]}</th>
@@ -414,14 +446,46 @@ defmodule ChesstrainerWeb.CoreComponents do
 
   def list(assigns) do
     ~H"""
-    <ul class="list">
-      <li :for={item <- @item} class="list-row">
-        <div class="list-col-grow">
-          <div class="font-bold">{item.title}</div>
-          <div>{render_slot(item)}</div>
+    <ul class="divide-y divide-base-200">
+      <li :for={item <- @item} class="flex gap-3 py-3">
+        <div class="flex-1 space-y-1">
+          <div class="font-semibold">{item.title}</div>
+          <div class="text-sm text-base-content/70">{render_slot(item)}</div>
         </div>
       </li>
     </ul>
+    """
+  end
+
+  @doc """
+  Renders a small pill label.
+
+  ## Examples
+
+      <.badge>Lucena</.badge>
+      <.badge color="primary" size="sm">KR v K</.badge>
+  """
+  attr :color, :string, default: "neutral", values: ~w(neutral primary warning)
+  attr :size, :string, default: "md", values: ~w(sm md)
+  attr :class, :any, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  def badge(assigns) do
+    ~H"""
+    <span
+      class={[
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+        @size == "sm" && "px-1.5 text-[0.7rem]",
+        @color == "neutral" && "bg-base-200 text-base-content",
+        @color == "primary" && "bg-primary/15 text-primary",
+        @color == "warning" && "bg-warning/15 text-warning",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </span>
     """
   end
 

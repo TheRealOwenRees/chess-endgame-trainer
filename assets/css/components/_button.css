@@ -1,0 +1,9 @@
+.primary-button { padding: 16px 23px; background: var(--color-coral-control); color: #fff; box-shadow: 0 10px 28px rgba(217, 93, 72, .21); }
+.primary-button:hover { background: var(--color-coral-control-hover); }
+.light-button { padding: 15px 22px; background: var(--color-canvas-raised); color: var(--color-body); white-space: nowrap; }
+.menu-button { display: none; }
+
+@media (max-width: 650px) {
+    .menu-button { display: flex; width: 38px; height: 38px; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+    .menu-button span { width: 19px; height: 1.5px; background: var(--color-body); }
+}

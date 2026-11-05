@@ -36,6 +36,11 @@ config :chesstrainer, :ratings,
   window_days: 7,
   rd_inflation_c: 10.0
 
+# Public codes of the endgames pinned to the landing-page puzzle grid, in
+# display order. When empty (or short) the grid is topped up with a date-seeded
+# selection from the database, so it stays stable for a given day.
+config :chesstrainer, :curated_endgame_codes, []
+
 # Configure the endpoint
 config :chesstrainer, ChesstrainerWeb.Endpoint,
   url: [host: "localhost"],
@@ -66,7 +71,7 @@ config :esbuild,
   version: "0.25.4",
   chesstrainer: [
     args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.js js/marketing.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]

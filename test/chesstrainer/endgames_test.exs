@@ -5,6 +5,12 @@ defmodule Chesstrainer.EndgamesTest do
   alias Chesstrainer.Endgames.Endgame
   alias Chesstrainer.Themes
 
+  setup do
+    previous = Application.get_env(:chesstrainer, :curated_endgame_codes)
+    on_exit(fn -> Application.put_env(:chesstrainer, :curated_endgame_codes, previous) end)
+    :ok
+  end
+
   @kr "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
   @kr_other "8/8/4k3/8/8/3K1R2/8/8 w - - 0 1"
   @kq "8/8/3k4/8/8/3K1Q2/8/8 w - - 0 1"
@@ -300,6 +306,78 @@ defmodule Chesstrainer.EndgamesTest do
       create_endgame!(@kq)
 
       assert Endgames.list_key_groups(%{key: "KQ v K"}) == [{"KQ v K", 1}]
+    end
+  end
+
+  describe "count_endgames/0" do
+    test "returns 0 when there are no endgames" do
+      assert Endgames.count_endgames() == 0
+    end
+
+    test "counts every stored endgame" do
+      create_endgame!(@kr)
+      create_endgame!(@kq)
+
+      assert Endgames.count_endgames() == 2
+    end
+  end
+
+  describe "random_endgame/0" do
+    test "returns nil when there are no endgames" do
+      assert Endgames.random_endgame() == nil
+    end
+
+    test "returns one of the existing endgames" do
+      kr = create_endgame!(@kr)
+      kq = create_endgame!(@kq)
+
+      assert Endgames.random_endgame().id in [kr.id, kq.id]
+    end
+  end
+
+  describe "curated_endgames/1" do
+    test "returns the configured endgames in order with themes preloaded" do
+      {:ok, theme} = Themes.create_theme(%{name: "Opposition", category: :endgame})
+      first = create_endgame!(@kr, [theme])
+      second = create_endgame!(@kq)
+
+      Application.put_env(:chesstrainer, :curated_endgame_codes, [
+        first.public_code,
+        second.public_code
+      ])
+
+      assert [one, two] = Endgames.curated_endgames(2)
+      assert one.id == first.id
+      assert two.id == second.id
+      assert Enum.map(one.themes, & &1.name) == ["Opposition"]
+    end
+
+    test "fills missing or unresolved codes from the database" do
+      first = create_endgame!(@kr)
+      second = create_endgame!(@kq)
+
+      Application.put_env(:chesstrainer, :curated_endgame_codes, [first.public_code, "missing"])
+
+      endgames = Endgames.curated_endgames(2)
+      assert length(endgames) == 2
+      assert hd(endgames).id == first.id
+      assert Enum.any?(endgames, &(&1.id == second.id))
+    end
+
+    test "returns a date-seeded selection when nothing is configured" do
+      first = create_endgame!(@kr)
+      second = create_endgame!(@kq)
+
+      Application.put_env(:chesstrainer, :curated_endgame_codes, [])
+
+      ids = Endgames.curated_endgames(3) |> Enum.map(& &1.id)
+      assert Enum.sort(ids) == Enum.sort([first.id, second.id])
+    end
+
+    test "returns an empty list when there are no endgames" do
+      Application.put_env(:chesstrainer, :curated_endgame_codes, [])
+
+      assert Endgames.curated_endgames() == []
     end
   end
 end

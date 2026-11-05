@@ -17,7 +17,7 @@ defmodule ChesstrainerWeb.EndgameLive.IndexTest do
 
     assert html =~ "max-w-7xl"
     assert has_element?(view, "#key-group-K-v-K")
-    assert has_element?(view, "#key-group-K-v-K .badge", "2")
+    assert has_element?(view, "#key-group-count-K-v-K", "2")
   end
 
   test "trims the table to the key columns", %{conn: conn} do

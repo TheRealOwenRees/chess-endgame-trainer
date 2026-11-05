@@ -3,37 +3,135 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Chesstrainer" suffix=" · Phoenix Framework" phx-no-format>{assigns[:page_title]}</.live_title>
-    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
 
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title
+      default="Lucid Chess — Endgame Trainer"
+      suffix={assigns[:title_suffix] || " · Lucid Chess"}
+      phx-no-format
+    >{assigns[:page_title]}</.live_title>
+    <meta
+      :if={assigns[:meta_description]}
+      name="description"
+      content={assigns[:meta_description]}
+    />
+    <link :if={assigns[:canonical_url]} rel="canonical" href={assigns[:canonical_url]} />
+    <meta :if={assigns[:meta_description]} property="og:type" content="website" />
+    <meta :if={assigns[:meta_description]} property="og:site_name" content="Lucid Chess" />
+    <meta
+      :if={assigns[:meta_description]}
+      property="og:title"
+      content={assigns[:page_title] || "Lucid Chess — Endgame Trainer"}
+    />
+    <meta
+      :if={assigns[:meta_description]}
+      property="og:description"
+      content={assigns[:meta_description]}
+    />
+    <meta :if={assigns[:canonical_url]} property="og:url" content={assigns[:canonical_url]} />
+    <meta :if={assigns[:meta_description]} name="twitter:card" content="summary" />
+    <meta
+      :if={assigns[:meta_description]}
+      name="twitter:title"
+      content={assigns[:page_title] || "Lucid Chess — Endgame Trainer"}
+    />
+    <meta
+      :if={assigns[:meta_description]}
+      name="twitter:description"
+      content={assigns[:meta_description]}
+    />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <link
+      rel="preload"
+      href="/fonts/dm-sans-variable.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/dm-serif-display.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <script
+      defer
+      phx-track-static
+      type="text/javascript"
+      src={assigns[:js_entry] || ~p"/assets/js/app.js"}
+    >
     </script>
     <script>
       (() => {
-        const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        const systemMode = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 
-        const setTheme = (theme) => {
-          if (theme === "system") {
-            localStorage.removeItem("phx:theme");
-            document.documentElement.setAttribute("data-theme", systemTheme());
-            document.documentElement.setAttribute("data-theme-source", "system");
-          } else {
-            localStorage.setItem("phx:theme", theme);
-            document.documentElement.setAttribute("data-theme", theme);
-            document.documentElement.setAttribute("data-theme-source", "user");
+        const storedMode = () => {
+          try { return localStorage.getItem("phx:theme"); } catch (_) { return null; }
+        };
+
+        const persistMode = (mode) => {
+          try {
+            if (mode === "system") localStorage.removeItem("phx:theme");
+            else localStorage.setItem("phx:theme", mode);
+          } catch (_) {
+            // Storage can be blocked (private modes, embedded browsers); the
+            // mode still applies for this page load.
           }
         };
-        if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
-        }
-        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        
-        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
 
-        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+        const selectedMode = () => {
+          const source = document.documentElement.getAttribute("data-theme-source");
+          return source === "system" ? "system" : document.documentElement.getAttribute("data-theme");
+        };
+
+        const syncChecked = () => {
+          document.querySelectorAll("[data-phx-theme]").forEach((button) => {
+            button.setAttribute("aria-checked", String(button.dataset.phxTheme === selectedMode()));
+          });
+        };
+
+        const setMode = (mode) => {
+          if (mode !== "system" && mode !== "light" && mode !== "dark") return;
+
+          if (mode === "system") {
+            persistMode("system");
+            document.documentElement.setAttribute("data-theme", systemMode());
+            document.documentElement.setAttribute("data-theme-source", "system");
+          } else {
+            persistMode(mode);
+            document.documentElement.setAttribute("data-theme", mode);
+            document.documentElement.setAttribute("data-theme-source", "user");
+          }
+
+          syncChecked();
+        };
+
+        if (!document.documentElement.hasAttribute("data-theme")) {
+          setMode(storedMode() || "system");
+        }
+
+        document.addEventListener("DOMContentLoaded", syncChecked);
+
+        // Plain DOM so the switch also works on controller-rendered pages
+        // (the landing page ships no LiveView runtime).
+        document.addEventListener("click", (event) => {
+          const button = event.target instanceof Element && event.target.closest("[data-phx-theme]");
+          if (button) setMode(button.dataset.phxTheme);
+        });
+
+        window.addEventListener("storage", (event) => {
+          if (event.key === "phx:theme") setMode(event.newValue || "system");
+        });
+
+        window.addEventListener("phx:set-theme", (event) => {
+          setMode(event.target?.dataset?.phxTheme);
+        });
+
+        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
           if (document.documentElement.getAttribute("data-theme-source") === "system") {
-            document.documentElement.setAttribute("data-theme", systemTheme());
+            document.documentElement.setAttribute("data-theme", systemMode());
           }
         });
       })();
@@ -42,5 +140,6 @@
   <body>
     <Layouts.navbar current_scope={@current_scope} />
     {@inner_content}
+    <Layouts.footer />
   </body>
 </html>

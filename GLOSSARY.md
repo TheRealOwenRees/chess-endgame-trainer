@@ -12,8 +12,14 @@ _Avoid_: Position, puzzle
 
 **Puzzle**:
 A playable challenge derived from an endgame: play the winning (or drawing)
-side correctly against tablebase-optimal defence.
+side correctly against tablebase-optimal defence. Each endgame currently
+yields one puzzle.
 _Avoid_: Endgame (the stored record), exercise
+
+**Daily puzzle**:
+The one endgame assigned to a UTC date and shared by every user; the
+assignment is persisted so it stays stable for that day.
+_Avoid_: Random puzzle, featured puzzle
 
 **Attempt**:
 A recorded playthrough of a puzzle by a user, ending solved or failed; a
@@ -23,7 +29,15 @@ _Avoid_: Run, session, game
 **Theme**:
 A label describing an endgame's technique or goal, such as "mate in 2", "Lucena" or
 "opposition"; an endgame can carry several.
-_Avoid_: Tag, label, category
+_Avoid_: Tag, label, category, UI theme, colour mode
+
+## Interface
+
+**Colour mode**:
+A user's display preference for the interface — `system`, `light` or `dark` — where
+`system` follows the operating system setting. It is a per-browser preference,
+independent of any user account.
+_Avoid_: Theme, colour scheme, display theme
 
 **Key**:
 The canonical material signature of an endgame's starting position — which

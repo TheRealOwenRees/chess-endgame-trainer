@@ -7,4 +7,7 @@ defmodule ChesstrainerWeb.PageHTML do
   use ChesstrainerWeb, :html
 
   embed_templates "page_html/*"
+
+  defp play_path(nil), do: ~p"/endgames"
+  defp play_path(%{public_code: public_code}), do: ~p"/endgames/#{public_code}/play"
 end

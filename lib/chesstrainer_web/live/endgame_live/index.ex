@@ -31,7 +31,6 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
             label="Find by ID or FEN"
             autocomplete="off"
             placeholder="Public code, database id, or FEN…"
-            class="input input-bordered w-full"
           />
         </div>
         <.button variant="primary">Find</.button>
@@ -40,7 +39,12 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
       <div :if={@search_query} id="endgame-search-results" class="space-y-3">
         <div class="flex items-center justify-between">
           <p class="text-sm text-base-content/70">Results for “{@search_query}”</p>
-          <button type="button" id="clear-endgame-search" phx-click="clear_search" class="link">
+          <button
+            type="button"
+            id="clear-endgame-search"
+            phx-click="clear_search"
+            class="text-sm text-primary underline underline-offset-4 hover:text-primary/80"
+          >
             Clear
           </button>
         </div>
@@ -49,7 +53,7 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
           No endgame matches “{@search_query}”.
         </p>
 
-        <table :if={@search_results != []} class="table table-zebra">
+        <table :if={@search_results != []} class={table_class()}>
           <thead>
             <tr>
               <th>Key</th>
@@ -115,11 +119,11 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
               {endgame.result}
             </td>
             <td>
-              <span :for={theme <- endgame.themes} class="badge badge-sm">
+              <.badge :for={theme <- endgame.themes} size="sm">
                 <button type="button" phx-click="add_theme" phx-value-id={theme.id}>
                   {theme.name}
                 </button>
-              </span>
+              </.badge>
               <span :if={endgame.themes == []} class="text-base-content/50">None</span>
             </td>
             <td

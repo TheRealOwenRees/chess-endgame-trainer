@@ -16,25 +16,21 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
         <:subtitle>Use this form to manage endgame records in your database.</:subtitle>
       </.header>
 
-      <div class="field mb-6">
-        <label class="label">
-          <span class="label-text">Themes</span>
-        </label>
+      <div class="mb-6">
+        <span class="mb-1 block text-sm font-medium text-base-content">Themes</span>
 
         <div class="flex flex-wrap gap-2 mb-2">
-          <%= for theme <- @selected_themes do %>
-            <span class="badge badge-primary gap-1">
-              {theme.name}
-              <button
-                type="button"
-                phx-click="remove_theme"
-                phx-value-id={theme.id}
-                aria-label={"Remove #{theme.name}"}
-              >
-                ×
-              </button>
-            </span>
-          <% end %>
+          <.badge :for={theme <- @selected_themes} color="primary">
+            {theme.name}
+            <button
+              type="button"
+              phx-click="remove_theme"
+              phx-value-id={theme.id}
+              aria-label={"Remove #{theme.name}"}
+            >
+              ×
+            </button>
+          </.badge>
         </div>
 
         <form
@@ -42,30 +38,36 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
           phx-change="search_themes"
           phx-submit="create_theme_from_search"
         >
-          <input
-            type="text"
+          <.input
             name="theme_search"
             value={@theme_query}
             phx-debounce="200"
             autocomplete="off"
             placeholder="Search or create a theme…"
-            class="input input-bordered w-full"
           />
 
-          <ul class="menu bg-base-100 rounded-box mt-2">
-            <%= for theme <- @theme_results do %>
-              <li>
-                <button type="button" phx-click="add_theme" phx-value-id={theme.id}>{theme.name}</button>
-              </li>
-            <% end %>
+          <ul class="mt-2 w-full rounded-md border border-base-300 bg-base-100 p-1 shadow-sm">
+            <li :for={theme <- @theme_results}>
+              <button
+                type="button"
+                phx-click="add_theme"
+                phx-value-id={theme.id}
+                class="block w-full rounded px-3 py-2 text-left text-sm hover:bg-base-200"
+              >
+                {theme.name}
+              </button>
+            </li>
 
-            <%= if @can_create do %>
-              <li>
-                <button type="button" phx-click="create_theme" phx-value-name={@theme_query}>
-                  Create theme "{String.trim(@theme_query)}"
-                </button>
-              </li>
-            <% end %>
+            <li :if={@can_create}>
+              <button
+                type="button"
+                phx-click="create_theme"
+                phx-value-name={@theme_query}
+                class="block w-full rounded px-3 py-2 text-left text-sm hover:bg-base-200"
+              >
+                Create theme "{String.trim(@theme_query)}"
+              </button>
+            </li>
           </ul>
         </form>
       </div>

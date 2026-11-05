@@ -129,7 +129,7 @@ defmodule ChesstrainerWeb.EndgameList do
     ~H"""
     <div class="mb-6 space-y-3">
       <div :if={@selected_themes != []} class="flex flex-wrap gap-2">
-        <span :for={theme <- @selected_themes} class="badge badge-primary gap-1">
+        <.badge :for={theme <- @selected_themes} color="primary">
           {theme.name}
           <button
             type="button"
@@ -139,24 +139,30 @@ defmodule ChesstrainerWeb.EndgameList do
           >
             ×
           </button>
-        </span>
+        </.badge>
       </div>
 
       <div class="flex flex-col gap-3 sm:flex-row">
         <form id="theme-filter-form" phx-change="search_themes" class="flex-1">
-          <input
-            type="text"
+          <.input
             name="theme_search"
             value={@theme_query}
             phx-debounce="200"
             autocomplete="off"
             placeholder="Filter by theme…"
-            class="input input-bordered w-full"
           />
 
-          <ul :if={@theme_results != []} class="menu bg-base-100 rounded-box mt-2">
+          <ul
+            :if={@theme_results != []}
+            class="mt-2 w-full rounded-md border border-base-300 bg-base-100 p-1 shadow-sm"
+          >
             <li :for={theme <- @theme_results}>
-              <button type="button" phx-click="add_theme" phx-value-id={theme.id}>
+              <button
+                type="button"
+                phx-click="add_theme"
+                phx-value-id={theme.id}
+                class="block w-full rounded px-3 py-2 text-left text-sm hover:bg-base-200"
+              >
                 {theme.name}
               </button>
             </li>
@@ -164,12 +170,13 @@ defmodule ChesstrainerWeb.EndgameList do
         </form>
 
         <form id="key-filter-form" phx-change="filter_key" class="flex-1">
-          <select name="key" class="select w-full">
-            <option value="" selected={is_nil(@selected_key)}>All keys</option>
-            <option :for={key <- @keys} value={key} selected={key == @selected_key}>
-              {key}
-            </option>
-          </select>
+          <.input
+            type="select"
+            name="key"
+            prompt="All keys"
+            options={@keys}
+            value={@selected_key}
+          />
         </form>
       </div>
 
@@ -202,7 +209,9 @@ defmodule ChesstrainerWeb.EndgameList do
         >
           <span class="font-semibold">{group.key}</span>
           <span class="flex items-center gap-2 text-sm">
-            <span class="badge">{group.count}</span>
+            <.badge id={"key-group-count-" <> String.replace(group.key, " ", "-")}>
+              {group.count}
+            </.badge>
             <.icon
               name={if group.expanded, do: "hero-chevron-down", else: "hero-chevron-right"}
               class="size-4"
@@ -210,7 +219,7 @@ defmodule ChesstrainerWeb.EndgameList do
           </span>
         </button>
 
-        <table :if={group.expanded} class="table table-zebra">
+        <table :if={group.expanded} class={table_class()}>
           <thead>
             {render_slot(@header)}
           </thead>
