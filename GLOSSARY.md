@@ -24,7 +24,7 @@ _Avoid_: Random puzzle, featured puzzle
 **Attempt**:
 A recorded playthrough of a puzzle by a user, ending solved or failed; a
 per-user record, distinct from an endgame's global attempt and solve counts.
-_Avoid_: Run, session, game
+_Avoid_: Run, game
 
 **Theme**:
 A label describing an endgame's technique or goal, such as "mate in 2", "Lucena" or
@@ -93,6 +93,12 @@ The decisive zeroing move — a promotion — that ends a conversion-type puzzle
 The terminal condition short of mate at which a puzzle counts as solved:
 promotion (still winning) for conversion puzzles, mate otherwise.
 
+**Session**:
+One continuous spell of puzzle play, begun by choosing a difficulty, that
+carries a start time and a rating baseline for the timer and rating-gain
+monitor. Ephemeral — it lives only in the running LiveView, never persisted.
+_Avoid_: Run, game, attempt
+
 ## Ratings
 
 **Rating**:
@@ -114,6 +120,14 @@ _Avoid_: Cooldown (reserved for tablebase rate-limiting)
 A measure of how erratic a competitor's recent results are, used by some rating
 systems; the trainer deliberately does not track it.
 _Avoid_: Variance, inconsistency
+
+**Difficulty**:
+A choice — `easy`, `medium` or `hard` — that selects which puzzles to serve
+relative to the current user's rating: `medium` is near the user's rating,
+`easy` below it, `hard` above it. The band width is a configured constant. It is
+a property of a session, not of an endgame — the same endgame is easy for one
+user and hard for another.
+_Avoid_: Level, rank, tier
 
 ## Infrastructure
 

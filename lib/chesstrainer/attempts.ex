@@ -59,5 +59,21 @@ defmodule Chesstrainer.Attempts do
     |> Repo.one()
   end
 
+  @doc """
+  The distinct endgame ids `user_id` has attempted in the last `days` days.
+
+  Used by puzzle selection to prefer fresh puzzles; a retry still counts as an
+  attempt, even though the rating window leaves it unrated.
+  """
+  def recent_endgame_ids(user_id, days \\ 30) do
+    cutoff = DateTime.add(DateTime.utc_now(), -days, :day)
+
+    Attempt
+    |> where([a], a.user_id == ^user_id and a.inserted_at >= ^cutoff)
+    |> distinct(true)
+    |> select([a], a.endgame_id)
+    |> Repo.all()
+  end
+
   defp rated(query), do: where(query, [a], not is_nil(a.rated_at))
 end

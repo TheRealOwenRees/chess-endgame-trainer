@@ -28,11 +28,13 @@ import { hooks as colocatedHooks } from "phoenix-colocated/chesstrainer";
 import topbar from "../vendor/topbar";
 import { ChessBoard } from "./hooks/chessBoard";
 import { CopyFen } from "./hooks/copyFen";
+import { SessionClock } from "./hooks/sessionClock";
 
 let Hooks = {
   ...colocatedHooks,
   ChessBoard,
   CopyFen,
+  SessionClock,
 };
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");

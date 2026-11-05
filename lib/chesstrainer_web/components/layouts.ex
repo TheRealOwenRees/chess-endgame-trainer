@@ -62,7 +62,10 @@ defmodule ChesstrainerWeb.Layouts do
     doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
 
   def navbar(assigns) do
-    assigns = assign(assigns, :nav_links, nav_links(assigns.current_scope))
+    assigns =
+      assigns
+      |> assign(:nav_links, nav_links(assigns.current_scope))
+      |> assign(:start_href, start_href(assigns.current_scope))
 
     ~H"""
     <header>
@@ -95,7 +98,7 @@ defmodule ChesstrainerWeb.Layouts do
               <% end %>
             <% end %>
 
-            <.pill_button variant={:nav} href="/endgames">
+            <.pill_button variant={:nav} href={@start_href}>
               Start training <.icon_arrow />
             </.pill_button>
           </div>
@@ -138,6 +141,10 @@ defmodule ChesstrainerWeb.Layouts do
 
   defp admin?(%{user: %{role: role}}), do: Role.admin?(role)
   defp admin?(_scope), do: false
+
+  # Signed-in users start a puzzle session; visitors browse the public list.
+  defp start_href(%{user: %{}}), do: ~p"/train"
+  defp start_href(_scope), do: ~p"/endgames"
 
   @doc """
   Renders the site-wide footer.
@@ -183,7 +190,11 @@ defmodule ChesstrainerWeb.Layouts do
 
   def flash_group(assigns) do
     ~H"""
-    <div id={@id} aria-live="polite">
+    <div
+      id={@id}
+      aria-live="polite"
+      class="pointer-events-none fixed right-4 top-4 z-50 flex w-80 max-w-80 flex-col gap-2 sm:w-96 sm:max-w-96"
+    >
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />
 

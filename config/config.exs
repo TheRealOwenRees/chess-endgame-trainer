@@ -36,6 +36,12 @@ config :chesstrainer, :ratings,
   window_days: 7,
   rd_inflation_c: 10.0
 
+# Difficulty bands for puzzle sessions. An endgame is "medium" when its rating
+# falls within `band_width` of the user's rating, "easy" below that band and
+# "hard" above it. Tweak to widen or narrow the served difficulty (e.g. 150 or
+# 200).
+config :chesstrainer, :puzzles, band_width: 100
+
 # Public codes of the endgames pinned to the landing-page puzzle grid, in
 # display order. When empty (or short) the grid is topped up with a date-seeded
 # selection from the database, so it stays stable for a given day.

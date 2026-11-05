@@ -15,7 +15,7 @@ Target: Q1 2027
   - [x] Log in
   - [x] Rating of user and puzzles
   - [x] Implement core API endpoints with input validation.
-  - [ ] Traverse puzzles in easy/medium/hard mode with session timer/rating+/-
+  - [x] Traverse puzzles in easy/medium/hard mode with session timer/rating+/-
 
 ---
 

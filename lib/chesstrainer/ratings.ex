@@ -27,8 +27,10 @@ defmodule Chesstrainer.Ratings do
   Rates both sides of a finished attempt and stamps it as rated.
 
   A solve scores 1 for the user and 0 for the endgame; a failure scores 0 for
-  the user and 1 for the endgame. Returns `{:ok, %{user, endgame, attempt}}`, or
+  the user and 1 for the endgame. Returns
+  `{:ok, %{user, endgame, attempt, user_delta, endgame_delta}}`, or
   `{:skipped, attempt}` when the pair was already rated inside the window.
+  The deltas are the signed change applied to each side's rating.
   """
   def rate_attempt(%Attempt{outcome: outcome} = attempt) do
     now = DateTime.utc_now(:second)
@@ -74,6 +76,9 @@ defmodule Chesstrainer.Ratings do
   end
 
   defp persist(user, endgame, attempt, new_user, new_endgame, now) do
+    user_delta = new_user.rating - user.rating
+    endgame_delta = new_endgame.rating - endgame.rating
+
     Repo.transaction(fn ->
       user =
         user
@@ -96,7 +101,13 @@ defmodule Chesstrainer.Ratings do
         |> Ecto.Changeset.change(rated_at: now)
         |> Repo.update!()
 
-      %{user: user, endgame: endgame, attempt: attempt}
+      %{
+        user: user,
+        endgame: endgame,
+        attempt: attempt,
+        user_delta: user_delta,
+        endgame_delta: endgame_delta
+      }
     end)
   end
 

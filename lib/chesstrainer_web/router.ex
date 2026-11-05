@@ -68,6 +68,7 @@ defmodule ChesstrainerWeb.Router do
 
     live_session :require_authenticated_user,
       on_mount: [{ChesstrainerWeb.UserAuth, :require_authenticated}] do
+      live "/train", EndgameLive.Train, :train
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
     end
