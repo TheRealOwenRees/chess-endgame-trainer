@@ -17,13 +17,13 @@ Granular tasks and operational scratchpad for active development.
 ## Next Up (Sprint Backlog) 🟢
 - [ ] Forgot password  
 - [ ] Anonymous trial of 10 puzzles without logging in
-- [ ] Light / Dark mode
+- [x] Light / Dark mode
 - [ ] WCAG compliance
 - [x] Self host font - google fonts not gdpr compliant
 ---
 
 ## Tech Debt & Refactoring 🧹
-- [ ] Split CSS into modules
+- [ ] Split CSS into modules (ongoing)
 
 ---
 
