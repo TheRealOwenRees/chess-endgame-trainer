@@ -49,8 +49,8 @@ defmodule ChesstrainerWeb.PageControllerTest do
 
     assert html =~ "Learn to see the"
     assert html =~ "LUCID"
-    assert html =~ "Method"
-    assert html =~ "Puzzles"
+    assert html =~ "Privacy Policy"
+    assert html =~ "/#terms-conditions"
     assert html =~ "Start training"
     assert html =~ ~s(id="nav-links")
     assert html =~ "menu-button"

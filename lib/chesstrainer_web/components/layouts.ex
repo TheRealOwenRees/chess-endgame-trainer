@@ -110,7 +110,7 @@ defmodule ChesstrainerWeb.Layouts do
 
   defp nav_links(scope) do
     marketing = [
-      %{label: "Puzzle Search", href: "/#puzzles"}
+      %{label: "Puzzle Search", href: "/endgames"}
     ]
 
     admin =
@@ -124,9 +124,9 @@ defmodule ChesstrainerWeb.Layouts do
       case scope do
         %{user: %{username: username}} ->
           [
-            %{label: username, kind: :text},
             %{label: "Settings", href: ~p"/users/settings"},
-            %{label: "Log out", href: ~p"/users/log-out", method: "delete"}
+            %{label: "Log out", href: ~p"/users/log-out", method: "delete"},
+            %{label: username, kind: :text}
           ]
 
         _ ->
@@ -167,10 +167,8 @@ defmodule ChesstrainerWeb.Layouts do
       </div>
 
       <nav class="footer-links" aria-label="Footer">
-        <a href="/#method">Method</a>
-        <a href="/#puzzles">Puzzles</a>
-        <a href="/#progress">Progress</a>
-        <a href={~p"/endgames"}>Endgames</a>
+        <a href="/#privacy">Privacy Policy</a>
+        <a href="/#terms-conditions">Terms & Conditions</a>
       </nav>
 
       <small>© {@year} Lucid Chess</small>
