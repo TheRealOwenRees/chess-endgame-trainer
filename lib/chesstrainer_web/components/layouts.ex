@@ -103,9 +103,7 @@ defmodule ChesstrainerWeb.Layouts do
 
   defp nav_links(scope) do
     marketing = [
-      %{label: "Method", href: "/#method"},
-      %{label: "Puzzles", href: "/#puzzles"},
-      %{label: "Progress", href: "/#progress"}
+      %{label: "Puzzle Search", href: "/#puzzles"}
     ]
 
     admin =

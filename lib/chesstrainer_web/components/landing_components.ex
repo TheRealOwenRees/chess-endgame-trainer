@@ -101,7 +101,6 @@ defmodule ChesstrainerWeb.LandingComponents do
             <strong>{@turn}</strong>
           </span>
         </div>
-        <span class="time-pill">∞</span>
       </div>
 
       <.board_grid fen={@fen} orientation={@orientation} />

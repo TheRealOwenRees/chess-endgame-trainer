@@ -191,7 +191,7 @@ h1 em { color: var(--coral); font-weight: 400; }
 .player span:last-child { display: flex; flex-direction: column; line-height: 1.05; }
 .player small { color: var(--ink-soft); font-size: 8px; text-transform: uppercase; letter-spacing: .1em; }
 .player strong { font-size: 12px; }
-.time-pill { padding: 5px 10px; border-radius: 999px; background: #ece8de; font-size: 12px; font-weight: 700; }
+/* .time-pill { padding: 5px 10px; border-radius: 999px; background: #ece8de; font-size: 12px; font-weight: 700; } */
 .chessboard { aspect-ratio: 1; display: grid; grid-template-columns: repeat(8, 1fr); overflow: hidden; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.05); }
 .square { position: relative; display: grid; place-items: center; aspect-ratio: 1; border: 0; }
 .square.light { background: #e9e1cc; }
