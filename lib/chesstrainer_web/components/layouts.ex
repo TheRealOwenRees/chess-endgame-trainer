@@ -72,29 +72,33 @@ defmodule ChesstrainerWeb.Layouts do
           <span>LUCID</span>
         </a>
 
-        <button
-          class="menu-button"
-          type="button"
-          aria-expanded="false"
-          aria-controls="nav-links"
-          aria-label="Toggle menu"
-        >
-          <span></span>
-          <span></span>
-        </button>
+        <div class="nav-right">
+          <.colour_mode_toggle />
 
-        <div class="nav-links" id="nav-links">
-          <%= for link <- @nav_links do %>
-            <%= if link[:kind] == :text do %>
-              <span class="nav-user">{link.label}</span>
-            <% else %>
-              <.link href={link.href} method={link[:method]}>{link.label}</.link>
+          <button
+            class="menu-button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="nav-links"
+            aria-label="Toggle menu"
+          >
+            <span></span>
+            <span></span>
+          </button>
+
+          <div class="nav-links" id="nav-links">
+            <%= for link <- @nav_links do %>
+              <%= if link[:kind] == :text do %>
+                <span class="nav-user">{link.label}</span>
+              <% else %>
+                <.link href={link.href} method={link[:method]}>{link.label}</.link>
+              <% end %>
             <% end %>
-          <% end %>
 
-          <.pill_button variant={:nav} href="/endgames">
-            Start training <.icon_arrow />
-          </.pill_button>
+            <.pill_button variant={:nav} href="/endgames">
+              Start training <.icon_arrow />
+            </.pill_button>
+          </div>
         </div>
       </nav>
     </header>
@@ -217,35 +221,54 @@ defmodule ChesstrainerWeb.Layouts do
   end
 
   @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
+  Provides the system / light / dark colour-mode switch.
 
-  See <head> in root.html.heex which applies the theme before page load.
+  The click handling and `aria-checked` syncing live in the script in
+  `root.html.heex`, which runs before paint and also on pages without LiveView
+  (the landing page uses the marketing bundle).
   """
-  def theme_toggle(assigns) do
+  def colour_mode_toggle(assigns) do
     ~H"""
-    <div class="relative flex flex-row items-center rounded-full border-2 border-base-300 bg-base-300">
-      <div class="absolute w-1/3 h-full rounded-full border border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
+    <div
+      class="relative flex flex-row items-center rounded-full border-2 border-base-300 bg-base-300"
+      role="radiogroup"
+      aria-label="Colour mode"
+    >
+      <div
+        class="absolute w-1/3 h-full rounded-full border border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]"
+        aria-hidden="true"
+      >
+      </div>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
+        type="button"
+        class="flex p-2 cursor-pointer w-1/3 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         data-phx-theme="system"
+        role="radio"
+        aria-checked="true"
+        aria-label="System colour mode"
       >
         <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
+        type="button"
+        class="flex p-2 cursor-pointer w-1/3 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         data-phx-theme="light"
+        role="radio"
+        aria-checked="false"
+        aria-label="Light colour mode"
       >
         <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
+        type="button"
+        class="flex p-2 cursor-pointer w-1/3 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         data-phx-theme="dark"
+        role="radio"
+        aria-checked="false"
+        aria-label="Dark colour mode"
       >
         <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>

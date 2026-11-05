@@ -29,7 +29,15 @@ _Avoid_: Run, session, game
 **Theme**:
 A label describing an endgame's technique or goal, such as "mate in 2", "Lucena" or
 "opposition"; an endgame can carry several.
-_Avoid_: Tag, label, category
+_Avoid_: Tag, label, category, UI theme, colour mode
+
+## Interface
+
+**Colour mode**:
+A user's display preference for the interface — `system`, `light` or `dark` — where
+`system` follows the operating system setting. It is a per-browser preference,
+independent of any user account.
+_Avoid_: Theme, colour scheme, display theme
 
 **Key**:
 The canonical material signature of an endgame's starting position — which
