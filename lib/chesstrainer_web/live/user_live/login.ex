@@ -54,6 +54,15 @@ defmodule ChesstrainerWeb.UserLive.Login do
             Log in only this time
           </.button>
         </.form>
+
+        <p class="text-center text-sm">
+          <.link
+            navigate={~p"/users/reset-password"}
+            class="font-semibold text-primary hover:underline"
+          >
+            Forgot your password?
+          </.link>
+        </p>
       </div>
     </Layouts.app>
     """

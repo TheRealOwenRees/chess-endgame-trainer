@@ -251,6 +251,48 @@ defmodule Chesstrainer.Accounts do
     |> update_user_and_delete_all_tokens()
   end
 
+  @doc ~S"""
+  Delivers the reset password email instructions to the given user.
+
+  ## Examples
+
+      iex> deliver_user_reset_password_instructions(user, &url(~p"/users/reset-password/#{&1}"))
+      {:ok, %{to: ..., body: ...}}
+
+  """
+  def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
+      when is_function(reset_password_url_fun, 1) do
+    {encoded_token, user_token} = UserToken.build_email_token(user, "reset_password")
+    Repo.insert!(user_token)
+    UserNotifier.deliver_reset_password_instructions(user, reset_password_url_fun.(encoded_token))
+  end
+
+  @doc """
+  Gets the user with the given reset password token.
+
+  Returns `nil` if the token is invalid or has expired.
+  """
+  def get_user_by_reset_password_token(token) do
+    with {:ok, query} <- UserToken.verify_reset_password_token_query(token),
+         %UserToken{sent_to: email} <- Repo.one(query),
+         %User{} = user <- Repo.get_by(User, email: email) do
+      user
+    else
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Resets the user password.
+
+  Returns a tuple with the updated user, as well as a list of expired tokens.
+  """
+  def reset_user_password(user, attrs) do
+    user
+    |> User.password_changeset(attrs)
+    |> update_user_and_delete_all_tokens()
+  end
+
   ## Deletion
 
   @doc """

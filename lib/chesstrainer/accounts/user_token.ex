@@ -8,6 +8,7 @@ defmodule Chesstrainer.Accounts.UserToken do
 
   @change_email_validity_in_days 7
   @confirm_validity_in_days 1
+  @reset_password_validity_in_days 1
   @session_validity_in_days 14
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -139,6 +140,31 @@ defmodule Chesstrainer.Accounts.UserToken do
         query =
           from token in by_token_and_context_query(hashed_token, "confirm"),
             where: token.inserted_at > ago(@confirm_validity_in_days, "day")
+
+        {:ok, query}
+
+      :error ->
+        :error
+    end
+  end
+
+  @doc """
+  Checks if the token is valid and returns its underlying lookup query.
+
+  The query returns the user_token found by the token, if any.
+
+  This is used to validate requests to reset the user password.
+  The given token is valid if it matches its hashed counterpart in the
+  database and if it has not expired (after @reset_password_validity_in_days).
+  """
+  def verify_reset_password_token_query(token) do
+    case Base.url_decode64(token, padding: false) do
+      {:ok, decoded_token} ->
+        hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
+
+        query =
+          from token in by_token_and_context_query(hashed_token, "reset_password"),
+            where: token.inserted_at > ago(@reset_password_validity_in_days, "day")
 
         {:ok, query}
 

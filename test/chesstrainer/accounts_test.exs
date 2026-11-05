@@ -439,6 +439,95 @@ defmodule Chesstrainer.AccountsTest do
     end
   end
 
+  describe "deliver_user_reset_password_instructions/2" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "sends token through notification", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_reset_password_instructions(user, url)
+        end)
+
+      {:ok, token} = Base.url_decode64(token, padding: false)
+      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
+      assert user_token.user_id == user.id
+      assert user_token.sent_to == user.email
+      assert user_token.context == "reset_password"
+    end
+  end
+
+  describe "get_user_by_reset_password_token/1" do
+    setup do
+      user = user_fixture()
+
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_reset_password_instructions(user, url)
+        end)
+
+      %{user: user, token: token}
+    end
+
+    test "returns the user with a valid token", %{user: user, token: token} do
+      assert %User{id: id} = Accounts.get_user_by_reset_password_token(token)
+      assert id == user.id
+    end
+
+    test "returns nil with an invalid token" do
+      refute Accounts.get_user_by_reset_password_token("oops")
+    end
+
+    test "returns nil if the token expired", %{token: token} do
+      {1, nil} = Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
+
+      refute Accounts.get_user_by_reset_password_token(token)
+    end
+  end
+
+  describe "reset_user_password/2" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "updates the password", %{user: user} do
+      assert {:ok, {%User{} = updated_user, expired_tokens}} =
+               Accounts.reset_user_password(user, %{password: "new valid password"})
+
+      assert updated_user.id == user.id
+      assert expired_tokens == []
+      assert is_nil(updated_user.password)
+      assert Accounts.get_user_by_login_and_password(user.email, "new valid password")
+      refute Accounts.get_user_by_login_and_password(user.email, valid_user_password())
+    end
+
+    test "deletes all tokens for the given user", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_reset_password_instructions(user, url)
+        end)
+
+      {:ok, {_, _}} = Accounts.reset_user_password(user, %{password: "new valid password"})
+
+      refute Repo.get_by(UserToken, user_id: user.id)
+      refute Accounts.get_user_by_reset_password_token(token)
+    end
+
+    test "validates the new password", %{user: user} do
+      assert {:error, changeset} =
+               Accounts.reset_user_password(user, %{
+                 password: "not valid",
+                 password_confirmation: "another"
+               })
+
+      assert %{
+               password: ["should be at least 12 character(s)"],
+               password_confirmation: ["does not match password"]
+             } = errors_on(changeset)
+    end
+  end
+
   describe "generate_user_session_token/1" do
     setup do
       %{user: user_fixture()}

@@ -83,6 +83,8 @@ defmodule ChesstrainerWeb.Router do
       live "/endgames/:public_code/play", EndgameLive.Play, :play
       live "/users/register", UserLive.Registration, :new
       live "/users/log-in", UserLive.Login, :new
+      live "/users/reset-password", UserLive.ResetPassword, :new
+      live "/users/reset-password/:token", UserLive.ResetPassword, :edit
     end
 
     get "/users/confirm/:token", UserConfirmationController, :edit
