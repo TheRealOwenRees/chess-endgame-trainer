@@ -1,6 +1,7 @@
 defmodule ChesstrainerWeb.PageController do
   use ChesstrainerWeb, :controller
 
+  alias Chesstrainer.Attempts
   alias Chesstrainer.DailyPuzzles
   alias Chesstrainer.Endgames
 
@@ -20,6 +21,7 @@ defmodule ChesstrainerWeb.PageController do
       endgames: endgames,
       active_endgame: DailyPuzzles.today(),
       puzzle_count: Endgames.count_endgames(),
+      user_count: Attempts.count_users_with_attempts(),
       today: Date.utc_today()
     )
   end

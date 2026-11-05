@@ -54,23 +54,23 @@ defmodule ChesstrainerWeb.LandingComponentsTest do
     assert html =~ "currentColor"
   end
 
-  describe "puzzle_count_label/1" do
+  describe "count_label/1" do
     test "shows counts below 100 exactly" do
-      assert LandingComponents.puzzle_count_label(0) == "0"
-      assert LandingComponents.puzzle_count_label(47) == "47"
-      assert LandingComponents.puzzle_count_label(99) == "99"
+      assert LandingComponents.count_label(0) == "0"
+      assert LandingComponents.count_label(47) == "47"
+      assert LandingComponents.count_label(99) == "99"
     end
 
     test "floors counts of 100 or more to hundreds" do
-      assert LandingComponents.puzzle_count_label(100) == "100+"
-      assert LandingComponents.puzzle_count_label(199) == "100+"
-      assert LandingComponents.puzzle_count_label(999) == "900+"
+      assert LandingComponents.count_label(100) == "100+"
+      assert LandingComponents.count_label(199) == "100+"
+      assert LandingComponents.count_label(999) == "900+"
     end
 
     test "floors counts of 1000 or more to thousands" do
-      assert LandingComponents.puzzle_count_label(1000) == "1000+"
-      assert LandingComponents.puzzle_count_label(1999) == "1000+"
-      assert LandingComponents.puzzle_count_label(2400) == "2000+"
+      assert LandingComponents.count_label(1000) == "1000+"
+      assert LandingComponents.count_label(1999) == "1000+"
+      assert LandingComponents.count_label(2400) == "2000+"
     end
   end
 end

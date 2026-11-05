@@ -60,6 +60,17 @@ defmodule Chesstrainer.Attempts do
   end
 
   @doc """
+  Returns the number of users who have recorded at least one attempt.
+
+  A retry does not count twice: the count is over distinct users.
+  """
+  def count_users_with_attempts do
+    Attempt
+    |> select([a], count(a.user_id, :distinct))
+    |> Repo.one()
+  end
+
+  @doc """
   The distinct endgame ids `user_id` has attempted in the last `days` days.
 
   Used by puzzle selection to prefer fresh puzzles; a retry still counts as an

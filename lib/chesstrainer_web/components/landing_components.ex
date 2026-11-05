@@ -78,6 +78,7 @@ defmodule ChesstrainerWeb.LandingComponents do
   LiveView, use `board_grid/1` directly.
   """
   attr :endgame, :map, default: nil
+  attr :date, :any, default: nil
 
   def board_preview(assigns) do
     endgame = assigns.endgame
@@ -188,20 +189,20 @@ defmodule ChesstrainerWeb.LandingComponents do
   end
 
   @doc """
-  Formats the puzzle count for the landing-page stat.
+  Formats a landing-page stat count.
 
   Counts below 100 are shown exactly. Larger counts are floored to the nearest
   hundred or thousand and suffixed with `+`, so the claim is never overstated.
   """
-  def puzzle_count_label(count) when is_integer(count) and count < 100 do
+  def count_label(count) when is_integer(count) and count < 100 do
     Integer.to_string(count)
   end
 
-  def puzzle_count_label(count) when is_integer(count) and count < 1000 do
+  def count_label(count) when is_integer(count) and count < 1000 do
     "#{div(count, 100) * 100}+"
   end
 
-  def puzzle_count_label(count) when is_integer(count) do
+  def count_label(count) when is_integer(count) do
     "#{div(count, 1000) * 1000}+"
   end
 

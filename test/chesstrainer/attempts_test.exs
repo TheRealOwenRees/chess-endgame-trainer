@@ -39,6 +39,26 @@ defmodule Chesstrainer.AttemptsTest do
     end
   end
 
+  describe "count_users_with_attempts/0" do
+    test "counts distinct users who have recorded an attempt" do
+      first = user_fixture()
+      second = user_fixture()
+      endgame = endgame_fixture()
+
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(first), endgame, :solved)
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(first), endgame, :failed)
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(second), endgame, :solved)
+
+      assert Attempts.count_users_with_attempts() == 2
+    end
+
+    test "ignores users without attempts" do
+      user_fixture()
+
+      assert Attempts.count_users_with_attempts() == 0
+    end
+  end
+
   describe "cascade" do
     test "deleting a user removes their attempts" do
       user = user_fixture()

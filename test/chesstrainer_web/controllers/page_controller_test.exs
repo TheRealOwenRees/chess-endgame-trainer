@@ -2,7 +2,10 @@ defmodule ChesstrainerWeb.PageControllerTest do
   use ChesstrainerWeb.ConnCase
 
   import Chesstrainer.AccountsFixtures
+  import Chesstrainer.EndgamesFixtures
 
+  alias Chesstrainer.Accounts.Scope
+  alias Chesstrainer.Attempts
   alias Chesstrainer.DailyPuzzles
   alias Chesstrainer.Endgames
   alias Chesstrainer.Themes
@@ -87,6 +90,17 @@ defmodule ChesstrainerWeb.PageControllerTest do
         ] do
       assert LazyHTML.attribute(LazyHTML.query(document, selector), "content") == [content]
     end
+  end
+
+  test "hero shows the number of players with at least one attempt", %{conn: conn} do
+    user = user_fixture()
+    endgame = endgame_fixture()
+    {:ok, _} = Attempts.record_attempt(Scope.for_user(user), endgame, :solved)
+
+    html = conn |> get(~p"/") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert LazyHTML.text(LazyHTML.query(document, ".rating-note strong")) == "1"
   end
 
   test "guest navbar links to log in and register", %{conn: conn} do
