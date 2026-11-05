@@ -78,12 +78,13 @@ defmodule ChesstrainerWeb.CoreComponents do
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
+      data-flash-dismiss
       role="alert"
-      class="fixed right-4 top-4 z-50 flex flex-col gap-2"
+      class="pointer-events-auto"
       {@rest}
     >
       <div class={[
-        "flex w-80 max-w-80 items-start gap-3 rounded-lg border px-4 py-3 text-sm text-wrap shadow-lg sm:w-96 sm:max-w-96",
+        "flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-sm text-wrap shadow-lg",
         @kind == :info && "border-info bg-info text-info-content",
         @kind == :error && "border-error bg-error text-error-content"
       ]}>

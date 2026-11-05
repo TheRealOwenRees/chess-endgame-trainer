@@ -43,14 +43,17 @@
   --color-accent-content: #ffffff;
   --color-neutral: #587068;
   --color-neutral-content: #f4f0e6;
-  --color-info: oklch(62% 0.214 259.815);
-  --color-info-content: oklch(97% 0.014 254.604);
+  /* Toasts use the brand palette rather than the stock blue/red: info is the
+     deep ink green, error is the coral used by primary actions. Both pass AA
+     against their content colour. */
+  --color-info: #17352d;
+  --color-info-content: #fffcf4;
   --color-success: oklch(70% 0.14 182.503);
   --color-success-content: oklch(98% 0.014 180.72);
   --color-warning: oklch(66% 0.179 58.318);
   --color-warning-content: oklch(98% 0.022 95.277);
-  --color-error: oklch(58% 0.253 17.585);
-  --color-error-content: oklch(96% 0.015 12.422);
+  --color-error: #c74c33;
+  --color-error-content: #ffffff;
 }
 
 html[data-theme="dark"] {
@@ -87,12 +90,12 @@ html[data-theme="dark"] {
   --color-accent-content: #0f1714;
   --color-neutral: #2b3a33;
   --color-neutral-content: #e9efe9;
-  --color-info: oklch(70% 0.14 240);
-  --color-info-content: oklch(15% 0.02 240);
+  --color-info: #24403a;
+  --color-info-content: #e9efe9;
   --color-success: oklch(72% 0.13 165);
   --color-success-content: oklch(15% 0.02 165);
   --color-warning: oklch(78% 0.15 75);
   --color-warning-content: oklch(20% 0.03 75);
-  --color-error: oklch(66% 0.19 22);
-  --color-error-content: oklch(15% 0.02 22);
+  --color-error: #c74c33;
+  --color-error-content: #ffffff;
 }
