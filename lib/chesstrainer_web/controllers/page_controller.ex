@@ -6,7 +6,9 @@ defmodule ChesstrainerWeb.PageController do
   def home(conn, _params) do
     endgames = Endgames.curated_endgames()
 
-    render(conn, :home,
+    conn
+    |> assign(:js_entry, ~p"/assets/js/marketing.js")
+    |> render(:home,
       endgames: endgames,
       active_endgame: List.first(endgames),
       puzzle_count: Endgames.count_endgames()

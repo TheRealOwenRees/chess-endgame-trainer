@@ -52,6 +52,8 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ ~s(class="site-footer")
     assert html =~ "© #{DateTime.utc_now().year} Lucid Chess"
     assert html =~ ~p"/endgames"
+    assert html =~ "/assets/js/marketing.js"
+    refute html =~ "/assets/js/app.js"
   end
 
   test "guest navbar links to log in and register", %{conn: conn} do

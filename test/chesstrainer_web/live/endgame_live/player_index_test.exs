@@ -17,6 +17,8 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
 
     assert html =~ "Endgames"
     assert html =~ "max-w-7xl"
+    assert html =~ "/assets/js/app.js"
+    refute html =~ "/assets/js/marketing.js"
     assert has_element?(view, "#key-group-K-v-K")
     refute html =~ "Lucena"
 
