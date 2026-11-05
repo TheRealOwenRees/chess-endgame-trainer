@@ -271,12 +271,6 @@ defmodule ChesstrainerWeb.LandingComponents do
   defp piece_glyph(nil), do: nil
   defp piece_glyph(piece), do: Map.get(@piece_glyphs, piece)
 
-  defp square_label(%{piece: piece} = square) when is_binary(piece) do
-    "#{square.key}, #{square.glyph}"
-  end
-
-  defp square_label(square), do: square.key
-
   defp fen_for(%{fen: fen}) when is_binary(fen), do: fen
   defp fen_for(_endgame), do: @fallback_fen
 

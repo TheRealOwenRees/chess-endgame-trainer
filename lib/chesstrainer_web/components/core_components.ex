@@ -358,7 +358,7 @@ defmodule ChesstrainerWeb.CoreComponents do
         <h1 class="text-lg font-semibold leading-8">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
+        <p :if={@subtitle != []} class="text-sm text-base-content/70 mt-4">
           {render_slot(@subtitle)}
         </p>
       </div>
