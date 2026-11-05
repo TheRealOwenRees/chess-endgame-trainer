@@ -140,20 +140,12 @@ defmodule ChesstrainerWeb.LandingComponents do
     ~H"""
     <div class="chessboard" aria-label="Chess position">
       <%= for square <- @squares do %>
-        <button
-          type="button"
-          class={[
-            "square",
-            if(square.light, do: "light", else: "dark"),
-            square.selected? && "selected",
-            square.target? && "target"
-          ]}
-          phx-click={@interactive && "square"}
-          phx-value-square={@interactive && square.key}
-          phx-target={@target}
-          disabled={@interactive && @disabled}
-          aria-label={square_label(square)}
-        >
+        <div class={[
+          "square",
+          if(square.light, do: "light", else: "dark"),
+          square.selected? && "selected",
+          square.target? && "target"
+        ]}>
           <span :if={square.label_rank} class="rank">{square.rank}</span>
           <span :if={square.label_file} class="file">{square.file}</span>
           <span
@@ -162,7 +154,7 @@ defmodule ChesstrainerWeb.LandingComponents do
           >
             {square.glyph}
           </span>
-        </button>
+        </div>
       <% end %>
     </div>
     """
