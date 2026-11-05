@@ -138,6 +138,38 @@ defmodule ChesstrainerWeb.Layouts do
   defp admin?(_scope), do: false
 
   @doc """
+  Renders the site-wide footer.
+
+  Rendered once from the root layout so it appears on every page, matching the
+  navbar. Links to the landing-page anchors keep working from other pages
+  because they point at `/` first.
+  """
+  def footer(assigns) do
+    assigns = assign(assigns, :year, DateTime.utc_now().year)
+
+    ~H"""
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="Lucid Chess home">
+          <span class="brand-mark">♞</span>
+          <span>LUCID</span>
+        </a>
+        <p>Short, focused endgame training.</p>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer">
+        <a href="/#method">Method</a>
+        <a href="/#puzzles">Puzzles</a>
+        <a href="/#progress">Progress</a>
+        <a href={~p"/endgames"}>Endgames</a>
+      </nav>
+
+      <small>© {@year} Lucid Chess</small>
+    </footer>
+    """
+  end
+
+  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

@@ -86,7 +86,9 @@ defmodule ChesstrainerWeb.LandingComponents do
       assign(assigns,
         fen: fen_for(endgame),
         turn: turn_label(endgame),
-        title: title(endgame)
+        title: title(endgame),
+        themes: theme_names(endgame),
+        orientation: orientation(endgame)
       )
 
     ~H"""
@@ -102,14 +104,14 @@ defmodule ChesstrainerWeb.LandingComponents do
         <span class="time-pill">∞</span>
       </div>
 
-      <.board_grid fen={@fen} orientation={:white} />
+      <.board_grid fen={@fen} orientation={@orientation} />
 
       <div class="board-caption">
         <div>
           <span>Today’s position</span>
           <strong>{@title}</strong>
+          <small :if={@themes != []} class="board-themes">{Enum.join(@themes, " · ")}</small>
         </div>
-        <button type="button" aria-label="Reset selected square">Reset</button>
       </div>
     </div>
     """
@@ -170,8 +172,7 @@ defmodule ChesstrainerWeb.LandingComponents do
   @doc """
   Renders a curated endgame card for the landing-page grid.
 
-  The card is an anchor to the board, so the browser scrolls to it, and the
-  click also selects the endgame in the LiveView.
+  The card links straight to the puzzle's player-facing play route.
   """
   attr :endgame, :map, required: true
   attr :index, :integer, required: true
@@ -179,11 +180,9 @@ defmodule ChesstrainerWeb.LandingComponents do
 
   def puzzle_card(assigns) do
     ~H"""
-    <a
-      href="#trainer"
+    <.link
+      navigate={"/endgames/#{@endgame.public_code}/play"}
       class={["puzzle-card", @active && "active"]}
-      phx-click="select_endgame"
-      phx-value-code={@endgame.public_code}
     >
       <span class="card-number">{card_number(@index)}</span>
       <span class="mini-piece">{mini_piece(@endgame)}</span>
@@ -191,8 +190,26 @@ defmodule ChesstrainerWeb.LandingComponents do
       <strong>{title(@endgame)}</strong>
       <small>{meta(@endgame)}</small>
       <span class="card-arrow"><.icon_arrow /></span>
-    </a>
+    </.link>
     """
+  end
+
+  @doc """
+  Formats the puzzle count for the landing-page stat.
+
+  Counts below 100 are shown exactly. Larger counts are floored to the nearest
+  hundred or thousand and suffixed with `+`, so the claim is never overstated.
+  """
+  def puzzle_count_label(count) when is_integer(count) and count < 100 do
+    Integer.to_string(count)
+  end
+
+  def puzzle_count_label(count) when is_integer(count) and count < 1000 do
+    "#{div(count, 100) * 100}+"
+  end
+
+  def puzzle_count_label(count) when is_integer(count) do
+    "#{div(count, 1000) * 1000}+"
   end
 
   @doc "The arrow used by landing-page CTAs."
@@ -265,6 +282,12 @@ defmodule ChesstrainerWeb.LandingComponents do
   defp title(%{key: key}) when is_binary(key) and key != "", do: key
   defp title(%{message: message}) when is_binary(message) and message != "", do: message
   defp title(_endgame), do: "Featured position"
+
+  defp theme_names(%{themes: themes}) when is_list(themes), do: Themes.names(themes)
+  defp theme_names(_endgame), do: []
+
+  defp orientation(%{color: color}) when color in [:white, :black], do: color
+  defp orientation(_endgame), do: :white
 
   defp card_number(index), do: (index + 1) |> Integer.to_string() |> String.pad_leading(2, "0")
 

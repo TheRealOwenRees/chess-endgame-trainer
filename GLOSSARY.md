@@ -12,7 +12,8 @@ _Avoid_: Position, puzzle
 
 **Puzzle**:
 A playable challenge derived from an endgame: play the winning (or drawing)
-side correctly against tablebase-optimal defence.
+side correctly against tablebase-optimal defence. Each endgame currently
+yields one puzzle.
 _Avoid_: Endgame (the stored record), exercise
 
 **Attempt**:

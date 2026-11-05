@@ -28,6 +28,13 @@ defmodule Chesstrainer.Endgames do
     Repo.one(from e in Endgame, order_by: fragment("RANDOM()"), limit: 1)
   end
 
+  @doc """
+  Returns the number of stored endgames, each of which is played as a puzzle.
+  """
+  def count_endgames do
+    Repo.aggregate(Endgame, :count)
+  end
+
   @curated_count 3
 
   @doc """

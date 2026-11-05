@@ -309,6 +309,19 @@ defmodule Chesstrainer.EndgamesTest do
     end
   end
 
+  describe "count_endgames/0" do
+    test "returns 0 when there are no endgames" do
+      assert Endgames.count_endgames() == 0
+    end
+
+    test "counts every stored endgame" do
+      create_endgame!(@kr)
+      create_endgame!(@kq)
+
+      assert Endgames.count_endgames() == 2
+    end
+  end
+
   describe "random_endgame/0" do
     test "returns nil when there are no endgames" do
       assert Endgames.random_endgame() == nil
