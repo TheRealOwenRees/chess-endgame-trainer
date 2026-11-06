@@ -10,6 +10,8 @@
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
 
+Code.require_file("seeds/endgames/win.ex", __DIR__)
+Code.require_file("seeds/endgames/draw.ex", __DIR__)
 Code.require_file("seeds/endgames.ex", __DIR__)
 Code.require_file("seeds/themes.ex", __DIR__)
 
