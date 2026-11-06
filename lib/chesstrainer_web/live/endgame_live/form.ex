@@ -7,6 +7,8 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Endgame
 
+  import ChesstrainerWeb.Board.BoardComponent
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -73,26 +75,36 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
       </div>
 
       <.form for={@form} id="endgame-form" phx-change="validate" phx-submit="save">
-        <.input field={@form[:fen]} type="text" label="Fen" disabled={@live_action == :edit} />
-        <.input field={@form[:color]} type="text" label="Color" disabled />
-        <.input
-          field={@form[:rating]}
-          type="number"
-          value={rating_display(@form[:rating])}
-          label="Rating"
-        />
-        <.input field={@form[:message]} type="textarea" label="Message" />
-        <.input field={@form[:notes]} type="textarea" label="Notes" />
-        <.input
-          field={@form[:result]}
-          type="select"
-          options={[
-            {"Win", :win},
-            {"Draw", :draw},
-            {"Loss", :loss}
-          ]}
-          label="Result"
-        />
+        <div class="flex flex-col gap-6 sm:flex-row sm:items-start">
+          <div class="min-w-0 flex-1">
+            <.input field={@form[:fen]} type="text" label="Fen" disabled={@live_action == :edit} />
+            <.input field={@form[:color]} type="text" label="Color" disabled />
+            <.input
+              field={@form[:rating]}
+              type="number"
+              value={rating_display(@form[:rating])}
+              label="Rating"
+            />
+            <.input field={@form[:message]} type="textarea" label="Message" />
+            <.input field={@form[:notes]} type="textarea" label="Notes" />
+            <.input
+              field={@form[:result]}
+              type="select"
+              options={[
+                {"Win", :win},
+                {"Draw", :draw},
+                {"Loss", :loss}
+              ]}
+              label="Result"
+            />
+          </div>
+
+          <div :if={@preview_game} id="endgame-preview-board" class="sm:w-64 sm:shrink-0">
+            <span class="mb-1 block text-sm font-medium text-base-content">Current position</span>
+            <.board game={@preview_game} class="w-full mt-2" interactive={false} />
+          </div>
+        </div>
+
         <footer>
           <.button phx-disable-with="Saving..." variant="primary">Save Endgame</.button>
           <.button navigate={return_path(@return_to, @endgame)}>Cancel</.button>
@@ -119,6 +131,7 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
     socket
     |> assign(:page_title, "Edit Endgame")
     |> assign(:endgame, endgame)
+    |> assign(:preview_game, preview_game(endgame.fen))
     |> assign(:selected_themes, endgame.themes)
     |> assign(:theme_query, "")
     |> assign(:theme_results, [])
@@ -132,6 +145,7 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
     socket
     |> assign(:page_title, "New Endgame")
     |> assign(:endgame, endgame)
+    |> assign(:preview_game, preview_game(endgame.fen))
     |> assign(:selected_themes, [])
     |> assign(:theme_query, "")
     |> assign(:theme_results, [])
@@ -171,7 +185,11 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
       |> Endgames.change_endgame(endgame_params)
       |> Ecto.Changeset.put_change(:color, color)
 
-    {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
+    {:noreply,
+     assign(socket,
+       form: to_form(changeset, action: :validate),
+       preview_game: preview_game(fen)
+     )}
   end
 
   def handle_event("save", %{"endgame" => endgame_params}, socket) do
@@ -256,6 +274,22 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
     do: round(value)
 
   defp rating_display(%Phoenix.HTML.FormField{value: value}), do: value
+
+  # Shows the position as the admin types a FEN; hidden while the FEN is invalid or blank.
+  # Parses directly rather than through Game.game_from_fen/2 so keystrokes never probe a tablebase.
+  defp preview_game(fen) when is_binary(fen) do
+    case Chex.Parser.FEN.parse(fen) do
+      {:ok, game} ->
+        %{board: game.board, orientation: game.active_color, move_from_square: nil}
+
+      _ ->
+        nil
+    end
+  rescue
+    MatchError -> nil
+  end
+
+  defp preview_game(_fen), do: nil
 
   defp return_path("index", _endgame), do: ~p"/admin/endgames"
   defp return_path("show", endgame), do: ~p"/admin/endgames/#{endgame.id}"

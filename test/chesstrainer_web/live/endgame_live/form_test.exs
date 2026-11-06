@@ -46,6 +46,37 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
     end
   end
 
+  describe "position preview" do
+    test "shows the board once the FEN is valid", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
+
+      refute has_element?(view, "#endgame-preview-board")
+
+      view
+      |> form("#endgame-form", endgame: %{fen: @fen})
+      |> render_change()
+
+      assert has_element?(view, "#endgame-preview-board")
+      assert has_element?(view, "#endgame-preview-board img[src='/images/pieces/white/rook.svg']")
+    end
+
+    test "hides the board when the FEN is invalid", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
+
+      view
+      |> form("#endgame-form", endgame: %{fen: @fen})
+      |> render_change()
+
+      assert has_element?(view, "#endgame-preview-board")
+
+      view
+      |> form("#endgame-form", endgame: %{fen: "not a fen"})
+      |> render_change()
+
+      refute has_element?(view, "#endgame-preview-board")
+    end
+  end
+
   test "creates an endgame with staged themes", %{conn: conn} do
     theme = theme_fixture(%{name: "Lucena"})
 

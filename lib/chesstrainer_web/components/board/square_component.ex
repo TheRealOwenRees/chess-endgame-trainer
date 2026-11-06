@@ -10,7 +10,8 @@ defmodule ChesstrainerWeb.Board.SquareComponent do
   attr :piece, :any, default: nil
   attr :files_list, :list, required: true
   attr :move_from_square, :any, default: nil
-  attr :myself, :any, required: true
+  attr :myself, :any, default: nil
+  attr :interactive, :boolean, default: true
 
   def square(assigns) do
     current_square = {assigns.file, assigns.rank}
@@ -22,20 +23,20 @@ defmodule ChesstrainerWeb.Board.SquareComponent do
     ~H"""
     <div
       class={[
-        "w-12 h-12 flex items-center justify-center",
+        "w-full aspect-square flex items-center justify-center",
         background(
           Enum.find_index(@files_list, fn f -> f == @file end),
           @rank - 1
         ),
         highlight_square(@highlight_square)
       ]}
-      phx-click="square-click"
-      phx-value-file={@file}
-      phx-value-rank={@rank}
-      phx-value-type="move"
-      phx-target={@myself}
+      phx-click={@interactive && "square-click"}
+      phx-value-file={@interactive && @file}
+      phx-value-rank={@interactive && @rank}
+      phx-value-type={@interactive && "move"}
+      phx-target={@interactive && @myself}
     >
-      <.piece piece={@piece} class="w-10 h-10" />
+      <.piece piece={@piece} class="w-[83%] h-[83%]" />
     </div>
     """
   end

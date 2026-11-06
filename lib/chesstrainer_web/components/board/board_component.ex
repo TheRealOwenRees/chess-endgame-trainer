@@ -8,7 +8,15 @@ defmodule ChesstrainerWeb.Board.BoardComponent do
 
   attr :game, :map, required: true
 
-  attr :myself, :any, required: true
+  attr :myself, :any, default: nil
+
+  attr :interactive, :boolean,
+    default: true,
+    doc: "emit square-click events (only useful inside a board LiveView)"
+
+  attr :class, :string,
+    default: "w-[388px] mt-6",
+    doc: "sizing and spacing for the board wrapper"
 
   def board(assigns) do
     files_list = [:a, :b, :c, :d, :e, :f, :g, :h]
@@ -32,7 +40,7 @@ defmodule ChesstrainerWeb.Board.BoardComponent do
       )
 
     ~H"""
-    <div class="w-[388px] m-auto left-0 right-0 mt-6">
+    <div class={["m-auto left-0 right-0", @class]}>
       <div class="border border-2 border-zinc-700 grid grid-rows-8 grid-cols-8">
         <%= for rank <- @ranks do %>
           <%= for file <- @files do %>
@@ -45,6 +53,7 @@ defmodule ChesstrainerWeb.Board.BoardComponent do
               files_list={@files_list}
               move_from_square={@game.move_from_square}
               myself={@myself}
+              interactive={@interactive}
             />
           <% end %>
         <% end %>
