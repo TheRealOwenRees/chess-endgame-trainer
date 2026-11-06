@@ -48,6 +48,9 @@ defmodule Chesstrainer.Accounts.UserToken do
     {token, %UserToken{token: token, context: "session", user_id: user.id, authenticated_at: dt}}
   end
 
+  @doc "How long a session token stays valid, in days."
+  def session_validity_in_days, do: @session_validity_in_days
+
   @doc """
   Checks if the token is valid and returns its underlying lookup query.
 

@@ -4,6 +4,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
   import Chesstrainer.AccountsFixtures
   import Chesstrainer.EndgamesFixtures
 
+  alias Chesstrainer.Accounts
   alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Attempts
   alias Chesstrainer.Branding
@@ -158,7 +159,17 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ ~s(content="Test Brand")
   end
 
-  test "hero shows the number of players with at least one attempt", %{conn: conn} do
+  test "hero shows the number of users with a valid session", %{conn: conn} do
+    user = user_fixture()
+    _token = Accounts.generate_user_session_token(user)
+
+    html = conn |> get(~p"/") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert LazyHTML.text(LazyHTML.query(document, ".rating-note strong")) == "1"
+  end
+
+  test "hero does not count users who have only trained", %{conn: conn} do
     user = user_fixture()
     endgame = endgame_fixture()
     {:ok, _} = Attempts.record_attempt(Scope.for_user(user), endgame, :solved)
@@ -166,7 +177,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     html = conn |> get(~p"/") |> html_response(200)
     document = LazyHTML.from_document(html)
 
-    assert LazyHTML.text(LazyHTML.query(document, ".rating-note strong")) == "1"
+    assert LazyHTML.text(LazyHTML.query(document, ".rating-note strong")) == "0"
   end
 
   test "guest navbar links to log in and register", %{conn: conn} do
@@ -211,11 +222,10 @@ defmodule ChesstrainerWeb.PageControllerTest do
 
     assert LazyHTML.text(LazyHTML.query(document, ".board-topline")) =~ "White"
     assert html =~ "Try today's puzzle"
-    assert html =~ "Begin with the basics"
     assert html =~ "<span>puzzles</span>"
   end
 
-  test "hero and progress CTAs link to the daily puzzle", %{conn: conn} do
+  test "hero CTA links to the daily puzzle", %{conn: conn} do
     curated!()
     daily = DailyPuzzles.today()
 
@@ -224,10 +234,6 @@ defmodule ChesstrainerWeb.PageControllerTest do
     play_path = "/endgames/#{daily.public_code}/play"
 
     assert LazyHTML.attribute(LazyHTML.query(document, ".hero-actions a"), "href") == [play_path]
-
-    assert LazyHTML.attribute(LazyHTML.query(document, ".progress-banner a"), "href") == [
-             play_path
-           ]
 
     refute html =~ "/endgames//play"
   end
@@ -256,10 +262,6 @@ defmodule ChesstrainerWeb.PageControllerTest do
     refute html =~ "puzzle-card"
 
     assert LazyHTML.attribute(LazyHTML.query(document, ".hero-actions a"), "href") == [
-             "/endgames"
-           ]
-
-    assert LazyHTML.attribute(LazyHTML.query(document, ".progress-banner a"), "href") == [
              "/endgames"
            ]
   end

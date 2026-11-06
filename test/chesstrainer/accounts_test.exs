@@ -583,6 +583,25 @@ defmodule Chesstrainer.AccountsTest do
     end
   end
 
+  describe "count_logged_in_users/0" do
+    test "counts distinct users with a valid session token" do
+      user = user_fixture()
+      _ = Accounts.generate_user_session_token(user)
+      _ = Accounts.generate_user_session_token(user)
+      _other = Accounts.generate_user_session_token(user_fixture())
+
+      assert Accounts.count_logged_in_users() == 2
+    end
+
+    test "ignores expired session tokens" do
+      user = user_fixture()
+      user_token = Accounts.generate_user_session_token(user)
+      offset_user_token(user_token, -15, :day)
+
+      assert Accounts.count_logged_in_users() == 0
+    end
+  end
+
   describe "delete_user/1" do
     test "deletes the user and their session tokens" do
       user = user_fixture()

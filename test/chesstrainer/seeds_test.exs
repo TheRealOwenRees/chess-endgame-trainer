@@ -3,6 +3,8 @@ defmodule Chesstrainer.SeedsTest do
 
   alias Chesstrainer.FEN
 
+  Code.require_file("../../priv/repo/seeds/endgames/win.ex", __DIR__)
+  Code.require_file("../../priv/repo/seeds/endgames/draw.ex", __DIR__)
   Code.require_file("../../priv/repo/seeds/endgames.ex", __DIR__)
 
   describe "seed endgames" do

@@ -332,6 +332,22 @@ defmodule Chesstrainer.Accounts do
     Repo.one(query)
   end
 
+  @doc """
+  Returns the number of users with at least one valid session token.
+
+  Session tokens stay valid for `UserToken.session_validity_in_days/0` days, so
+  this counts users who logged in during that window, not necessarily users who
+  are connected right now. A user with multiple sessions counts once.
+  """
+  def count_logged_in_users do
+    days = UserToken.session_validity_in_days()
+
+    UserToken
+    |> where([t], t.context == "session" and t.inserted_at > ago(^days, "day"))
+    |> select([t], count(t.user_id, :distinct))
+    |> Repo.one()
+  end
+
   @doc ~S"""
   Delivers the update email instructions to the given user.
 

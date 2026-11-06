@@ -58,7 +58,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         awaiting_best_line={@awaiting_best_line}
       />
 
-       <div :if={@user_rating} class="mb-4">
+      <div :if={@user_rating} class="mb-4">
         <.rating_guide rating={@user_rating} deviation={@user_deviation} />
       </div>
     </Layouts.app>
