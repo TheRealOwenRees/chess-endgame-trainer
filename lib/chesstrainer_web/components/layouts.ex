@@ -151,7 +151,7 @@ defmodule ChesstrainerWeb.Layouts do
 
   # Signed-in users start a puzzle session; visitors browse the public list.
   defp start_href(%{user: %{}}), do: ~p"/train"
-  defp start_href(_scope), do: ~p"/endgames"
+  defp start_href(_scope), do: ~p"/guest-train"
 
   @doc """
   Renders the site-wide footer.

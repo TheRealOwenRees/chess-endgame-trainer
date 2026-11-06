@@ -23,10 +23,22 @@ defmodule Chesstrainer.Endgames do
 
   @doc """
   Returns a random endgame, or `nil` when none exist.
+
+  `:exclude_ids` (default `[]`) skips endgames by id — used to avoid repeating
+  the puzzle just played.
   """
-  def random_endgame do
-    Repo.one(from e in Endgame, order_by: fragment("RANDOM()"), limit: 1)
+  def random_endgame(opts \\ []) do
+    exclude_ids = Keyword.get(opts, :exclude_ids, [])
+
+    Endgame
+    |> skip_ids(exclude_ids)
+    |> order_by([e], fragment("RANDOM()"))
+    |> limit(1)
+    |> Repo.one()
   end
+
+  defp skip_ids(query, []), do: query
+  defp skip_ids(query, ids), do: where(query, [e], e.id not in ^ids)
 
   @doc """
   Returns the number of stored endgames, each of which is played as a puzzle.

@@ -16,6 +16,7 @@ defmodule Chesstrainer.Application do
       {Phoenix.PubSub, name: Chesstrainer.PubSub},
       # Start a worker by calling: Chesstrainer.Worker.start_link(arg)
       # {Chesstrainer.Worker, arg},
+      Chesstrainer.GuestLimits,
       # Start to serve requests, typically the last entry
       ChesstrainerWeb.Endpoint,
       {Registry, keys: :unique, name: Chesstrainer.CacheRegistry},

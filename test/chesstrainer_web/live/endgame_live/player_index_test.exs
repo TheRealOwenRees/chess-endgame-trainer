@@ -7,6 +7,8 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
 
   alias Chesstrainer.Endgames
 
+  setup :register_and_log_in_user
+
   test "groups endgames by Key and shows themes on expand", %{conn: conn} do
     theme = theme_fixture(%{name: "Lucena"})
     endgame = endgame_fixture()
