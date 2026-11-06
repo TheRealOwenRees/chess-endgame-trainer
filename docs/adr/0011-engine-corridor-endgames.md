@@ -1,6 +1,6 @@
 # Eight-or-more-piece endgames are trained from engine-sourced corridors that hand off to the tablebase at seven
 
-_Status: proposed. Extends ADR-0005: the ≤7-piece source split stands; this adds a source for 8+._
+_Status: accepted. Extends ADR-0005: the ≤7-piece source split stands; this adds a source for 8+._
 
 Syzygy stops at seven pieces and there is no tablebase for eight or more. To
 train such endgames without pretending to a completeness they lack, each 8+
