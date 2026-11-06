@@ -49,10 +49,70 @@ defmodule Chesstrainer.Repo.Seeds.Endgames.Win do
       color: :white,
       result: :win
     },
-        %{
+    %{
       fen: "8/B2k4/1P3K2/3bP3/8/8/8/8 w - - 0 1",
       color: :white,
       result: :win
+    },
+    %{
+      fen: "K7/P2k4/8/8/8/8/r7/6R1 w - - 0 1",
+      color: :white,
+      result: :win,
+      themes: ["Lucena"]
+    },
+    %{
+      fen: "6K1/4k1P1/8/8/8/8/2r5/1R6 w - - 0 1",
+      color: :white,
+      result: :win,
+      themes: ["Lucena"]
+    },
+    %{
+      fen: "5K2/3k1P2/8/8/8/8/6r1/5R2 w - - 0 1",
+      color: :white,
+      result: :win,
+      themes: ["Lucena"]
+    },
+    %{
+      fen: "3K4/3P2k1/8/8/8/8/2r5/5R2 w - - 0 1",
+      color: :white,
+      result: :win,
+      themes: ["Lucena"]
+    },
+    %{
+      fen: "2K5/2P1k3/8/8/8/8/1r6/R7 w - - 0 1",
+      color: :white,
+      result: :win,
+      themes: ["Lucena"]
+    },
+    %{
+      fen: "7K/2k4P/8/8/8/8/7r/3R4 w - - 0 1",
+      color: :white,
+      result: :win,
+      themes: ["Lucena"]
+    },
+    %{
+      fen: "7K/3k3P/8/8/8/8/7r/4R3 w - - 0 1",
+      color: :white,
+      result: :win,
+      themes: ["Lucena"]
+    },
+    %{
+      fen: "7K/4k2P/8/8/8/8/7r/5R2 w - - 0 1",
+      color: :white,
+      result: :draw,
+      themes: ["Lucena"]
+    },
+     %{
+      fen: "K7/P4k2/8/8/8/8/r7/4R3 w - - 0 1",
+      color: :white,
+      result: :win,
+      themes: ["Lucena"]
+    },
+     %{
+      fen: "K7/P3k3/8/8/8/8/r7/6R1 w - - 0 1",
+      color: :white,
+      result: :win,
+      themes: ["Lucena"]
     },
     ]
   end
