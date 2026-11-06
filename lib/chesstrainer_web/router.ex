@@ -21,8 +21,6 @@ defmodule ChesstrainerWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
-
-    live "/chess-test", ChessTestLive
   end
 
   scope "/admin", ChesstrainerWeb do
