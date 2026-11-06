@@ -59,6 +59,27 @@ defmodule ChesstrainerWeb.AdminGatingTest do
     assert html_response(conn, 200)
   end
 
+  test "admin routes are marked noindex for crawlers", %{conn: conn} do
+    conn = get(conn, ~p"/admin/endgames")
+
+    assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
+
+    {:ok, admin} = Accounts.update_user_role(user_fixture(), :admin)
+
+    conn =
+      build_conn()
+      |> log_in_user(admin)
+      |> get(~p"/admin/endgames")
+
+    assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
+  end
+
+  test "public pages are not marked noindex", %{conn: conn} do
+    conn = get(conn, ~p"/")
+
+    assert get_resp_header(conn, "x-robots-tag") == []
+  end
+
   test "the navbar hides the Admin link from members", %{conn: conn} do
     conn =
       conn

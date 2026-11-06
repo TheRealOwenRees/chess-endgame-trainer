@@ -17,6 +17,15 @@ defmodule ChesstrainerWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Crawler files are plain text and XML, so they must not negotiate HTML.
+  pipeline :seo do
+  end
+
+  # Never let search engines index private or authenticated areas.
+  pipeline :noindex do
+    plug ChesstrainerWeb.Plugs.NoIndex
+  end
+
   scope "/", ChesstrainerWeb do
     pipe_through :browser
 
@@ -28,7 +37,7 @@ defmodule ChesstrainerWeb.Router do
   end
 
   scope "/admin", ChesstrainerWeb do
-    pipe_through [:browser, :require_admin_user]
+    pipe_through [:browser, :noindex, :require_admin_user]
 
     live_session :endgames,
       on_mount: [{ChesstrainerWeb.UserAuth, :require_admin}] do
@@ -99,6 +108,15 @@ defmodule ChesstrainerWeb.Router do
 
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
+  end
+
+  # Crawler files live outside the catch-all so they are real responses, not
+  # the branded 404 page.
+  scope "/", ChesstrainerWeb do
+    pipe_through :seo
+
+    get "/robots.txt", RobotsController, :index
+    get "/sitemap.xml", SitemapController, :index
   end
 
   # Keep this last: routes match in definition order. It gives unmatched paths a
