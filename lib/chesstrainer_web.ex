@@ -91,6 +91,7 @@ defmodule ChesstrainerWeb do
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
+      alias Chesstrainer.Branding
       alias ChesstrainerWeb.Layouts
 
       # Routes generation with the ~p sigil

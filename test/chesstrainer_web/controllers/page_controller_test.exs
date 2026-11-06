@@ -6,6 +6,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
 
   alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Attempts
+  alias Chesstrainer.Branding
   alias Chesstrainer.DailyPuzzles
   alias Chesstrainer.Endgames
   alias Chesstrainer.Themes
@@ -51,19 +52,19 @@ defmodule ChesstrainerWeb.PageControllerTest do
     document = LazyHTML.from_document(html)
 
     assert html =~ "Learn to see the"
-    assert html =~ "LUCID"
+    assert html =~ Branding.wordmark()
     assert html =~ "Privacy Policy"
-    assert html =~ "/#terms-conditions"
+    assert html =~ "/terms-conditions"
     assert html =~ "Start training"
     assert html =~ ~s(id="nav-links")
     assert html =~ "menu-button"
     assert html =~ ~s(class="site-footer")
-    assert html =~ "© #{DateTime.utc_now().year} Lucid Chess"
+    assert html =~ "© #{DateTime.utc_now().year} #{Branding.name()}"
     assert html =~ ~p"/endgames"
     assert html =~ "/assets/js/marketing.js"
     refute html =~ "/assets/js/app.js"
 
-    assert LazyHTML.text(LazyHTML.query(document, "title")) =~ "Lucid Chess — Endgame Trainer"
+    assert LazyHTML.text(LazyHTML.query(document, "title")) =~ Branding.home_title()
     refute html =~ "Phoenix Framework"
 
     eyebrow = LazyHTML.query(document, ".eyebrow")
@@ -80,16 +81,81 @@ defmodule ChesstrainerWeb.PageControllerTest do
 
     for {selector, content} <- [
           {~s(meta[property="og:type"]), "website"},
-          {~s(meta[property="og:site_name"]), "Lucid Chess"},
-          {~s(meta[property="og:title"]), "Lucid Chess — Endgame Trainer"},
+          {~s(meta[property="og:site_name"]), Branding.name()},
+          {~s(meta[property="og:title"]), Branding.home_title()},
           {~s(meta[property="og:description"]), @description},
           {~s(meta[property="og:url"]), canonical},
           {~s(meta[name="twitter:card"]), "summary"},
-          {~s(meta[name="twitter:title"]), "Lucid Chess — Endgame Trainer"},
+          {~s(meta[name="twitter:title"]), Branding.home_title()},
           {~s(meta[name="twitter:description"]), @description}
         ] do
       assert LazyHTML.attribute(LazyHTML.query(document, selector), "content") == [content]
     end
+  end
+
+  test "GET /privacy renders the privacy policy", %{conn: conn} do
+    html = conn |> get(~p"/privacy") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert LazyHTML.text(LazyHTML.query(document, "h1")) == "Privacy Policy"
+    assert html =~ "Last updated: 6 November 2026"
+    assert html =~ "What we collect"
+    assert html =~ "Cookies and local storage"
+    assert html =~ "Guest puzzle limit"
+    assert html =~ "HMAC-SHA256"
+    assert html =~ "Article 6(1)(f) GDPR"
+
+    assert LazyHTML.text(LazyHTML.query(document, "title")) ==
+             Branding.title("Privacy Policy")
+
+    assert [canonical] =
+             LazyHTML.attribute(LazyHTML.query(document, ~s(link[rel="canonical"])), "href")
+
+    assert URI.parse(canonical).path == "/privacy"
+  end
+
+  test "GET /terms-conditions renders the terms", %{conn: conn} do
+    html = conn |> get(~p"/terms-conditions") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert LazyHTML.text(LazyHTML.query(document, "h1")) == "Terms & Conditions"
+    assert html =~ "Last updated: 6 November 2026"
+    assert html =~ "Acceptable use"
+    assert html =~ "Governing law"
+    assert html =~ "fixed number of puzzles per UTC day"
+    assert html =~ ~p"/privacy"
+
+    assert LazyHTML.text(LazyHTML.query(document, "title")) ==
+             Branding.title("Terms & Conditions")
+
+    assert [canonical] =
+             LazyHTML.attribute(LazyHTML.query(document, ~s(link[rel="canonical"])), "href")
+
+    assert URI.parse(canonical).path == "/terms-conditions"
+  end
+
+  test "branding is read from application config", %{conn: conn} do
+    previous = Application.get_env(:chesstrainer, :branding)
+
+    on_exit(fn ->
+      if previous,
+        do: Application.put_env(:chesstrainer, :branding, previous),
+        else: Application.delete_env(:chesstrainer, :branding)
+    end)
+
+    Application.put_env(:chesstrainer, :branding,
+      name: "Test Brand",
+      wordmark: "TEST",
+      tagline: "Trainer",
+      support_email: "help@test.example"
+    )
+
+    html = conn |> get(~p"/privacy") |> html_response(200)
+
+    assert html =~ "Privacy Policy — Test Brand"
+    assert html =~ "Test Brand is an endgame training site"
+    assert html =~ "help@test.example"
+    assert html =~ ~s(content="Test Brand")
   end
 
   test "hero shows the number of players with at least one attempt", %{conn: conn} do

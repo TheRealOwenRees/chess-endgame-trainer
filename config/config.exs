@@ -7,6 +7,15 @@
 # General application configuration
 import Config
 
+# Public-facing branding. Change these values to rename the site without
+# touching templates. The OTP app (`:chesstrainer`) and module namespaces are
+# identity, not branding, and stay as they are.
+config :chesstrainer, :branding,
+  name: "Lucid Chess",
+  wordmark: "LUCID",
+  tagline: "Endgame Trainer",
+  support_email: "support@lucidchess.app"
+
 config :chesstrainer, :scopes,
   user: [
     default: true,

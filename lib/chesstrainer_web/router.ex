@@ -21,6 +21,8 @@ defmodule ChesstrainerWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/privacy", PageController, :privacy
+    get "/terms-conditions", PageController, :terms_conditions
   end
 
   scope "/admin", ChesstrainerWeb do

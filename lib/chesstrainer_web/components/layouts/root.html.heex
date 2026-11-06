@@ -6,8 +6,8 @@
 
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title
-      default="Lucid Chess — Endgame Trainer"
-      suffix={assigns[:title_suffix] || " · Lucid Chess"}
+      default={Branding.home_title()}
+      suffix={assigns[:title_suffix] || " · #{Branding.name()}"}
       phx-no-format
     >{assigns[:page_title]}</.live_title>
     <meta
@@ -17,11 +17,11 @@
     />
     <link :if={assigns[:canonical_url]} rel="canonical" href={assigns[:canonical_url]} />
     <meta :if={assigns[:meta_description]} property="og:type" content="website" />
-    <meta :if={assigns[:meta_description]} property="og:site_name" content="Lucid Chess" />
+    <meta :if={assigns[:meta_description]} property="og:site_name" content={Branding.name()} />
     <meta
       :if={assigns[:meta_description]}
       property="og:title"
-      content={assigns[:page_title] || "Lucid Chess — Endgame Trainer"}
+      content={assigns[:page_title] || Branding.home_title()}
     />
     <meta
       :if={assigns[:meta_description]}
@@ -33,7 +33,7 @@
     <meta
       :if={assigns[:meta_description]}
       name="twitter:title"
-      content={assigns[:page_title] || "Lucid Chess — Endgame Trainer"}
+      content={assigns[:page_title] || Branding.home_title()}
     />
     <meta
       :if={assigns[:meta_description]}
