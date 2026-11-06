@@ -1,6 +1,7 @@
 defmodule ChesstrainerWeb.EndgameLive.Play do
   use ChesstrainerWeb, :live_view
 
+  alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Endgames
   alias ChesstrainerWeb.EndgameLive.PlayCore
   alias ChesstrainerWeb.PlayComponents
@@ -32,8 +33,11 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
           </p>
         </:subtitle>
         <:actions>
-          <.button navigate={~p"/endgames"}>
+          <.button :if={Scope.premium?(@current_scope)} navigate={~p"/endgames"}>
             <.icon name="hero-arrow-left" /> Back to endgames
+          </.button>
+          <.button :if={!Scope.premium?(@current_scope)} navigate={~p"/"}>
+            <.icon name="hero-arrow-left" /> Back home
           </.button>
         </:actions>
       </.header>

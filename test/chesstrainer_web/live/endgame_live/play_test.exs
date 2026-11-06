@@ -211,6 +211,50 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     end
   end
 
+  describe "back link" do
+    test "points home for an anonymous visitor", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen)
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
+
+      assert has_element?(view, ~s{a[href="/"]}, "Back home")
+      refute has_element?(view, ~s{a[href="/endgames"]})
+    end
+
+    test "points home for a signed-in free user", %{conn: conn} do
+      user = Chesstrainer.AccountsFixtures.user_fixture()
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen)
+
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user)
+        |> live(~p"/endgames/#{endgame.public_code}/play")
+
+      assert has_element?(view, ~s{a[href="/"]}, "Back home")
+      refute has_element?(view, ~s{a[href="/endgames"]})
+    end
+
+    test "points to the endgame index for a premium user", %{conn: conn} do
+      {:ok, user} =
+        Chesstrainer.AccountsFixtures.user_fixture()
+        |> Ecto.Changeset.change(plan: :premium)
+        |> Repo.update()
+
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen)
+
+      {:ok, view, _html} =
+        conn
+        |> log_in_user(user)
+        |> live(~p"/endgames/#{endgame.public_code}/play")
+
+      assert has_element?(view, ~s{a[href="/endgames"]}, "Back to endgames")
+      refute has_element?(view, ~s{a[href="/"]}, "Back home")
+    end
+  end
+
   describe "tablebase availability" do
     test "blocks the attempt when the tablebase is cooling down", %{conn: conn} do
       # Six pieces routes to Lichess, so the cooldown applies (five or fewer

@@ -67,6 +67,6 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
     {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
     assert has_element?(view, "#endgame-board")
-    assert has_element?(view, ~s{a[href="/endgames"]})
+    assert has_element?(view, ~s{a[href="/"]})
   end
 end
