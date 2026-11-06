@@ -88,6 +88,8 @@ defmodule ChesstrainerWeb do
       import ChesstrainerWeb.CoreComponents
       # Landing-page primitives (pill buttons, marketing icons)
       import ChesstrainerWeb.LandingComponents
+      # Rating gauge and explainer
+      import ChesstrainerWeb.RatingComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS

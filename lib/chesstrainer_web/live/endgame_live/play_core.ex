@@ -32,6 +32,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
     |> assign(:page_title, Keyword.get(opts, :page_title, "Play endgame"))
     |> assign(:endgame, endgame)
     |> assign_new(:user_rating, fn -> user_rating(socket.assigns.current_scope) end)
+    |> assign_new(:user_deviation, fn -> user_deviation(socket.assigns.current_scope) end)
     |> assign(:fen, endgame.fen)
     |> assign(:tablebase, nil)
     |> assign(:status, :loading)
@@ -441,6 +442,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
             socket
             |> assign(:endgame, endgame)
             |> assign(:user_rating, user.rating)
+            |> assign(:user_deviation, user.rating_deviation)
             |> assign(:last_rating_delta, delta)
 
           {:skipped, _attempt} ->
@@ -459,6 +461,9 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
 
   defp user_rating(%{user: %{rating: rating}}), do: rating
   defp user_rating(_), do: nil
+
+  defp user_deviation(%{user: %{rating_deviation: deviation}}), do: deviation
+  defp user_deviation(_), do: nil
 
   defp pick_best_move(tablebase), do: tablebase |> best_moves() |> List.first()
 

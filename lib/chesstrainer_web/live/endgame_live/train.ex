@@ -134,7 +134,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
               <div>
                 <h2 class="text-lg font-semibold">Choose a difficulty</h2>
                 <p class="mt-1 text-sm text-muted">
-                  Your rating: {round(@user_rating)} · bands of ±{Puzzles.band_width()}
+                  Difficulty bands are ±{Puzzles.band_width()} around your rating.
                 </p>
               </div>
               <.link
@@ -145,6 +145,9 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
               >
                 <.icon name="hero-x-mark" class="size-5" />
               </.link>
+            </div>
+            <div class="mt-4">
+              <.rating_guide rating={@user_rating} deviation={@user_deviation} />
             </div>
             <div class="mt-4 grid gap-2">
               <%= for {difficulty, label, description} <- difficulty_options(@user_rating) do %>
@@ -179,7 +182,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
      |> assign(:last_session, nil)
      |> assign(:puzzle_started_mono, nil)
      |> assign(:puzzle_counted, false)
-     |> assign(:user_rating, socket.assigns.current_scope.user.rating)}
+     |> assign(:user_rating, socket.assigns.current_scope.user.rating)
+     |> assign(:user_deviation, socket.assigns.current_scope.user.rating_deviation)}
   end
 
   @impl true

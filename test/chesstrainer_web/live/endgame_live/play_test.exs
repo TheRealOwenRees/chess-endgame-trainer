@@ -501,6 +501,22 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert attempt.outcome == :solved
     end
 
+    test "shows a rating guide with the deviation band", %{conn: conn, user: user} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen)
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
+
+      assert has_element?(view, "#rating-guide")
+
+      html = render(view)
+      low = round(user.rating - 2 * user.rating_deviation)
+      high = round(user.rating + 2 * user.rating_deviation)
+
+      assert html =~ "Your rating: #{round(user.rating)}"
+      assert html =~ "likely #{low}–#{high}"
+    end
+
     test "records a failed attempt for the signed-in user", %{conn: conn, user: user} do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())

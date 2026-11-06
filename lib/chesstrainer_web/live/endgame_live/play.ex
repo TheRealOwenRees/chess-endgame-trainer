@@ -16,9 +16,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
           {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {round(
             @endgame.rating
           )} · Attempts: {@endgame.times_attempted ||
-            0} · Solved: {@endgame.times_solved || 0}<span :if={@user_rating}> · Your rating: {round(
-            @user_rating
-          )}</span>
+            0} · Solved: {@endgame.times_solved || 0}
           <p class="text-xs text-muted flex items-center mt-1">
             <span>FEN: {@endgame.fen}</span>
             <button
@@ -41,6 +39,10 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
           </.button>
         </:actions>
       </.header>
+
+      <div :if={@user_rating} class="mb-4">
+        <.rating_guide rating={@user_rating} deviation={@user_deviation} />
+      </div>
 
       <PlayComponents.play_surface
         endgame={@endgame}

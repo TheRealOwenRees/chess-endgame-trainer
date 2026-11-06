@@ -89,6 +89,7 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert has_element?(view, "#close-difficulty[href='/']")
       assert has_element?(view, "a", "Cancel")
       refute has_element?(view, "#puzzle-search")
+      assert has_element?(view, "#rating-guide")
       assert render(view) =~ "Choose a difficulty"
     end
 
@@ -147,6 +148,7 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert is_float(assigns.last_rating_delta)
       assert assigns.last_rating_delta > 0
       assert assigns.user_rating > 1500.0
+      assert assigns.user_deviation < 350.0
     end
 
     test "loads a different puzzle on next", %{conn: conn} do
