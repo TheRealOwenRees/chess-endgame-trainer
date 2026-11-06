@@ -271,9 +271,25 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert LazyHTML.text(LazyHTML.query(document, "title")) == Branding.title("Page not found")
     assert LazyHTML.text(LazyHTML.query(document, ".error-code")) == "404"
     assert html =~ "The page you were looking for moved"
-    assert html =~ "Browse puzzles"
+    refute html =~ "Browse puzzles"
     assert html =~ ~s(class="site-footer")
     assert html =~ "/assets/js/marketing.js"
     assert html =~ ~s(name="robots")
+  end
+
+  test "premium users see the puzzles link on the 404 page", %{conn: conn} do
+    {:ok, user} =
+      user_fixture()
+      |> Ecto.Changeset.change(plan: :premium)
+      |> Chesstrainer.Repo.update()
+
+    html =
+      conn
+      |> log_in_user(user)
+      |> get("/this-page-does-not-exist")
+      |> html_response(404)
+
+    assert html =~ "Browse puzzles"
+    assert html =~ ~s(href="/endgames")
   end
 end

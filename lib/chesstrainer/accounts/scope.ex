@@ -30,4 +30,13 @@ defmodule Chesstrainer.Accounts.Scope do
   end
 
   def for_user(nil), do: nil
+
+  @doc """
+  True when the scope belongs to a premium user.
+
+  `for_user/1` returns `nil` for anonymous visitors, so the catch-all covers
+  both nil scopes and free plans.
+  """
+  def premium?(%__MODULE__{user: %User{plan: :premium}}), do: true
+  def premium?(_scope), do: false
 end

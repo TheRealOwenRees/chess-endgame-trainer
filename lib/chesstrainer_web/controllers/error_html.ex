@@ -10,6 +10,8 @@ defmodule ChesstrainerWeb.ErrorHTML do
   """
   use ChesstrainerWeb, :html
 
+  alias Chesstrainer.Accounts.Scope
+
   embed_templates "error_html/*"
 
   @doc """
@@ -22,7 +24,7 @@ defmodule ChesstrainerWeb.ErrorHTML do
   attr :title, :string, required: true
   attr :message, :string, required: true
   attr :hint, :string, default: nil
-  attr :puzzles, :boolean, default: true
+  attr :current_scope, :map, default: nil
 
   def error_page(assigns) do
     ~H"""
@@ -36,7 +38,7 @@ defmodule ChesstrainerWeb.ErrorHTML do
         <.pill_button variant={:primary} href={~p"/"}>
           Back to home <.icon_arrow />
         </.pill_button>
-        <.pill_button :if={@puzzles} variant={:light} href={~p"/endgames"}>
+        <.pill_button :if={Scope.premium?(@current_scope)} variant={:light} href={~p"/endgames"}>
           Browse puzzles
         </.pill_button>
       </div>

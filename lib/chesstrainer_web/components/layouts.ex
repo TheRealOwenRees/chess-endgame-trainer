@@ -6,6 +6,7 @@ defmodule ChesstrainerWeb.Layouts do
   use ChesstrainerWeb, :html
 
   alias Chesstrainer.Accounts.Role
+  alias Chesstrainer.Accounts.Scope
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
@@ -110,7 +111,7 @@ defmodule ChesstrainerWeb.Layouts do
 
   defp nav_links(scope) do
     marketing =
-      if premium?(scope) do
+      if Scope.premium?(scope) do
         [
           %{label: "Puzzle Search", href: "/endgames"}
         ]
@@ -146,8 +147,6 @@ defmodule ChesstrainerWeb.Layouts do
 
   defp admin?(%{user: %{role: role}}), do: Role.admin?(role)
   defp admin?(_scope), do: false
-
-  defp premium?(scope), do: match?(%{user: %{plan: :premium}}, scope)
 
   # Signed-in users start a puzzle session; visitors browse the public list.
   defp start_href(%{user: %{}}), do: ~p"/train"

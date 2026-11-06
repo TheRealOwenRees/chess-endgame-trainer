@@ -9,6 +9,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
 
   use ChesstrainerWeb, :live_view
 
+  alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Puzzles
   alias ChesstrainerWeb.EndgameLive.PlayCore
   alias ChesstrainerWeb.PlayComponents
@@ -31,7 +32,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
             <.icon name="hero-x-mark" /> Stop session
           </.button>
           <.button
-            :if={premium?(@current_scope)}
+            :if={Scope.premium?(@current_scope)}
             id="puzzle-search"
             navigate={~p"/endgames"}
           >
@@ -309,9 +310,6 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
     user = socket.assigns.current_scope.user
     %{user | rating: socket.assigns.user_rating || user.rating}
   end
-
-  defp premium?(%{user: %{plan: :premium}}), do: true
-  defp premium?(_scope), do: false
 
   defp summarise(session, rating) do
     %{
