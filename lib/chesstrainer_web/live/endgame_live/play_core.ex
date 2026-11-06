@@ -46,7 +46,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
     |> assign(:review_tablebase, nil)
     |> assign(:review_blocked, nil)
     |> assign(:awaiting_best_line, false)
-    |> assign(:pending_best_move, nil)
+    |> assign(:pending_move, nil)
     |> assign(:last_san, "None yet")
     |> assign(:last_from_to, "None yet")
     |> assign(:last_grade, nil)
@@ -135,7 +135,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
       |> assign(:review_tablebase, nil)
       |> assign(:review_blocked, nil)
       |> assign(:awaiting_best_line, false)
-      |> assign(:pending_best_move, nil)
+      |> assign(:pending_move, nil)
       |> assign(:last_san, "None yet")
       |> assign(:last_from_to, "None yet")
       |> assign(:last_grade, nil)
@@ -162,6 +162,10 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
 
   def review_next(socket), do: step_review(socket, 1)
 
+  def review_start(socket), do: review_step(socket, 0)
+
+  def review_end(socket), do: review_step(socket, length(socket.assigns.line))
+
   def review_step(socket, index) do
     if socket.assigns.reviewing do
       last = length(socket.assigns.line)
@@ -177,21 +181,41 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
     with true <- socket.assigns.reviewing,
          %Tablebase{} = tablebase <- socket.assigns.review_tablebase,
          %Tablebase.Move{} = move <- pick_best_move(tablebase) do
-      # Branch the review line at the current position, then play one best move.
-      {:noreply,
-       socket
-       |> assign(:line, Enum.take(socket.assigns.line, socket.assigns.review_index))
-       |> assign(:awaiting_best_line, true)
-       |> assign(:pending_best_move, move)
-       |> push_event("best_line_move", reply_payload(move))}
+      play_review_move(socket, move, true)
     else
       _ -> {:noreply, socket}
     end
   end
 
+  @doc """
+  Plays one tablebase move from the reviewed position, branching the line.
+
+  The move comes from a `phx-value-uci` on the tablebase table.
+  """
+  def review_move(socket, %{"uci" => uci}) do
+    with true <- socket.assigns.reviewing,
+         %Tablebase{} = tablebase <- socket.assigns.review_tablebase,
+         %Tablebase.Move{} = move <- find_move_by_uci(tablebase, uci) do
+      play_review_move(socket, move, false)
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  # Branch the review line at the current position, then ask the board to play
+  # the move; `best_line_move_applied/2` appends it once chess.js confirms it.
+  defp play_review_move(socket, move, best_line?) do
+    {:noreply,
+     socket
+     |> assign(:line, Enum.take(socket.assigns.line, socket.assigns.review_index))
+     |> assign(:awaiting_best_line, true)
+     |> assign(:pending_move, %{move: move, best_line: best_line?})
+     |> push_event("best_line_move", reply_payload(move))}
+  end
+
   def best_line_move_applied(socket, %{"fen" => fen}) do
     if socket.assigns.awaiting_best_line do
-      move = socket.assigns.pending_best_move
+      %{move: move, best_line: best_line?} = socket.assigns.pending_move
 
       line =
         socket.assigns.line ++
@@ -201,7 +225,8 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
               san: move.san,
               fen_after: fen,
               grade: nil,
-              best_line: true
+              analysis: true,
+              best_line: best_line?
             }
           ]
 
@@ -209,7 +234,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
         socket
         |> assign(:line, line)
         |> assign(:awaiting_best_line, false)
-        |> assign(:pending_best_move, nil)
+        |> assign(:pending_move, nil)
         |> set_review_index(length(line))
 
       {:noreply, push_review_position(socket)}
@@ -488,6 +513,12 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
   end
 
   defp find_move(_tablebase, _from, _to, _promotion), do: nil
+
+  defp find_move_by_uci(%Tablebase{moves: moves}, uci) when is_list(moves) do
+    Enum.find(moves, &(&1.uci == uci))
+  end
+
+  defp find_move_by_uci(_tablebase, _uci), do: nil
 
   # Compare only the board and side to move: chess.js may normalise the rest
   # (castling/en-passant/halfmove/fullmove) differently from the stored FEN.

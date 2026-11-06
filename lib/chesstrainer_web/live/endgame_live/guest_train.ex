@@ -167,6 +167,12 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
   def handle_event("review_step", %{"index" => index}, socket),
     do: PlayCore.review_step(socket, index)
 
+  def handle_event("review_start", _params, socket), do: PlayCore.review_start(socket)
+
+  def handle_event("review_end", _params, socket), do: PlayCore.review_end(socket)
+
+  def handle_event("review_move", params, socket), do: PlayCore.review_move(socket, params)
+
   def handle_event("play_best_line", _params, socket), do: PlayCore.play_best_line(socket)
 
   def handle_event("best_line_move_applied", params, socket),
