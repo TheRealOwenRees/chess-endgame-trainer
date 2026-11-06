@@ -80,7 +80,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
   # Plays one optimal move, applies the opponent's reply, then a losing move,
   # leaving a three-ply failed attempt to review.
-  defp seeded_attempt(conn) do
+  defp seeded_attempt(conn, start_moves \\ grading_moves()) do
     endgame = endgame_fixture()
 
     # The tablebase cache is keyed by position (clocks ignored), so these must
@@ -91,7 +91,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :loss, dtz: -3}
     losing_reply = %Tablebase.Move{uci: "e8e7", san: "Ke7", category: :draw, dtz: 0}
 
-    seed_tablebase(endgame.fen, moves: grading_moves())
+    seed_tablebase(endgame.fen, moves: start_moves)
     seed_tablebase(after_first, category: :loss, moves: [reply])
     seed_tablebase(after_reply, category: :win, moves: grading_moves())
     seed_tablebase(after_losing, category: :draw, moves: [losing_reply])
@@ -791,20 +791,35 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert back == fens.after_first
     end
 
-    test "clicking a ply jumps to its position", %{conn: conn} do
+    test "hides the result panels and move list while reviewing", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      view |> element("button", "Review") |> render_click()
+
+      assert has_element?(view, "#best-move-panel")
+      refute has_element?(view, "#move-list")
+      refute render(view) =~ "Failed"
+      refute render(view) =~ "Solved!"
+    end
+
+    test "jumps to the start and end of the reviewed line", %{conn: conn} do
       {view, fens} = seeded_attempt(conn)
 
       view |> element("button", "Review") |> render_click()
 
       %{proxy: {ref, _topic, _}} = view
+      assert_receive {^ref, {:push_event, "review_position", %{fen: after_losing}}}, 100
+      assert after_losing == fens.after_losing
 
-      # Consume the position pushed on entering review.
-      assert_receive {^ref, {:push_event, "review_position", _payload}}, 100
+      view |> element("#review-start") |> render_click()
 
-      view |> element("button", "Ke7") |> render_click()
+      assert_receive {^ref, {:push_event, "review_position", %{fen: start}}}, 100
+      assert start == fens.start
 
-      assert_receive {^ref, {:push_event, "review_position", %{fen: fen}}}, 100
-      assert fen == fens.after_reply
+      view |> element("#review-end") |> render_click()
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: at_end}}}, 100
+      assert at_end == fens.after_losing
     end
 
     test "try again exits review and starts a fresh attempt", %{conn: conn} do
@@ -857,6 +872,56 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert panel =~ "Played: Qd4"
     end
 
+    test "groups tablebase moves by outcome during review", %{conn: conn} do
+      start_moves = [
+        %Tablebase.Move{uci: "d1d7", san: "Qd7+", category: :loss, dtz: -1},
+        %Tablebase.Move{uci: "d1d4", san: "Qd4", category: :draw, dtz: 0},
+        %Tablebase.Move{uci: "d1d8", san: "Qd8", category: :win, dtz: 5}
+      ]
+
+      {view, _fens} = seeded_attempt(conn, start_moves)
+
+      view |> element("button", "Review") |> render_click()
+      render_hook(view, "review_step", %{"index" => "0"})
+
+      panel = view |> element("#best-move-panel") |> render()
+
+      assert panel =~ ~r/Winning.*Qd7\+.*Drawn.*Qd4.*Losing.*Qd8/s
+      assert panel =~ "DTZ 1"
+      assert panel =~ "DTZ 5"
+    end
+
+    test "clicking a tablebase move plays it from the reviewed position", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      view |> element("button", "Review") |> render_click()
+      render_hook(view, "review_step", %{"index" => "2"})
+
+      %{proxy: {ref, _topic, _}} = view
+      assert_receive {^ref, {:push_event, "review_position", _}}, 100
+      assert_receive {^ref, {:push_event, "review_position", _}}, 100
+
+      view |> element("#best-move-panel tr[phx-value-uci='d1d5']") |> render_click()
+
+      assert_receive {^ref, {:push_event, "best_line_move", %{from: "d1", to: "d5"}}}, 100
+
+      best_after = "8/8/8/8/8/8/8/6K1 b - - 1 1"
+
+      seed_tablebase(best_after,
+        category: :draw,
+        moves: [%Tablebase.Move{uci: "g1g2", san: "Kg2", category: :draw, dtz: 0}]
+      )
+
+      render_hook(view, "best_line_move_applied", %{"fen" => best_after})
+
+      assert_receive {^ref, {:push_event, "review_position", %{fen: ^best_after}}}, 100
+
+      panel = view |> element("#best-move-panel") |> render()
+      assert panel =~ "Kg2"
+      assert has_element?(view, "button", "Back to game")
+      refute has_element?(view, "#move-list")
+    end
+
     test "summarises the failing move and the best alternative", %{conn: conn} do
       {view, _fens} = seeded_attempt(conn)
 
@@ -864,7 +929,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
     end
 
     test "play best line branches and steps the optimal continuation", %{conn: conn} do
-      {view, _fens} = seeded_attempt(conn)
+      {view, fens} = seeded_attempt(conn)
 
       view |> element("button", "Review") |> render_click()
       render_hook(view, "review_prev", %{})
@@ -878,20 +943,25 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert_receive {^ref, {:push_event, "best_line_move", %{from: "d1", to: "d7"}}}, 100
 
       best_after = "8/8/8/8/8/8/8/8 w - - 2 1"
-      seed_tablebase(best_after, category: :draw, moves: [])
+
+      seed_tablebase(best_after,
+        category: :draw,
+        moves: [%Tablebase.Move{uci: "d8d7", san: "Qd7", category: :draw, dtz: 0}]
+      )
+
       render_hook(view, "best_line_move_applied", %{"fen" => best_after})
 
       assert_receive {^ref, {:push_event, "review_position", %{fen: ^best_after}}}, 100
 
-      moves = view |> element("#move-list") |> render()
-      refute moves =~ "Qd4"
-      assert moves =~ "Qd7+"
-      assert moves =~ ~s(title="Best line")
+      panel = view |> element("#best-move-panel") |> render()
+      assert panel =~ "Qd7"
+      assert has_element?(view, "button", "Back to game")
 
       view |> element("button", "Back to game") |> render_click()
 
-      moves = view |> element("#move-list") |> render()
-      assert moves =~ "Qd4"
+      assert_receive {^ref, {:push_event, "review_position", %{fen: fen}}}, 100
+      assert fen == fens.after_losing
+      refute has_element?(view, "button", "Back to game")
     end
 
     test "degrades gracefully and reuses played-position snapshots", %{conn: conn} do
