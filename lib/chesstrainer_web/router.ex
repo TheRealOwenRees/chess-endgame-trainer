@@ -68,11 +68,16 @@ defmodule ChesstrainerWeb.Router do
       on_mount: [{ChesstrainerWeb.UserAuth, :require_authenticated}] do
       live "/endgames", EndgameLive.PlayerIndex, :index
       live "/train", EndgameLive.Train, :train
-      live "/users/settings", UserLive.Settings, :edit
-      live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+      live "/users/profile", UserLive.Profile, :account
+      live "/users/profile/settings", UserLive.Profile, :settings
+      live "/users/profile/data", UserLive.Profile, :data
+      # Legacy settings URL; keep old links and emails working.
+      live "/users/settings", UserLive.Profile, :account
+      live "/users/settings/confirm-email/:token", UserLive.Profile, :confirm_email
     end
 
     post "/users/update-password", UserSessionController, :update_password
+    get "/users/profile/export/:format", UserDataController, :export
   end
 
   scope "/", ChesstrainerWeb do

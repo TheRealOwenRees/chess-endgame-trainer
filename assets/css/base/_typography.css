@@ -34,6 +34,16 @@ h1, h2 { font-family: 'DM Serif Display', serif; font-weight: 400; letter-spacin
 h1 { max-width: 590px; font-size: clamp(56px, 6vw, 87px); line-height: .93; }
 h1 em { color: var(--color-coral); font-weight: 400; }
 
+.settings-header {
+  font-size: 3rem;
+}
+
+.settings-subtitle {
+  font-size: 1rem;;
+  color: var(--color-base-content);
+  opacity: 0.7;
+}
+
 @media (max-width: 650px) {
     h1 { font-size: clamp(51px, 15vw, 68px); }
 }

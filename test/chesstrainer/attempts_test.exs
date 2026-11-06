@@ -59,6 +59,65 @@ defmodule Chesstrainer.AttemptsTest do
     end
   end
 
+  describe "stats_for_user/1" do
+    test "summarises attempts, outcomes and distinct puzzles" do
+      user = user_fixture()
+      first = endgame_fixture()
+      second = endgame_fixture()
+
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(user), first, :solved)
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(user), first, :failed)
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(user), second, :solved)
+
+      assert %{attempts: 3, solved: 2, failed: 1, endgames: 2} =
+               Attempts.stats_for_user(user.id)
+    end
+
+    test "returns zeroes for a user with no attempts" do
+      user = user_fixture()
+
+      assert %{attempts: 0, solved: 0, failed: 0, endgames: 0} =
+               Attempts.stats_for_user(user.id)
+    end
+  end
+
+  describe "list_attempts_for_user/2" do
+    test "returns the user's attempts newest first with endgames preloaded" do
+      user = user_fixture()
+      first = endgame_fixture(fen: "8/8/3k4/8/8/3K1Q2/8/8 w - - 0 1")
+      second = endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+      {:ok, first_attempt} = Attempts.record_attempt(Scope.for_user(user), first, :solved)
+      {:ok, second_attempt} = Attempts.record_attempt(Scope.for_user(user), second, :failed)
+
+      # Attempts within the same second would otherwise tie on `inserted_at`.
+      Repo.update_all(from(a in Attempt, where: a.id == ^first_attempt.id),
+        set: [inserted_at: ~N[2026-01-01 00:00:00]]
+      )
+
+      Repo.update_all(from(a in Attempt, where: a.id == ^second_attempt.id),
+        set: [inserted_at: ~N[2026-01-02 00:00:00]]
+      )
+
+      attempts = Attempts.list_attempts_for_user(user.id)
+
+      assert Enum.map(attempts, & &1.id) == [second_attempt.id, first_attempt.id]
+      assert Enum.all?(attempts, &match?(%Chesstrainer.Endgames.Endgame{}, &1.endgame))
+    end
+
+    test "excludes other users and honours the limit" do
+      user = user_fixture()
+      other = user_fixture()
+      endgame = endgame_fixture()
+
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(user), endgame, :solved)
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(user), endgame, :failed)
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(other), endgame, :solved)
+
+      assert length(Attempts.list_attempts_for_user(user.id)) == 2
+      assert length(Attempts.list_attempts_for_user(user.id, limit: 1)) == 1
+    end
+  end
+
   describe "cascade" do
     test "deleting a user removes their attempts" do
       user = user_fixture()

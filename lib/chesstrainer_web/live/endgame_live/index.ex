@@ -24,7 +24,7 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
         phx-submit="endgame_search"
         class="mb-6 flex items-end gap-2"
       >
-        <div class="flex-1">
+        <div class="flex-1 [&>div]:mb-0">
           <.input
             field={@search_form[:query]}
             type="text"
