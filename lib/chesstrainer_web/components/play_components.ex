@@ -95,7 +95,7 @@ defmodule ChesstrainerWeb.PlayComponents do
             {if @status in [:solved, :failed], do: "Try again", else: "Reset"}
           </.button>
           <.button
-            :if={@session and @status in [:solved, :failed] and not @reviewing}
+            :if={@session and @status in [:solved, :failed]}
             id="next-puzzle-button"
             phx-click="next_puzzle"
             variant="primary"

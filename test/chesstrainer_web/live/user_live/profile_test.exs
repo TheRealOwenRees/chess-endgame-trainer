@@ -23,11 +23,10 @@ defmodule ChesstrainerWeb.UserLive.ProfileTest do
       assert has_element?(view, ~s{a#profile-tab-data[href="/users/profile/data"]})
     end
 
-    test "settings tab shows appearance and the current plan", %{conn: conn} do
+    test "settings tab shows the current plan", %{conn: conn} do
       {:ok, view, html} = live(conn, ~p"/users/profile/settings")
 
-      assert has_element?(view, "#appearance-settings")
-      assert has_element?(view, ~s{[role="radiogroup"][aria-label="Colour mode"]})
+      assert has_element?(view, "#membership-settings")
       assert html =~ "Free"
     end
 

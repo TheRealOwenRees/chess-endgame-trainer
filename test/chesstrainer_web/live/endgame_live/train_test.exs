@@ -161,6 +161,22 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert Enum.any?(endgames, &(&1.id == second.id))
     end
 
+    test "keeps next puzzle available while reviewing", %{conn: conn} do
+      {view, endgames} = start_medium_session(conn, 2)
+      first = :sys.get_state(view.pid).socket.assigns.endgame
+
+      solve_current(view)
+      view |> element("button", "Review") |> render_click()
+
+      assert has_element?(view, "#next-puzzle-button")
+      view |> element("#next-puzzle-button") |> render_click()
+
+      second = :sys.get_state(view.pid).socket.assigns.endgame
+      assert second.id != first.id
+      assert Enum.any?(endgames, &(&1.id == second.id))
+      refute :sys.get_state(view.pid).socket.assigns.reviewing
+    end
+
     test "a retry does not count toward the average again", %{conn: conn} do
       {view, [_endgame]} = start_medium_session(conn, 1)
 
