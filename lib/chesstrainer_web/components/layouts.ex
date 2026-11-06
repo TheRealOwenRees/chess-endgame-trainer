@@ -70,9 +70,9 @@ defmodule ChesstrainerWeb.Layouts do
     ~H"""
     <header>
       <nav class="nav-wrap" aria-label="Main navigation">
-        <a class="brand" href="/" aria-label="Lucid Chess home">
+        <a class="brand" href="/" aria-label={"#{Branding.name()} home"}>
           <span class="brand-mark">♞</span>
-          <span>LUCID</span>
+          <span>{Branding.wordmark()}</span>
         </a>
 
         <div class="nav-right">
@@ -166,9 +166,9 @@ defmodule ChesstrainerWeb.Layouts do
     ~H"""
     <footer class="site-footer">
       <div class="footer-brand">
-        <a class="brand" href="/" aria-label="Lucid Chess home">
+        <a class="brand" href="/" aria-label={"#{Branding.name()} home"}>
           <span class="brand-mark">♞</span>
-          <span>LUCID</span>
+          <span>{Branding.wordmark()}</span>
         </a>
         <p>Short, focused endgame training.</p>
       </div>
@@ -178,7 +178,7 @@ defmodule ChesstrainerWeb.Layouts do
         <a href="/terms-conditions">Terms & Conditions</a>
       </nav>
 
-      <small>© {@year} Lucid Chess</small>
+      <small>© {@year} {Branding.name()}</small>
     </footer>
     """
   end

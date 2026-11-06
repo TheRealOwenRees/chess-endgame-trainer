@@ -1,0 +1,39 @@
+defmodule Chesstrainer.Branding do
+  @moduledoc """
+  Public-facing branding, read from `config :chesstrainer, :branding`.
+
+  Keeps display names out of templates and controllers so the site can be
+  renamed in one place. Values are read at runtime, so a deploy can override
+  them without recompiling.
+  """
+
+  @defaults [
+    name: "Lucid Chess",
+    wordmark: "LUCID",
+    tagline: "Endgame Trainer",
+    support_email: "support@lucidchess.app"
+  ]
+
+  @doc "The display name, e.g. `\"Lucid Chess\"`."
+  def name, do: get(:name)
+
+  @doc "The short wordmark used in the navbar and footer."
+  def wordmark, do: get(:wordmark)
+
+  @doc "The tagline appended to the home title, e.g. `\"Endgame Trainer\"`."
+  def tagline, do: get(:tagline)
+
+  @doc "The address shown in legal pages and used as the mailer `from`."
+  def support_email, do: get(:support_email)
+
+  @doc "The home-page title, e.g. `\"Lucid Chess — Endgame Trainer\"`."
+  def home_title, do: "#{name()} — #{tagline()}"
+
+  @doc "Builds a page title, e.g. `title(\"Privacy Policy\")`."
+  def title(page), do: "#{page} — #{name()}"
+
+  defp get(key) do
+    config = Application.get_env(:chesstrainer, :branding) || []
+    Keyword.get(config, key, Keyword.fetch!(@defaults, key))
+  end
+end

@@ -1,6 +1,7 @@
 defmodule Chesstrainer.Accounts.UserNotifier do
   import Swoosh.Email
 
+  alias Chesstrainer.Branding
   alias Chesstrainer.Mailer
 
   # Delivers the email using the application mailer.
@@ -8,7 +9,7 @@ defmodule Chesstrainer.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"Chesstrainer", "contact@example.com"})
+      |> from({Branding.name(), Branding.support_email()})
       |> subject(subject)
       |> text_body(body)
 

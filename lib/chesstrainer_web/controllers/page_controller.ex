@@ -2,6 +2,7 @@ defmodule ChesstrainerWeb.PageController do
   use ChesstrainerWeb, :controller
 
   alias Chesstrainer.Attempts
+  alias Chesstrainer.Branding
   alias Chesstrainer.DailyPuzzles
   alias Chesstrainer.Endgames
 
@@ -13,7 +14,7 @@ defmodule ChesstrainerWeb.PageController do
 
     conn
     |> assign(:js_entry, ~p"/assets/js/marketing.js")
-    |> assign(:page_title, "Lucid Chess — Endgame Trainer")
+    |> assign(:page_title, Branding.home_title())
     |> assign(:title_suffix, "")
     |> assign(:meta_description, @description)
     |> assign(:canonical_url, current_url(conn))
@@ -29,11 +30,11 @@ defmodule ChesstrainerWeb.PageController do
   def privacy(conn, _params) do
     conn
     |> assign(:js_entry, ~p"/assets/js/marketing.js")
-    |> assign(:page_title, "Privacy Policy — Lucid Chess")
+    |> assign(:page_title, Branding.title("Privacy Policy"))
     |> assign(:title_suffix, "")
     |> assign(
       :meta_description,
-      "How Lucid Chess collects, uses, and protects your personal data."
+      "How #{Branding.name()} collects, uses, and protects your personal data."
     )
     |> assign(:canonical_url, current_url(conn))
     |> render(:privacy)
@@ -42,9 +43,9 @@ defmodule ChesstrainerWeb.PageController do
   def terms_conditions(conn, _params) do
     conn
     |> assign(:js_entry, ~p"/assets/js/marketing.js")
-    |> assign(:page_title, "Terms & Conditions — Lucid Chess")
+    |> assign(:page_title, Branding.title("Terms & Conditions"))
     |> assign(:title_suffix, "")
-    |> assign(:meta_description, "The terms that apply when you use Lucid Chess.")
+    |> assign(:meta_description, "The terms that apply when you use #{Branding.name()}.")
     |> assign(:canonical_url, current_url(conn))
     |> render(:terms_conditions)
   end
