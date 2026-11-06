@@ -26,8 +26,9 @@
       </li>
       <li>
         <strong>Technical data.</strong>
-        Our servers keep standard request logs (IP address, browser, timestamps)
-        for security and troubleshooting. These logs are rotated regularly.
+        Our hosting and server infrastructure may keep standard request logs
+        (IP address, browser, timestamps) for security and troubleshooting.
+        These logs are rotated regularly.
       </li>
       <li>
         <strong>Messages you send us.</strong>
@@ -64,6 +65,28 @@
       We rely on our contract with you to provide the service, our legitimate
       interests in keeping it secure and improving it, and your consent where we
       ask for it. You can withdraw consent at any time.
+    </p>
+
+    <h2>Guest puzzle limit</h2>
+    <p>
+      Visitors who use the guest trainer without an account get a limited number
+      of free puzzles per UTC day. To enforce that limit and prevent abuse, we
+      identify each visitor by a keyed hash (HMAC-SHA256) of their IP address.
+      The limiter itself never stores, logs, or shares the raw address.
+    </p>
+    <p>
+      The hash exists only in the memory of the server that handled your request.
+      It is tied to the current UTC day, stops being usable at 00:00 UTC, and is
+      deleted by a periodic sweep shortly afterwards; it is also discarded when
+      the server restarts. It is never written to a database, a log, or a
+      backup, and no cookie or other client-side storage is involved. Signed-in
+      accounts are not metered this way.
+    </p>
+    <p>
+      We process this hash on the basis of our legitimate interests
+      (Article 6(1)(f) GDPR) in keeping the service available and preventing
+      abuse of the free tier. We do not share it with anyone. You have the right
+      to object to this processing; to do so, contact us using the address below.
     </p>
 
     <h2>Sharing</h2>

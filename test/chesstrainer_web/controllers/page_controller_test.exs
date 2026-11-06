@@ -101,6 +101,9 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ "Last updated: 6 November 2026"
     assert html =~ "What we collect"
     assert html =~ "Cookies and local storage"
+    assert html =~ "Guest puzzle limit"
+    assert html =~ "HMAC-SHA256"
+    assert html =~ "Article 6(1)(f) GDPR"
 
     assert LazyHTML.text(LazyHTML.query(document, "title")) ==
              Branding.title("Privacy Policy")
@@ -119,6 +122,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ "Last updated: 6 November 2026"
     assert html =~ "Acceptable use"
     assert html =~ "Governing law"
+    assert html =~ "fixed number of puzzles per UTC day"
     assert html =~ ~p"/privacy"
 
     assert LazyHTML.text(LazyHTML.query(document, "title")) ==
