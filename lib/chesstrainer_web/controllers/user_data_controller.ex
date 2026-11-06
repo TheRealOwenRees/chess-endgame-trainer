@@ -3,26 +3,39 @@ defmodule ChesstrainerWeb.UserDataController do
 
   alias Chesstrainer.Attempts
 
-  @columns ~w(played_at puzzle public_code color result outcome rated_at)
+  @user_columns ~w(user_username user_email user_rating user_rating_deviation user_plan user_joined_at)
+  @attempt_columns ~w(played_at puzzle public_code color result outcome rated_at)
+  @columns @user_columns ++ @attempt_columns
 
   def export(conn, %{"format" => format}) when format in ["csv", "json"] do
-    attempts = Attempts.list_attempts_for_user(conn.assigns.current_scope.user.id)
-    filename = "lucid-chess-attempts-#{Date.utc_today()}.#{format}"
+    user = conn.assigns.current_scope.user
+    attempts = Attempts.list_attempts_for_user(user.id)
+    filename = "lucid-chess-data-#{Date.utc_today()}.#{format}"
 
     conn
     |> put_resp_content_type(content_type(format))
     |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
-    |> send_resp(200, body(format, attempts))
+    |> send_resp(200, body(format, user, attempts))
   end
 
   def export(conn, _params), do: send_resp(conn, 404, "Unknown export format")
 
-  defp body("csv", attempts), do: attempts |> Enum.map(&row/1) |> to_csv()
+  defp body("csv", user, attempts), do: to_csv(user, attempts)
 
-  defp body("json", attempts) do
-    attempts
-    |> Enum.map(&attempt_map/1)
+  defp body("json", user, attempts) do
+    %{user: user_map(user), attempts: Enum.map(attempts, &attempt_map/1)}
     |> Jason.encode!(pretty: true)
+  end
+
+  defp user_map(user) do
+    %{
+      username: user.username,
+      email: user.email,
+      rating: user.rating,
+      rating_deviation: user.rating_deviation,
+      plan: user.plan,
+      joined_at: DateTime.to_iso8601(user.inserted_at)
+    }
   end
 
   defp attempt_map(attempt) do
@@ -37,7 +50,30 @@ defmodule ChesstrainerWeb.UserDataController do
     }
   end
 
-  defp row(attempt) do
+  defp to_csv(user, attempts) do
+    rows =
+      case attempts do
+        [] -> [user_row(user) ++ empty_attempt_row()]
+        attempts -> Enum.map(attempts, &(user_row(user) ++ attempt_row(&1)))
+      end
+
+    [@columns | rows]
+    |> Enum.map_join("\n", fn row -> Enum.map_join(row, ",", &csv_field/1) end)
+    |> Kernel.<>("\n")
+  end
+
+  defp user_row(user) do
+    [
+      user.username,
+      user.email,
+      user.rating,
+      user.rating_deviation,
+      user.plan,
+      DateTime.to_iso8601(user.inserted_at)
+    ]
+  end
+
+  defp attempt_row(attempt) do
     [
       DateTime.to_iso8601(attempt.inserted_at),
       attempt.endgame.key,
@@ -49,11 +85,7 @@ defmodule ChesstrainerWeb.UserDataController do
     ]
   end
 
-  defp to_csv(rows) do
-    [@columns | rows]
-    |> Enum.map_join("\n", fn row -> Enum.map_join(row, ",", &csv_field/1) end)
-    |> Kernel.<>("\n")
-  end
+  defp empty_attempt_row, do: List.duplicate(nil, length(@attempt_columns))
 
   defp csv_field(nil), do: ""
 

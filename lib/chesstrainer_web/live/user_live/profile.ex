@@ -176,7 +176,7 @@ defmodule ChesstrainerWeb.UserLive.Profile do
 
           <section id="data-export" class="space-y-4 rounded-lg border border-base-300 p-4">
             <h2 class="settings-header">Export your data</h2>
-            <p class="settings-subtitle">Download every recorded attempt.</p>
+            <p class="settings-subtitle">Download your profile details and every recorded attempt.</p>
             <div class="flex flex-wrap gap-3">
               <.button id="export-csv" href={~p"/users/profile/export/csv"}>
                 <.icon name="hero-arrow-down-tray" class="w-4 h-4" /> Download CSV
