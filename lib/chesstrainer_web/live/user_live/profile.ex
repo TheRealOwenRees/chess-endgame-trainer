@@ -53,10 +53,8 @@ defmodule ChesstrainerWeb.UserLive.Profile do
           </section>
 
           <section id="email-settings" class="space-y-4">
-            <.header>
-              Change email
-              <:subtitle>We will send a confirmation link to the new address.</:subtitle>
-            </.header>
+            <h2 class="settings-header">Change email</h2>
+            <p class="settings-subtitle">We will send a confirmation link to the new address.</p>
 
             <.form
               for={@email_form}
@@ -79,10 +77,8 @@ defmodule ChesstrainerWeb.UserLive.Profile do
           <hr class="my-6 border-base-200" />
 
           <section id="password-settings" class="space-y-4">
-            <.header>
-              Change password
-              <:subtitle>Choose a new password for this account.</:subtitle>
-            </.header>
+            <h2 class="settings-header">Change password</h2>
+            <p class="settings-subtitle">Choose a new password for this account.</p>
 
             <.form
               for={@password_form}
@@ -124,10 +120,8 @@ defmodule ChesstrainerWeb.UserLive.Profile do
           <hr class="my-6 border-base-200" />
 
           <section id="delete_account" class="space-y-4">
-            <.header>
-              Delete account
-              <:subtitle>This action is permanent and cannot be undone.</:subtitle>
-            </.header>
+            <h2 class="settings-header">Delete account</h2>
+            <p class="settings-subtitle">This action is permanent and cannot be undone.</p>
 
             <p class="text-sm text-base-content/70">
               Deleting your account permanently removes your profile, rating and training history.
@@ -154,10 +148,8 @@ defmodule ChesstrainerWeb.UserLive.Profile do
           </section> --%>
 
           <section id="membership-settings" class="space-y-2 rounded-lg border border-base-300 p-4">
-            <.header>
-              Membership
-              <:subtitle>Your current plan.</:subtitle>
-            </.header>
+            <h2 class="settings-header">Membership</h2>
+            <p class="settings-subtitle">Your current plan.</p>
             <p class="text-sm">
               You are on the <strong>{plan_label(@current_scope)}</strong> plan.
             </p>
@@ -171,12 +163,9 @@ defmodule ChesstrainerWeb.UserLive.Profile do
             More site settings will appear here as they become available.
           </p>
         <% :data -> %>
-          <section id="training-stats" class="space-y-4">
-            <.header>
-              Progress
-              <:subtitle>Your score and solve history across every puzzle.</:subtitle>
-            </.header>
-
+          <section id="training-stats" class="space-y-4 rounded-lg border border-base-300 p-4">
+            <h2 class="settings-header">Progress</h2>
+            <p class="settings-subtitle">Your score and solve history across every puzzle.</p>
             <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <.stat label="Rating" value={round(@current_scope.user.rating)} />
               <.stat label="Attempts" value={@stats.attempts} />
@@ -186,11 +175,8 @@ defmodule ChesstrainerWeb.UserLive.Profile do
           </section>
 
           <section id="data-export" class="space-y-4 rounded-lg border border-base-300 p-4">
-            <.header>
-              Export your data
-              <:subtitle>Download every recorded attempt.</:subtitle>
-            </.header>
-
+            <h2 class="settings-header">Export your data</h2>
+            <p class="settings-subtitle">Download every recorded attempt.</p>
             <div class="flex flex-wrap gap-3">
               <.button id="export-csv" href={~p"/users/profile/export/csv"}>
                 <.icon name="hero-arrow-down-tray" class="w-4 h-4" /> Download CSV
@@ -201,12 +187,9 @@ defmodule ChesstrainerWeb.UserLive.Profile do
             </div>
           </section>
 
-          <section id="attempt-history" class="space-y-4">
-            <.header>
-              Recent attempts
-              <:subtitle>The last {@recent_attempts} puzzles you finished.</:subtitle>
-            </.header>
-
+          <section id="attempt-history" class="space-y-4 rounded-lg border border-base-300 p-4">
+            <h2 class="settings-header">Recent attempts</h2>
+            <p class="settings-subtitle">The last {@recent_attempts} puzzles you finished.</p>
             <table :if={@attempts != []} class="w-full text-left text-sm">
               <thead class="border-b border-base-300 text-base-content/60">
                 <tr>
@@ -241,10 +224,8 @@ defmodule ChesstrainerWeb.UserLive.Profile do
           </section>
 
           <section id="premium-data" class="space-y-2 rounded-lg border border-base-300 p-4">
-            <.header>
-              Premium insights
-              <:subtitle>Deeper training analytics, once Premium is available.</:subtitle>
-            </.header>
+            <h2 class="settings-header">Premium Insights</h2>
+            <p class="settings-subtitle">Deeper training analytics, once Premium is available.</p>
             <ul class="list-inside list-disc text-sm text-base-content/70">
               <li>Session-by-session performance</li>
               <li>Failed puzzles and weak themes</li>
