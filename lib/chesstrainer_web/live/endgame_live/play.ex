@@ -10,13 +10,15 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <.header>
-        Play endgame {@endgame.key}
-        <:subtitle>
-          {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {round(
-            @endgame.rating
-          )} · Attempts: {@endgame.times_attempted ||
-            0} · Solved: {@endgame.times_solved || 0}
+      <header class="flex flex-wrap items-start justify-between gap-4 pb-4">
+        <div>
+          <h1 class="settings-header">Play endgame {@endgame.key}</h1>
+          <p class="settings-subtitle mt-4">
+            {@endgame.color |> Atom.to_string() |> String.capitalize()} to move · Rating: {round(
+              @endgame.rating
+            )} · Attempts: {@endgame.times_attempted ||
+              0} · Solved: {@endgame.times_solved || 0}
+          </p>
           <p class="text-xs text-muted flex items-center mt-1">
             <span>FEN: {@endgame.fen}</span>
             <button
@@ -29,20 +31,16 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
               <.icon name="hero-document-duplicate" class="w-3.5 h-3.5" />
             </button>
           </p>
-        </:subtitle>
-        <:actions>
+        </div>
+        <div class="flex flex-none gap-2">
           <.button :if={Scope.premium?(@current_scope)} navigate={~p"/endgames"}>
             <.icon name="hero-arrow-left" /> Back to endgames
           </.button>
           <.button :if={!Scope.premium?(@current_scope)} navigate={~p"/"}>
             <.icon name="hero-arrow-left" /> Back home
           </.button>
-        </:actions>
-      </.header>
-
-      <div :if={@user_rating} class="mb-4">
-        <.rating_guide rating={@user_rating} deviation={@user_deviation} />
-      </div>
+        </div>
+      </header>
 
       <PlayComponents.play_surface
         endgame={@endgame}
@@ -59,6 +57,10 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         last_grade={@last_grade}
         awaiting_best_line={@awaiting_best_line}
       />
+
+       <div :if={@user_rating} class="mb-4">
+        <.rating_guide rating={@user_rating} deviation={@user_deviation} />
+      </div>
     </Layouts.app>
     """
   end
