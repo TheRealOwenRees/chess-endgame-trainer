@@ -6,7 +6,8 @@ defmodule Chesstrainer.Repo.Seeds.Endgames.Win do
       color: :white,
       message: "Rook vs king endgame",
       notes: "Basic rook endgame",
-      result: :win
+      result: :win,
+      themes: ["rook endgame"]
     },
     %{
       fen: "8/8/8/1P4p1/5k2/5p2/P6K/8 b - - 0 0",
