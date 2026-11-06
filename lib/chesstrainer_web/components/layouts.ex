@@ -67,6 +67,7 @@ defmodule ChesstrainerWeb.Layouts do
       assigns
       |> assign(:nav_links, nav_links(assigns.current_scope))
       |> assign(:start_href, start_href(assigns.current_scope))
+      |> assign(:user, signed_in_user(assigns.current_scope))
 
     ~H"""
     <header>
@@ -92,11 +93,22 @@ defmodule ChesstrainerWeb.Layouts do
 
           <div class="nav-links" id="nav-links">
             <%= for link <- @nav_links do %>
-              <%= if link[:kind] == :text do %>
-                <span class="nav-user">{link.label}</span>
-              <% else %>
-                <.link href={link.href} method={link[:method]}>{link.label}</.link>
-              <% end %>
+              <.link href={link.href}>{link.label}</.link>
+            <% end %>
+
+            <%= if @user do %>
+              <details class="nav-user-menu">
+                <summary>{@user.username}</summary>
+                <div class="nav-user-menu-panel">
+                  <.link navigate={~p"/users/profile"}>Account</.link>
+                  <.link navigate={~p"/users/profile/settings"}>Settings</.link>
+                  <.link navigate={~p"/users/profile/data"}>Data</.link>
+                  <.link href={~p"/users/log-out"} method="delete">Log out</.link>
+                </div>
+              </details>
+            <% else %>
+              <.link href={~p"/users/log-in"}>Log in</.link>
+              <.link href={~p"/users/register"}>Register</.link>
             <% end %>
 
             <.pill_button variant={:nav} href={@start_href}>
@@ -126,24 +138,11 @@ defmodule ChesstrainerWeb.Layouts do
         []
       end
 
-    account =
-      case scope do
-        %{user: %{username: username}} ->
-          [
-            %{label: "Settings", href: ~p"/users/settings"},
-            %{label: "Log out", href: ~p"/users/log-out", method: "delete"},
-            %{label: username, kind: :text}
-          ]
-
-        _ ->
-          [
-            %{label: "Log in", href: ~p"/users/log-in"},
-            %{label: "Register", href: ~p"/users/register"}
-          ]
-      end
-
-    marketing ++ admin ++ account
+    marketing ++ admin
   end
+
+  defp signed_in_user(%{user: %{username: _} = user}), do: user
+  defp signed_in_user(_scope), do: nil
 
   defp admin?(%{user: %{role: role}}), do: Role.admin?(role)
   defp admin?(_scope), do: false

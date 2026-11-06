@@ -71,6 +71,39 @@ defmodule Chesstrainer.Attempts do
   end
 
   @doc """
+  Aggregated attempt totals for `user_id`.
+
+  Returns a map with `:attempts`, `:solved`, `:failed` and `:endgames` (the
+  number of distinct puzzles tried).
+  """
+  def stats_for_user(user_id) do
+    Attempt
+    |> where([a], a.user_id == ^user_id)
+    |> select([a], %{
+      attempts: count(a.id),
+      solved: filter(count(a.id), a.outcome == :solved),
+      failed: filter(count(a.id), a.outcome == :failed),
+      endgames: count(a.endgame_id, :distinct)
+    })
+    |> Repo.one()
+  end
+
+  @doc """
+  The attempts of `user_id`, newest first, with each endgame preloaded.
+
+  Pass `limit: n` to cap the history (the profile page shows a recent window;
+  exports pass no limit).
+  """
+  def list_attempts_for_user(user_id, opts \\ []) do
+    Attempt
+    |> where([a], a.user_id == ^user_id)
+    |> order_by([a], desc: a.inserted_at)
+    |> maybe_limit(Keyword.get(opts, :limit))
+    |> preload(:endgame)
+    |> Repo.all()
+  end
+
+  @doc """
   The distinct endgame ids `user_id` has attempted in the last `days` days.
 
   Used by puzzle selection to prefer fresh puzzles; a retry still counts as an
@@ -87,4 +120,7 @@ defmodule Chesstrainer.Attempts do
   end
 
   defp rated(query), do: where(query, [a], not is_nil(a.rated_at))
+
+  defp maybe_limit(query, nil), do: query
+  defp maybe_limit(query, limit) when is_integer(limit), do: limit(query, ^limit)
 end

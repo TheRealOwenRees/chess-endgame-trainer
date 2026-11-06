@@ -50,7 +50,7 @@ defmodule ChesstrainerWeb.UserSessionController do
     user = Accounts.get_user_by_login_and_password(login, password)
 
     conn
-    |> put_session(:user_return_to, ~p"/users/settings")
+    |> put_session(:user_return_to, ~p"/users/profile")
     |> put_flash(:info, "Password updated successfully!")
     |> UserAuth.log_in_user(user, user_params)
   end

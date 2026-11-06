@@ -174,17 +174,17 @@ defmodule ChesstrainerWeb.PageControllerTest do
 
     assert html =~ ~p"/users/log-in"
     assert html =~ ~p"/users/register"
-    refute html =~ ~p"/users/settings"
+    refute html =~ ~p"/users/profile"
   end
 
-  test "signed-in navbar links to settings and log out", %{conn: conn} do
+  test "signed-in navbar links to the profile and log out", %{conn: conn} do
     html =
       conn
       |> log_in_user(user_fixture())
       |> get(~p"/")
       |> html_response(200)
 
-    assert html =~ ~p"/users/settings"
+    assert html =~ ~p"/users/profile"
     assert html =~ ~p"/users/log-out"
     refute html =~ ~p"/users/register"
   end

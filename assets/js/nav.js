@@ -4,6 +4,11 @@
 const WRAP = ".nav-wrap";
 const TOGGLE = ".menu-button";
 const LINKS = ".nav-links";
+const USER_MENU = ".nav-user-menu";
+
+const closeUserMenus = () => {
+  document.querySelectorAll(`${USER_MENU}[open]`).forEach((menu) => menu.removeAttribute("open"));
+};
 
 const setOpen = (open) => {
   const wrap = document.querySelector(WRAP);
@@ -26,6 +31,16 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  if (target.closest(`${USER_MENU} a`)) {
+    closeUserMenus();
+    setOpen(false);
+    return;
+  }
+
+  if (!target.closest(USER_MENU)) {
+    closeUserMenus();
+  }
+
   if (target.closest(`${LINKS} a`)) {
     setOpen(false);
     return;
@@ -39,6 +54,7 @@ document.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     setOpen(false);
+    closeUserMenus();
   }
 });
 
