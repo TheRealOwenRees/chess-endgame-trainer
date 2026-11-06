@@ -322,7 +322,7 @@ defmodule Chesstrainer.EndgamesTest do
     end
   end
 
-  describe "random_endgame/0" do
+  describe "random_endgame/1" do
     test "returns nil when there are no endgames" do
       assert Endgames.random_endgame() == nil
     end
@@ -332,6 +332,13 @@ defmodule Chesstrainer.EndgamesTest do
       kq = create_endgame!(@kq)
 
       assert Endgames.random_endgame().id in [kr.id, kq.id]
+    end
+
+    test "skips excluded endgames" do
+      kr = create_endgame!(@kr)
+      kq = create_endgame!(@kq)
+
+      assert Endgames.random_endgame(exclude_ids: [kr.id]).id == kq.id
     end
   end
 

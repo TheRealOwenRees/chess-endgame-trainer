@@ -81,6 +81,13 @@ config :chesstrainer, Chesstrainer.Cache,
   max_size: cache_max_size,
   backup_time: cache_backup_time
 
+# Guest puzzle limit: free puzzles per UTC day for anonymous visitors. The
+# visitor is identified by a keyed hash of their address held in memory only.
+# Enable TRUST_FORWARDED_FOR only behind a proxy that sets the header.
+config :chesstrainer, Chesstrainer.GuestLimits,
+  limit: String.to_integer(System.get_env("GUEST_PUZZLE_LIMIT", "5")),
+  trust_forwarded_for: System.get_env("TRUST_FORWARDED_FOR") in ~w(true 1)
+
 config :chesstrainer, ChesstrainerWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
