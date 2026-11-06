@@ -174,8 +174,8 @@ defmodule ChesstrainerWeb.Layouts do
       </div>
 
       <nav class="footer-links" aria-label="Footer">
-        <a href="/#privacy">Privacy Policy</a>
-        <a href="/#terms-conditions">Terms & Conditions</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms-conditions">Terms & Conditions</a>
       </nav>
 
       <small>© {@year} Lucid Chess</small>
