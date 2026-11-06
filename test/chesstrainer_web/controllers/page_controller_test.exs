@@ -53,7 +53,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ "Learn to see the"
     assert html =~ "LUCID"
     assert html =~ "Privacy Policy"
-    assert html =~ "/#terms-conditions"
+    assert html =~ "/terms-conditions"
     assert html =~ "Start training"
     assert html =~ ~s(id="nav-links")
     assert html =~ "menu-button"
@@ -90,6 +90,43 @@ defmodule ChesstrainerWeb.PageControllerTest do
         ] do
       assert LazyHTML.attribute(LazyHTML.query(document, selector), "content") == [content]
     end
+  end
+
+  test "GET /privacy renders the privacy policy", %{conn: conn} do
+    html = conn |> get(~p"/privacy") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert LazyHTML.text(LazyHTML.query(document, "h1")) == "Privacy Policy"
+    assert html =~ "Last updated: 6 November 2026"
+    assert html =~ "What we collect"
+    assert html =~ "Cookies and local storage"
+
+    assert LazyHTML.text(LazyHTML.query(document, "title")) ==
+             "Privacy Policy — Lucid Chess"
+
+    assert [canonical] =
+             LazyHTML.attribute(LazyHTML.query(document, ~s(link[rel="canonical"])), "href")
+
+    assert URI.parse(canonical).path == "/privacy"
+  end
+
+  test "GET /terms-conditions renders the terms", %{conn: conn} do
+    html = conn |> get(~p"/terms-conditions") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert LazyHTML.text(LazyHTML.query(document, "h1")) == "Terms & Conditions"
+    assert html =~ "Last updated: 6 November 2026"
+    assert html =~ "Acceptable use"
+    assert html =~ "Governing law"
+    assert html =~ ~p"/privacy"
+
+    assert LazyHTML.text(LazyHTML.query(document, "title")) ==
+             "Terms & Conditions — Lucid Chess"
+
+    assert [canonical] =
+             LazyHTML.attribute(LazyHTML.query(document, ~s(link[rel="canonical"])), "href")
+
+    assert URI.parse(canonical).path == "/terms-conditions"
   end
 
   test "hero shows the number of players with at least one attempt", %{conn: conn} do

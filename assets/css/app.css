@@ -22,6 +22,7 @@
 @import "./components/_learning-strip.css";
 @import "./components/_board.css";
 @import "./components/_promotion.css";
+@import "./pages/_legal.css";
 
 @source "../css";
 @source "../js";

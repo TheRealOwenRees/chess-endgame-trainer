@@ -29,8 +29,12 @@ defmodule ChesstrainerWeb.PageController do
   def privacy(conn, _params) do
     conn
     |> assign(:js_entry, ~p"/assets/js/marketing.js")
-    |> assign(:page_title, "Privacy Policy - Lucid Chess")
-    |> assign(:meta_description, "Lucid Chess privacy policy")
+    |> assign(:page_title, "Privacy Policy — Lucid Chess")
+    |> assign(:title_suffix, "")
+    |> assign(
+      :meta_description,
+      "How Lucid Chess collects, uses, and protects your personal data."
+    )
     |> assign(:canonical_url, current_url(conn))
     |> render(:privacy)
   end
@@ -38,8 +42,9 @@ defmodule ChesstrainerWeb.PageController do
   def terms_conditions(conn, _params) do
     conn
     |> assign(:js_entry, ~p"/assets/js/marketing.js")
-    |> assign(:page_title, "Terms & Conditions- Lucid Chess")
-    |> assign(:meta_description, "Lucid Chess terms and conditions")
+    |> assign(:page_title, "Terms & Conditions — Lucid Chess")
+    |> assign(:title_suffix, "")
+    |> assign(:meta_description, "The terms that apply when you use Lucid Chess.")
     |> assign(:canonical_url, current_url(conn))
     |> render(:terms_conditions)
   end
