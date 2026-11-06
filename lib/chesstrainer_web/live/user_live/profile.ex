@@ -144,13 +144,14 @@ defmodule ChesstrainerWeb.UserLive.Profile do
             </.button>
           </section>
         <% :settings -> %>
-          <section id="appearance-settings" class="space-y-4 rounded-lg border border-base-300 p-4">
+          <%!-- Keep section for when board themes are added etc --%>
+          <%!-- <section id="appearance-settings" class="space-y-4 rounded-lg border border-base-300 p-4">
             <.header>
               Appearance
               <:subtitle>Choose how the site looks on this device.</:subtitle>
             </.header>
             <Layouts.colour_mode_toggle />
-          </section>
+          </section> --%>
 
           <section id="membership-settings" class="space-y-2 rounded-lg border border-base-300 p-4">
             <.header>
