@@ -23,6 +23,7 @@
 @import "./components/_board.css";
 @import "./components/_promotion.css";
 @import "./pages/_legal.css";
+@import "./pages/_error.css";
 
 @source "../css";
 @source "../js";

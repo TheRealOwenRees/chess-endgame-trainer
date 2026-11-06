@@ -263,4 +263,17 @@ defmodule ChesstrainerWeb.PageControllerTest do
              "/endgames"
            ]
   end
+
+  test "unknown routes render the branded 404 page", %{conn: conn} do
+    html = conn |> get("/this-page-does-not-exist") |> html_response(404)
+    document = LazyHTML.from_document(html)
+
+    assert LazyHTML.text(LazyHTML.query(document, "title")) == Branding.title("Page not found")
+    assert LazyHTML.text(LazyHTML.query(document, ".error-code")) == "404"
+    assert html =~ "The page you were looking for moved"
+    assert html =~ "Browse puzzles"
+    assert html =~ ~s(class="site-footer")
+    assert html =~ "/assets/js/marketing.js"
+    assert html =~ ~s(name="robots")
+  end
 end

@@ -239,9 +239,10 @@ defmodule ChesstrainerWeb.Layouts do
   @doc """
   Provides the system / light / dark colour-mode switch.
 
-  The click handling and `aria-checked` syncing live in the script in
-  `root.html.heex`, which runs before paint and also on pages without LiveView
-  (the landing page uses the marketing bundle).
+  The click handling and `aria-checked` syncing live in `theme_script.html.heex`,
+  which runs before paint and also on pages without LiveView (the landing page
+  uses the marketing bundle). Error pages include it explicitly because they do
+  not render through the root layout.
   """
   def colour_mode_toggle(assigns) do
     ~H"""

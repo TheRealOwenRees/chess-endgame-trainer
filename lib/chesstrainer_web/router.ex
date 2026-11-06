@@ -93,4 +93,12 @@ defmodule ChesstrainerWeb.Router do
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
   end
+
+  # Keep this last: routes match in definition order. It gives unmatched paths a
+  # branded 404 page with the site chrome instead of Phoenix's bare status page.
+  scope "/", ChesstrainerWeb do
+    pipe_through :browser
+
+    match :*, "/*path", PageController, :not_found
+  end
 end

@@ -49,4 +49,14 @@ defmodule ChesstrainerWeb.PageController do
     |> assign(:canonical_url, current_url(conn))
     |> render(:terms_conditions)
   end
+
+  def not_found(conn, _params) do
+    conn
+    |> put_status(:not_found)
+    |> assign(:js_entry, ~p"/assets/js/marketing.js")
+    |> assign(:page_title, Branding.title("Page not found"))
+    |> assign(:title_suffix, "")
+    |> assign(:noindex, true)
+    |> render(:not_found)
+  end
 end
