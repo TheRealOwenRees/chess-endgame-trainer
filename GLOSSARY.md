@@ -64,6 +64,12 @@ _Avoid_: Permission, access level
 A user's subscription tier — `free` or `premium` — independent of their role.
 _Avoid_: Tier, subscription, membership
 
+**Mailing list**:
+Email addresses that opted in to occasional product updates, collected from the
+landing-page form or the registration checkbox; a subscriber need not have an
+account.
+_Avoid_: Newsletter, subscription (reserved for the premium plan)
+
 ## Play
 
 **Winning side**:

@@ -5,6 +5,8 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
   import Chesstrainer.AccountsFixtures
   import Swoosh.TestAssertions
 
+  alias Chesstrainer.MailingList.Subscriber
+
   describe "Registration page" do
     test "renders registration page", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/users/register")
@@ -34,6 +36,16 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
       assert result =~ "Register"
       assert result =~ "must have the @ sign and no spaces"
     end
+
+    test "renders the mailing list opt-in unchecked", %{conn: conn} do
+      {:ok, lv, html} = live(conn, ~p"/users/register")
+
+      assert html =~ "Send me occasional endgame tips and site news by email"
+
+      refute lv
+             |> element("#registration_form input[name=\"user[mailing_list]\"][checked]")
+             |> has_element?()
+    end
   end
 
   describe "register user" do
@@ -61,6 +73,45 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
                "An email with instructions for how to confirm your email address has been sent to your inbox."
 
       assert_email_sent(subject: "Confirmation instructions")
+    end
+
+    test "subscribes to the mailing list when the box is checked", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/register")
+
+      email = unique_user_email()
+
+      lv
+      |> form("#registration_form",
+        user: %{
+          "username" => unique_username(),
+          "email" => email,
+          "password" => valid_user_password(),
+          "password_confirmation" => valid_user_password(),
+          "mailing_list" => "true"
+        }
+      )
+      |> render_submit()
+
+      subscriber = Chesstrainer.Repo.get_by(Subscriber, email: email)
+      assert subscriber
+      assert subscriber.confirmed_at == nil
+    end
+
+    test "does not subscribe when the box is unchecked", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/register")
+
+      lv
+      |> form("#registration_form",
+        user: %{
+          "username" => unique_username(),
+          "email" => unique_user_email(),
+          "password" => valid_user_password(),
+          "password_confirmation" => valid_user_password()
+        }
+      )
+      |> render_submit()
+
+      assert Chesstrainer.Repo.aggregate(Subscriber, :count) == 0
     end
 
     test "renders errors for duplicated email", %{conn: conn} do

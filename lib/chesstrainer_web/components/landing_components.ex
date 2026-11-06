@@ -8,6 +8,8 @@ defmodule ChesstrainerWeb.LandingComponents do
   """
   use Phoenix.Component
 
+  import Phoenix.Controller, only: [get_csrf_token: 0]
+
   alias Chesstrainer.FEN
   alias Chesstrainer.Themes
 
@@ -68,6 +70,43 @@ defmodule ChesstrainerWeb.LandingComponents do
       </button>
       """
     end
+  end
+
+  @doc """
+  Renders the mailing-list signup band.
+
+  The form posts to `POST /mailing-list` and the controller redirects back to
+  the `#mailing-list` anchor with a flash. Keeping it a plain form means the
+  landing page needs no LiveView to collect an address.
+  """
+  def mailing_list_signup(assigns) do
+    ~H"""
+    <section class="mailing-list" id="mailing-list">
+      <div class="mailing-list-copy">
+        <span class="section-kicker">Mailing list</span>
+        <h2>One good endgame idea, now and then.</h2>
+        <p>
+          Occasional emails about new puzzles and features. We'll ask you to confirm your address first.
+        </p>
+      </div>
+
+      <form action="/mailing-list" method="post" id="mailing-list-form" class="mailing-list-form">
+        <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+        <label for="mailing-list-email">Email address</label>
+        <div class="mailing-list-row">
+          <input
+            id="mailing-list-email"
+            type="email"
+            name="subscriber[email]"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          />
+          <.pill_button variant={:primary} type="submit">Join the list</.pill_button>
+        </div>
+      </form>
+    </section>
+    """
   end
 
   @doc """

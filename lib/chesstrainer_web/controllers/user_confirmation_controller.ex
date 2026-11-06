@@ -2,10 +2,13 @@ defmodule ChesstrainerWeb.UserConfirmationController do
   use ChesstrainerWeb, :controller
 
   alias Chesstrainer.Accounts
+  alias Chesstrainer.MailingList
 
   def edit(conn, %{"token" => token}) do
     case Accounts.confirm_user(token) do
-      {:ok, _user} ->
+      {:ok, user} ->
+        MailingList.confirm_user_subscription(user)
+
         conn
         |> put_flash(:info, "User confirmed successfully.")
         |> redirect(to: ~p"/users/log-in")

@@ -5,6 +5,8 @@ defmodule ChesstrainerWeb.UserConfirmationControllerTest do
 
   alias Chesstrainer.Accounts
   alias Chesstrainer.Accounts.User
+  alias Chesstrainer.MailingList
+  alias Chesstrainer.MailingList.Subscriber
   alias Chesstrainer.Repo
 
   setup do
@@ -32,6 +34,22 @@ defmodule ChesstrainerWeb.UserConfirmationControllerTest do
                "User not found or token is invalid."
 
       assert redirected_to(conn) == ~p"/users/register"
+    end
+
+    test "confirms a linked mailing-list opt-in", %{conn: conn, user: user} do
+      {:ok, _subscriber} = MailingList.subscribe_user(user)
+
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_confirmation_instructions(user, url)
+        end)
+
+      get(conn, ~p"/users/confirm/#{token}")
+
+      assert %Subscriber{confirmed_at: confirmed_at} =
+               Repo.get_by(Subscriber, user_id: user.id)
+
+      assert confirmed_at
     end
   end
 end

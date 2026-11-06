@@ -3,6 +3,7 @@ defmodule ChesstrainerWeb.UserLive.Registration do
 
   alias Chesstrainer.Accounts
   alias Chesstrainer.Accounts.User
+  alias Chesstrainer.MailingList
 
   @impl true
   def render(assigns) do
@@ -56,6 +57,11 @@ defmodule ChesstrainerWeb.UserLive.Registration do
             spellcheck="false"
             required
           />
+          <.input
+            field={@form[:mailing_list]}
+            type="checkbox"
+            label="Send me occasional endgame tips and site news by email"
+          />
 
           <.button phx-disable-with="Creating account..." variant="primary" class="w-full">
             Create an account
@@ -82,6 +88,8 @@ defmodule ChesstrainerWeb.UserLive.Registration do
   def handle_event("save", %{"user" => user_params}, socket) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
+        if user.mailing_list, do: MailingList.subscribe_user(user)
+
         {:ok, _} =
           Accounts.deliver_user_confirmation_instructions(
             user,

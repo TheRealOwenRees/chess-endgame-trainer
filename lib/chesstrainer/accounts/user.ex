@@ -15,6 +15,7 @@ defmodule Chesstrainer.Accounts.User do
     field :rating_deviation, :float, default: 350.0
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
+    field :mailing_list, :boolean, virtual: true, default: false
 
     timestamps(type: :utc_datetime)
   end
@@ -34,7 +35,7 @@ defmodule Chesstrainer.Accounts.User do
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :username, :password])
+    |> cast(attrs, [:email, :username, :password, :mailing_list])
     |> validate_email(opts)
     |> validate_username(opts)
     |> validate_confirmation(:password, message: "does not match password")

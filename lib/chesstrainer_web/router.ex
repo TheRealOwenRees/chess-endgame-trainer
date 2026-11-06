@@ -23,6 +23,8 @@ defmodule ChesstrainerWeb.Router do
     get "/", PageController, :home
     get "/privacy", PageController, :privacy
     get "/terms-conditions", PageController, :terms_conditions
+    post "/mailing-list", MailingListController, :create
+    get "/mailing-list/confirm/:token", MailingListController, :confirm
   end
 
   scope "/admin", ChesstrainerWeb do

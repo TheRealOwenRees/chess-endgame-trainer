@@ -180,6 +180,22 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert LazyHTML.text(LazyHTML.query(document, ".rating-note strong")) == "0"
   end
 
+  test "renders the mailing list signup form", %{conn: conn} do
+    html = conn |> get(~p"/") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    form = LazyHTML.query(document, "#mailing-list-form")
+    assert LazyHTML.attribute(form, "action") == ["/mailing-list"]
+    assert LazyHTML.attribute(form, "method") == ["post"]
+
+    input = LazyHTML.query(document, "#mailing-list-email")
+    assert LazyHTML.attribute(input, "type") == ["email"]
+    assert LazyHTML.attribute(input, "name") == ["subscriber[email]"]
+
+    assert html =~ "Join the list"
+    assert html =~ ~s(name="_csrf_token")
+  end
+
   test "guest navbar links to log in and register", %{conn: conn} do
     html = conn |> get(~p"/") |> html_response(200)
 
