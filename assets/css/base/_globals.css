@@ -16,6 +16,10 @@
   }
   button, a { -webkit-tap-highlight-color: transparent; }
   button { cursor: pointer; }
+
+  /* A consistent focus ring for links, buttons and native controls. Components
+     that provide their own ring (form inputs) override this through utilities. */
+  :focus-visible { outline: 2px solid var(--color-coral-text); outline-offset: 2px; }
 }
 
 main { overflow: hidden; flex: 1 0 auto; }

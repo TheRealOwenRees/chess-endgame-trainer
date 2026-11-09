@@ -72,6 +72,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
         :if={@endgame}
         session={is_nil(@limit_reached)}
         endgame={@endgame}
+        fen={@fen}
         status={@status}
         blocked_reason={@blocked_reason}
         best_move={@best_move}
@@ -84,6 +85,10 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
         awaiting_reply={@awaiting_reply}
         last_grade={@last_grade}
         awaiting_best_line={@awaiting_best_line}
+        move_input={@move_input}
+        move_input_error={@move_input_error}
+        last_check={@last_check}
+        last_checkmate={@last_checkmate}
       />
 
       <p :if={@loading} class="text-base-content/70">Picking a random puzzle…</p>
@@ -149,6 +154,13 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
 
   def handle_event("endgame_move_played", params, socket),
     do: PlayCore.move_played(socket, params)
+
+  def handle_event("submit_move", params, socket), do: PlayCore.submit_move(socket, params)
+
+  def handle_event("move_input", params, socket), do: PlayCore.move_input_changed(socket, params)
+
+  def handle_event("move_input_error", params, socket),
+    do: PlayCore.move_input_error(socket, params)
 
   def handle_event("opponent_reply_applied", params, socket),
     do: PlayCore.opponent_reply_applied(socket, params)

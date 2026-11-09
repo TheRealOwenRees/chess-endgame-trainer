@@ -6,6 +6,8 @@ defmodule ChesstrainerWeb.Board.BoardComponent do
   use Phoenix.Component
   import ChesstrainerWeb.Board.SquareComponent
 
+  alias ChesstrainerWeb.Board.PositionText
+
   attr :game, :map, required: true
 
   attr :myself, :any, default: nil
@@ -41,7 +43,11 @@ defmodule ChesstrainerWeb.Board.BoardComponent do
 
     ~H"""
     <div class={["m-auto left-0 right-0", @class]}>
-      <div class="border border-2 border-zinc-700 grid grid-rows-8 grid-cols-8">
+      <div
+        class="border border-2 border-zinc-700 grid grid-rows-8 grid-cols-8"
+        role="img"
+        aria-label={"Chess position. #{PositionText.summary(Map.get(@game, :fen))}"}
+      >
         <%= for rank <- @ranks do %>
           <%= for file <- @files do %>
             <% square = {file, rank} %>

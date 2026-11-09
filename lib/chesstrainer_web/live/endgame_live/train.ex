@@ -82,6 +82,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
         <PlayComponents.play_surface
           session={true}
           endgame={@endgame}
+          fen={@fen}
           status={@status}
           blocked_reason={@blocked_reason}
           best_move={@best_move}
@@ -94,6 +95,10 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
           awaiting_reply={@awaiting_reply}
           last_grade={@last_grade}
           awaiting_best_line={@awaiting_best_line}
+          move_input={@move_input}
+          move_input_error={@move_input_error}
+          last_check={@last_check}
+          last_checkmate={@last_checkmate}
         />
       <% else %>
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -164,7 +169,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
               <% end %>
             </div>
             <.button navigate={~p"/"} variant="ghost" class="mt-2 w-full justify-center">
-              Cancel
+              <.icon name="hero-arrow-left" />Return Home
             </.button>
           </div>
         </div>
@@ -254,6 +259,13 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
     {:noreply, socket} = PlayCore.move_played(socket, params)
     {:noreply, account_completion(socket)}
   end
+
+  def handle_event("submit_move", params, socket), do: PlayCore.submit_move(socket, params)
+
+  def handle_event("move_input", params, socket), do: PlayCore.move_input_changed(socket, params)
+
+  def handle_event("move_input_error", params, socket),
+    do: PlayCore.move_input_error(socket, params)
 
   def handle_event("opponent_reply_applied", params, socket) do
     {:noreply, socket} = PlayCore.opponent_reply_applied(socket, params)
@@ -374,6 +386,6 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
   end
 
   defp gain_class(delta) when is_number(delta) and delta > 0, do: "text-success-text"
-  defp gain_class(delta) when is_number(delta) and delta < 0, do: "text-error"
+  defp gain_class(delta) when is_number(delta) and delta < 0, do: "text-error-text"
   defp gain_class(_delta), do: "text-muted"
 end

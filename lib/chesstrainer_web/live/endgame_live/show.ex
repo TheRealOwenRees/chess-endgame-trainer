@@ -42,7 +42,7 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
         </:actions>
       </.header>
 
-      <.board game={@game} myself="board" />
+      <.board game={@game} myself="board" interactive={false} />
 
       <.list>
         <:item title="Fen">{@endgame.fen}</:item>
@@ -54,8 +54,9 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
             type="button"
             phx-hook=".CopyPublicCode"
             data-code={@endgame.public_code}
-            class="ml-2 inline-flex cursor-pointer items-center"
+            class="ml-2 inline-flex cursor-pointer items-center justify-center rounded p-1.5"
             title="Copy public code"
+            aria-label="Copy public code to clipboard"
           >
             <.icon name="hero-document-duplicate" class="w-3.5 h-3.5" />
           </button>

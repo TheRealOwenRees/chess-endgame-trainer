@@ -20,6 +20,8 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Ratings
 
+  @uci_pattern ~r/^[a-h][1-8][a-h][1-8][qrbn]?$/
+
   @doc """
   Loads `endgame` and starts an attempt on it.
 
@@ -53,6 +55,10 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
     |> assign(:last_grade, nil)
     |> assign(:awaiting_reply, false)
     |> assign(:last_rating_delta, nil)
+    |> assign(:last_check, false)
+    |> assign(:last_checkmate, false)
+    |> assign(:move_input, "")
+    |> assign(:move_input_error, nil)
     |> load_attempt()
   end
 
@@ -60,6 +66,8 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
     %{"from" => from, "to" => to, "san" => san} = params
     promotion = params["promotion"]
     draw = params["draw"] || false
+    check = params["check"] || false
+    checkmate = params["checkmate"] || false
     prev_fen = params["prev_fen"] || socket.assigns.fen
     fen_after = params["fen"] || socket.assigns.fen
 
@@ -76,16 +84,72 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
          put_flash(socket, :error, "That move is out of sequence. Press Reset to try again.")}
 
       true ->
-        grade_and_record(socket, from, to, promotion, san, fen_after, draw)
+        grade_and_record(socket, from, to, promotion, san, fen_after, draw, check, checkmate)
     end
   end
+
+  @doc """
+  Plays the move typed into the keyboard move input.
+
+  The tablebase already knows every legal move in the position, so matching SAN
+  or UCI against it validates the input without a chess engine on the server.
+  The board hook applies the move and reports it through the normal move events.
+  """
+  def submit_move(socket, %{"move" => input}) do
+    cond do
+      socket.assigns.reviewing ->
+        move_input_rejected(socket, "Leave review to make a move.")
+
+      socket.assigns.status != :playing ->
+        move_input_rejected(socket, "This puzzle is not open for moves right now.")
+
+      socket.assigns.awaiting_reply ->
+        move_input_rejected(socket, "Wait for the opponent's reply.")
+
+      true ->
+        case parse_move_input(socket.assigns.tablebase, input) do
+          %Tablebase.Move{} = move ->
+            {:noreply,
+             socket
+             |> assign(:move_input, "")
+             |> assign(:move_input_error, nil)
+             |> push_event("apply_move", reply_payload(move))}
+
+          _ ->
+            move_input_rejected(
+              socket,
+              "Not a legal move here. Try SAN like Nf3, or squares like g1f3."
+            )
+        end
+    end
+  end
+
+  def submit_move(socket, _params), do: {:noreply, socket}
+
+  def move_input_changed(socket, %{"move" => value}) when is_binary(value) do
+    {:noreply, socket |> assign(:move_input, value) |> assign(:move_input_error, nil)}
+  end
+
+  def move_input_changed(socket, _params), do: {:noreply, socket}
+
+  def move_input_error(socket, %{"message" => message}) when is_binary(message) do
+    {:noreply, assign(socket, :move_input_error, message)}
+  end
+
+  def move_input_error(socket, _params), do: {:noreply, socket}
 
   def opponent_reply_applied(socket, params) do
     %{"fen" => fen} = params
     draw = params["draw"] || false
+    check = params["check"] || false
+    checkmate = params["checkmate"] || false
 
     if socket.assigns.awaiting_reply do
-      socket = record_opponent_ply(socket, fen, params["san"])
+      socket =
+        socket
+        |> record_opponent_ply(fen, params["san"])
+        |> assign(:last_check, check)
+        |> assign(:last_checkmate, checkmate)
 
       if draw and socket.assigns.endgame.result == :draw do
         solve_attempt(socket)
@@ -100,6 +164,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
              |> assign(:awaiting_reply, false)
              |> assign(:status, :playing)
              |> assign(:blocked_reason, nil)
+             |> assign(:move_input_error, nil)
              |> push_event("resume_board", %{})}
 
           other ->
@@ -141,6 +206,10 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
       |> assign(:last_from_to, "None yet")
       |> assign(:last_grade, nil)
       |> assign(:last_rating_delta, nil)
+      |> assign(:last_check, false)
+      |> assign(:last_checkmate, false)
+      |> assign(:move_input, "")
+      |> assign(:move_input_error, nil)
 
     {:noreply, load_attempt(socket)}
   end
@@ -334,7 +403,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
     "The tablebase is unavailable (#{inspect(reason)})."
   end
 
-  defp grade_and_record(socket, from, to, promotion, san, fen_after, draw) do
+  defp grade_and_record(socket, from, to, promotion, san, fen_after, draw, check, checkmate) do
     case find_move(socket.assigns.tablebase, from, to, promotion) do
       nil ->
         {:noreply, put_flash(socket, :error, "Could not identify that move in the tablebase.")}
@@ -354,6 +423,10 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
           |> assign(:last_from_to, "#{from} ➔ #{to}")
           |> assign(:last_san, san)
           |> assign(:last_grade, grade)
+          |> assign(:last_check, check)
+          |> assign(:last_checkmate, checkmate)
+          |> assign(:move_input, "")
+          |> assign(:move_input_error, nil)
           |> assign(:plies, socket.assigns.plies ++ [ply])
 
         cond do
@@ -450,7 +523,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
             |> assign(:last_rating_delta, nil)
             |> put_flash(
               :info,
-              "Replay recorded. Your rating is unchanged because you played this recently."
+              "Your rating is unchanged because you played this puzzle recently."
             )
         end
 
@@ -524,6 +597,38 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
   end
 
   defp find_move_by_uci(_tablebase, _uci), do: nil
+
+  defp parse_move_input(%Tablebase{} = tablebase, input) when is_binary(input) do
+    normalized = input |> String.trim() |> String.downcase() |> String.replace(" ", "")
+    uci = String.replace(normalized, "-", "")
+
+    cond do
+      normalized == "" -> nil
+      Regex.match?(@uci_pattern, uci) -> find_move_by_uci(tablebase, uci)
+      true -> find_move_by_san(tablebase, normalize_san(normalized))
+    end
+  end
+
+  defp parse_move_input(_tablebase, _input), do: nil
+
+  defp find_move_by_san(%Tablebase{moves: moves}, san) when is_list(moves) and is_binary(san) do
+    Enum.find(moves, &(normalize_san(&1.san) == san))
+  end
+
+  defp find_move_by_san(_tablebase, _san), do: nil
+
+  defp normalize_san(san) when is_binary(san) do
+    san
+    |> String.downcase()
+    |> String.replace("=", "")
+    |> String.replace(~r/[+#!?]/, "")
+  end
+
+  defp normalize_san(_san), do: nil
+
+  defp move_input_rejected(socket, message) do
+    {:noreply, assign(socket, :move_input_error, message)}
+  end
 
   # Compare only the board and side to move: chess.js may normalise the rest
   # (castling/en-passant/halfmove/fullmove) differently from the stored FEN.

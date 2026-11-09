@@ -22,7 +22,20 @@ export const ChessBoard = {
       this.applyBestLineMove({ from, to, promotion, san });
     });
 
+    this.handleEvent("apply_move", ({ from, to, promotion }) => {
+      if (this.reviewing) return;
+      this.executeMove(from, to, promotion);
+    });
+
     this.handleKeyDown = (event) => {
+      if (this.pendingPromotion) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          this.cancelPromotion();
+        }
+        return;
+      }
+
       if (!this.reviewing) return;
 
       if (event.key === "ArrowLeft") {
@@ -31,6 +44,12 @@ export const ChessBoard = {
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
         this.pushEvent("review_next", {});
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        this.pushEvent("review_start", {});
+      } else if (event.key === "End") {
+        event.preventDefault();
+        this.pushEvent("review_end", {});
       }
     };
 
@@ -185,9 +204,13 @@ export const ChessBoard = {
 
   showPromotionDialog(orig, dest) {
     this.pendingPromotion = { orig, dest };
+    this.previousFocus = document.activeElement;
     const color = this.chess.turn() === "w" ? "white" : "black";
     const overlay = document.createElement("div");
     overlay.className = "promotion-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Choose a promotion piece");
     const picker = document.createElement("div");
     picker.className = "promotion-picker";
     const pieces = [
@@ -198,22 +221,64 @@ export const ChessBoard = {
     ];
     pieces.forEach(({ type, code }) => {
       const btn = document.createElement("button");
+      btn.type = "button";
       btn.className = `promotion-piece ${type} ${color}`;
+      btn.setAttribute("aria-label", `Promote to ${type}`);
       btn.addEventListener("click", () => this.completePromotion(code));
       picker.appendChild(btn);
     });
+    overlay.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.cancelPromotion();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const buttons = Array.from(picker.querySelectorAll("button"));
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
     overlay.appendChild(picker);
-    const boardContainer = this.el.closest(".shadow-inner");
-    boardContainer.style.position = "relative";
-    boardContainer.appendChild(overlay);
+    const container = this.el.parentElement;
+    container.style.position = "relative";
+    container.appendChild(overlay);
+    picker.querySelector("button")?.focus();
+  },
+
+  cancelPromotion() {
+    this.pendingPromotion = null;
+    const overlay = this.el.parentElement?.querySelector(".promotion-overlay");
+    if (overlay) overlay.remove();
+    this.restoreFocus();
+  },
+
+  restoreFocus() {
+    if (this.previousFocus instanceof HTMLElement) {
+      this.previousFocus.focus();
+    } else {
+      document.getElementById("move-input")?.focus();
+    }
+
+    this.previousFocus = null;
   },
 
   completePromotion(pieceType) {
     const { orig, dest } = this.pendingPromotion;
     this.pendingPromotion = null;
-    const picker = this.el.closest(".shadow-inner")?.querySelector(".promotion-overlay");
+    const picker = this.el.parentElement?.querySelector(".promotion-overlay");
     if (picker) picker.remove();
     this.executeMove(orig, dest, pieceType);
+    document.getElementById("move-input")?.focus();
   },
 
   executeMove(orig, dest, promotion) {
@@ -234,6 +299,7 @@ export const ChessBoard = {
         san: move.san,
         promotion: promotion || null,
         draw: this.chess.isDraw(),
+        check: this.chess.isCheck(),
         checkmate: this.chess.isCheckmate(),
       };
 
@@ -252,8 +318,14 @@ export const ChessBoard = {
           ? { color: null, dests: new Map() }
           : { color: nextTurnColor, dests: this.getValidDests() },
       });
+
+      return true;
     } else {
       this.ground.set({ fen: this.chess.fen() });
+      this.pushEvent("move_input_error", {
+        message: "That move is not legal in this position.",
+      });
+      return false;
     }
   },
 
@@ -279,6 +351,7 @@ export const ChessBoard = {
       fen: this.chess.fen(),
       san: move.san,
       draw: this.chess.isDraw(),
+      check: this.chess.isCheck(),
       checkmate: this.chess.isCheckmate(),
     });
   },

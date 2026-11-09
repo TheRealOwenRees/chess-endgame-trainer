@@ -14,7 +14,7 @@ defmodule ChesstrainerWeb.UserLive.Login do
             <p class="settings-subtitle my-4">
               Don't have an account? <.link
                 navigate={~p"/users/register"}
-                class="font-semibold text-primary hover:underline"
+                class="font-semibold text-primary-text hover:underline"
                 phx-no-format
               >Sign up</.link> for an account now.
             </p>
@@ -56,7 +56,7 @@ defmodule ChesstrainerWeb.UserLive.Login do
         <p class="text-center text-sm">
           <.link
             navigate={~p"/users/reset-password"}
-            class="font-semibold text-primary hover:underline"
+            class="font-semibold text-primary-text hover:underline"
           >
             Forgot your password?
           </.link>

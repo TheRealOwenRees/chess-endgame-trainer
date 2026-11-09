@@ -16,14 +16,15 @@
       }
     };
 
-    const selectedMode = () => {
-      const source = document.documentElement.getAttribute("data-theme-source");
-      return source === "system" ? "system" : document.documentElement.getAttribute("data-theme");
-    };
+    // There is no system button, so report the effective theme. This keeps the
+    // visible light/dark control in sync when the page is following the OS.
+    const selectedMode = () => document.documentElement.getAttribute("data-theme");
 
     const syncChecked = () => {
       document.querySelectorAll("[data-phx-theme]").forEach((button) => {
-        button.setAttribute("aria-checked", String(button.dataset.phxTheme === selectedMode()));
+        const checked = button.dataset.phxTheme === selectedMode();
+        button.setAttribute("aria-checked", String(checked));
+        button.tabIndex = checked ? 0 : -1;
       });
     };
 
@@ -54,6 +55,25 @@
     document.addEventListener("click", (event) => {
       const button = event.target instanceof Element && event.target.closest("[data-phx-theme]");
       if (button) setMode(button.dataset.phxTheme);
+    });
+
+    // Arrow keys move between the radio options, as a radiogroup should.
+    document.addEventListener("keydown", (event) => {
+      const button = event.target instanceof Element && event.target.closest("[data-phx-theme]");
+      if (!button) return;
+
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+      event.preventDefault();
+      const buttons = Array.from(document.querySelectorAll("[data-phx-theme]"));
+      const offset = event.key === "ArrowRight" ? 1 : -1;
+      const index = (buttons.indexOf(button) + offset + buttons.length) % buttons.length;
+      const next = buttons[index];
+
+      if (next) {
+        setMode(next.dataset.phxTheme);
+        next.focus();
+      }
     });
 
     window.addEventListener("storage", (event) => {

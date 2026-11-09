@@ -8,9 +8,11 @@ defmodule ChesstrainerWeb.PlayComponents do
 
   use ChesstrainerWeb, :html
 
+  alias ChesstrainerWeb.Board.PositionText
   alias ChesstrainerWeb.EndgameLive.PlayCore
 
   attr :endgame, :any, required: true
+  attr :fen, :string, default: nil
   attr :status, :atom, required: true
   attr :blocked_reason, :string, default: nil
   attr :best_move, :string, default: nil
@@ -24,26 +26,98 @@ defmodule ChesstrainerWeb.PlayComponents do
   attr :last_grade, :atom, default: nil
   attr :awaiting_best_line, :boolean, default: false
   attr :session, :boolean, default: false
+  attr :move_input, :string, default: ""
+  attr :move_input_error, :string, default: nil
+  attr :last_check, :boolean, default: false
+  attr :last_checkmate, :boolean, default: false
 
   def play_surface(assigns) do
+    assigns =
+      assigns
+      |> assign(
+        :can_input,
+        assigns.status == :playing and not assigns.awaiting_reply and not assigns.reviewing
+      )
+      |> assign(:move_hint, move_hint(assigns.status, assigns.awaiting_reply))
+
     ~H"""
-    <div class="flex gap-2 bg-base-200 p-4 rounded-xl shadow-inner">
-      <div class="w-100 flex flex-col gap-2">
-        <div
-          id="endgame-board"
-          phx-hook="ChessBoard"
-          phx-update="ignore"
-          data-endgame-id={@endgame.id}
-          class="w-100 h-100"
-        >
+    <div class="flex flex-col gap-2 rounded-xl bg-base-200 p-4 shadow-inner sm:flex-row">
+      <div class="flex w-full flex-col gap-2 sm:w-100">
+        <div class="relative">
+          <div
+            id="endgame-board"
+            phx-hook="ChessBoard"
+            phx-update="ignore"
+            data-endgame-id={@endgame.id}
+            class="aspect-square w-full"
+            aria-hidden="true"
+          >
+          </div>
         </div>
 
-        <div :if={@reviewing} id="review-controls" class="flex items-center gap-2">
+        <div
+          id="board-announcer"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          class="sr-only"
+        >
+          {board_announcement(assigns)}
+        </div>
+        <div id="position-summary" class="sr-only">
+          {PositionText.summary(position_fen(assigns))}
+        </div>
+
+        <form
+          :if={not @reviewing}
+          id="move-input-form"
+          phx-submit="submit_move"
+          phx-change="move_input"
+          phx-debounce="200"
+          class="flex items-start gap-2"
+        >
+          <div class="min-w-0 flex-1">
+            <.input
+              id="move-input"
+              name="move"
+              value={@move_input}
+              label="Your move"
+              placeholder="Nf3 or g1f3"
+              autocomplete="off"
+              aria-describedby="move-input-help"
+              disabled={not @can_input}
+              class="font-mono"
+            />
+            <p id="move-input-help" class="mt-1 text-xs text-muted">
+              SAN or UCI, e.g. <span class="font-mono">Nf3</span>
+              or <span class="font-mono">g1f3</span>.
+            </p>
+            <p :if={@move_hint} class="mt-1 text-xs text-muted" role="status">{@move_hint}</p>
+            <p
+              :if={@move_input_error}
+              id="move-input-error"
+              role="alert"
+              class="mt-1 text-sm text-error-text"
+            >
+              {@move_input_error}
+            </p>
+          </div>
+          <.button type="submit" class="mt-6" disabled={not @can_input}>Play move</.button>
+        </form>
+
+        <div
+          :if={@reviewing}
+          id="review-controls"
+          class="flex items-center gap-2"
+          role="group"
+          aria-label="Review navigation"
+        >
           <.button
             id="review-start"
             phx-click="review_start"
             disabled={@review_index <= 0}
             title="Back to start"
+            aria-label="Back to start"
           >
             {"<<"}
           </.button>
@@ -52,6 +126,7 @@ defmodule ChesstrainerWeb.PlayComponents do
             phx-click="review_prev"
             disabled={@review_index <= 0}
             title="Previous position"
+            aria-label="Previous position"
           >
             ←
           </.button>
@@ -60,6 +135,7 @@ defmodule ChesstrainerWeb.PlayComponents do
             phx-click="review_next"
             disabled={@review_index >= length(@line)}
             title="Next position"
+            aria-label="Next position"
           >
             →
           </.button>
@@ -68,12 +144,13 @@ defmodule ChesstrainerWeb.PlayComponents do
             phx-click="review_end"
             disabled={@review_index >= length(@line)}
             title="Go to end"
+            aria-label="Go to end"
           >
             {">>"}
           </.button>
         </div>
 
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap gap-2" role="group" aria-label="Puzzle actions">
           <.button
             :if={(@reviewing and @review_tablebase) && PlayCore.best_move_text(@review_tablebase)}
             phx-click="play_best_line"
@@ -105,8 +182,8 @@ defmodule ChesstrainerWeb.PlayComponents do
         </div>
       </div>
 
-      <div class="relative w-48">
-        <div class="absolute inset-0 flex flex-col gap-3">
+      <div class="relative w-full sm:w-48">
+        <div class="flex flex-col gap-3 sm:absolute sm:inset-0">
           <%= if @reviewing do %>
             <div
               id="best-move-panel"
@@ -129,28 +206,19 @@ defmodule ChesstrainerWeb.PlayComponents do
             </div>
           <% else %>
             <div class="rounded-lg bg-canvas-raised p-3 text-sm">
-              <p class="flex items-center justify-between gap-2 font-semibold">
-                <span>{turn_label(@status, @awaiting_reply)}</span>
-                <span class="text-xs font-normal text-muted">
-                  You play {colour_name(@endgame.color)}
-                </span>
-              </p>
-            </div>
-
-            <div class="rounded-lg bg-canvas-raised p-3 text-sm">
               <%= cond do %>
                 <% @status == :loading -> %>
                   <p class="text-muted">Loading tablebase…</p>
                 <% @status == :blocked -> %>
-                  <p class="font-semibold text-error">Tablebase unavailable</p>
-                  <p class="text-error">{@blocked_reason}</p>
+                  <p class="font-semibold text-error-text">Tablebase unavailable</p>
+                  <p class="text-error-text">{@blocked_reason}</p>
                 <% @status == :solved -> %>
                   <p class="font-semibold text-success-text">
                     {if @endgame.result == :draw, do: "Draw held!", else: "Solved!"}
                   </p>
                 <% @status == :failed -> %>
-                  <p class="font-semibold text-error">Failed</p>
-                  <p class="text-error">
+                  <p class="font-semibold text-error-text">Failed</p>
+                  <p class="text-error-text">
                     {if @endgame.result == :draw,
                       do: "That move loses the draw.",
                       else: "That move throws away the win."}
@@ -161,17 +229,17 @@ defmodule ChesstrainerWeb.PlayComponents do
                     </p>
                   <% end %>
                 <% @awaiting_reply -> %>
-                  <p class="text-muted">Opponent is replying…</p>
+                  <p class="text-muted">Thinkin...</p>
                 <% @last_grade == :optimal -> %>
                   <p class="font-semibold text-success-text">Optimal move</p>
                 <% @last_grade == :winning -> %>
-                  <p class="font-semibold text-warning">
+                  <p class="font-semibold text-warning-text">
                     {if @endgame.result == :draw,
                       do: "Keeps the draw — but not the sharpest",
                       else: "Winning — but not the sharpest"}
                   </p>
                 <% @last_grade == :losing -> %>
-                  <p class="font-semibold text-error">
+                  <p class="font-semibold text-error-text">
                     {if @endgame.result == :draw,
                       do: "Losing move — this loses the draw",
                       else: "Losing move — this throws away the win"}
@@ -179,7 +247,8 @@ defmodule ChesstrainerWeb.PlayComponents do
                 <% @last_grade == :unknown -> %>
                   <p class="font-semibold text-muted">Could not grade that move</p>
                 <% true -> %>
-                  <p class="text-muted">Make a move to have it graded.</p>
+                  <p class="text-muted font-bold">Make a move.</p>
+                  <p class="text-muted">You play {colour_name(@endgame.color)}</p>
               <% end %>
               <p :if={@status in [:solved, :failed]} class="mt-1 text-xs text-muted">
                 Puzzle rating: {round(@endgame.rating)}
@@ -188,6 +257,8 @@ defmodule ChesstrainerWeb.PlayComponents do
 
             <div
               id="move-list"
+              role="region"
+              aria-label="Moves"
               class="flex-1 min-h-0 flex flex-col bg-canvas-raised rounded-lg p-3"
             >
               <% plies = display_plies(@reviewing, @line, @plies) %>
@@ -243,14 +314,19 @@ defmodule ChesstrainerWeb.PlayComponents do
         <p class={["text-xs font-semibold", class]}>{label}</p>
         <table class="w-full text-left text-xs font-mono">
           <tbody>
-            <tr
-              :for={move <- moves}
-              phx-click="review_move"
-              phx-value-uci={move.uci}
-              class="cursor-pointer hover:bg-base-200"
-              title={"Play #{move.san}"}
-            >
-              <td class={["py-0.5 pr-2", class]}>{move.san}</td>
+            <tr :for={move <- moves}>
+              <td class={["py-0.5 pr-2", class]}>
+                <button
+                  type="button"
+                  phx-click="review_move"
+                  phx-value-uci={move.uci}
+                  class="text-left hover:underline"
+                  title={"Play #{move.san}"}
+                  aria-label={"Play #{move.san}"}
+                >
+                  {move.san}
+                </button>
+              </td>
               <td class="py-0.5 text-right text-muted" title="Distance to zeroing (DTZ)">
                 {dtz_text(move)}
               </td>
@@ -266,7 +342,7 @@ defmodule ChesstrainerWeb.PlayComponents do
     [
       {"Winning", "text-success-text", :win},
       {"Drawn", "text-muted", :draw},
-      {"Losing", "text-error", :loss},
+      {"Losing", "text-error-text", :loss},
       {"Unknown", "text-muted", :unknown}
     ]
     |> Enum.flat_map(fn {label, class, outcome} ->
@@ -308,9 +384,11 @@ defmodule ChesstrainerWeb.PlayComponents do
           current_ply?(@ply, @review_index) && "underline"
         ]}
         title={ply_title(@ply, @result)}
+        aria-current={current_ply?(@ply, @review_index) && "step"}
         data-grade={@ply.grade}
       >
         {@ply.san}
+        <span :if={ply_title(@ply, @result)} class="sr-only"> — {ply_title(@ply, @result)}</span>
       </button>
     <% else %>
       <span
@@ -319,6 +397,7 @@ defmodule ChesstrainerWeb.PlayComponents do
         data-grade={@ply.grade}
       >
         {@ply.san}
+        <span :if={ply_title(@ply, @result)} class="sr-only"> — {ply_title(@ply, @result)}</span>
       </span>
     <% end %>
     """
@@ -334,13 +413,6 @@ defmodule ChesstrainerWeb.PlayComponents do
 
   defp display_plies(true, line, _plies), do: line
   defp display_plies(false, _line, plies), do: plies
-
-  defp turn_label(:playing, false), do: "Your move"
-  defp turn_label(:playing, true), do: "Opponent's move"
-  defp turn_label(:solved, _awaiting_reply), do: "Solved"
-  defp turn_label(:failed, _awaiting_reply), do: "Finished"
-  defp turn_label(:blocked, _awaiting_reply), do: "Unavailable"
-  defp turn_label(_status, _awaiting_reply), do: "Loading…"
 
   defp colour_name(:white), do: "White"
   defp colour_name(:black), do: "Black"
@@ -364,8 +436,8 @@ defmodule ChesstrainerWeb.PlayComponents do
   defp ply_title(ply, result), do: grade_label(ply.grade, result)
 
   defp grade_class(:optimal), do: "text-success-text"
-  defp grade_class(:winning), do: "text-warning"
-  defp grade_class(:losing), do: "text-error"
+  defp grade_class(:winning), do: "text-warning-text"
+  defp grade_class(:losing), do: "text-error-text"
   defp grade_class(_), do: "text-body"
 
   defp grade_label(nil, _result), do: nil
@@ -375,4 +447,128 @@ defmodule ChesstrainerWeb.PlayComponents do
   defp grade_label(:losing, :draw), do: "Loses the draw"
   defp grade_label(:losing, _result), do: "Throws away the win"
   defp grade_label(:unknown, _result), do: "Not graded"
+
+  defp move_hint(:loading, _awaiting), do: "Loading the tablebase…"
+
+  defp move_hint(:blocked, _awaiting),
+    do: "The tablebase is unavailable, so moves cannot be entered."
+
+  defp move_hint(status, _awaiting) when status in [:solved, :failed],
+    do: "This puzzle is finished. Reset or try again."
+
+  defp move_hint(_status, true), do: "Waiting for the opponent's reply."
+  defp move_hint(_status, _awaiting), do: nil
+
+  # While the opponent's move is in flight the server's `fen` still points at
+  # the position before it, so describe the move the player just made instead.
+  defp position_fen(%{awaiting_reply: true, plies: plies}) do
+    case List.last(plies) do
+      %{fen_after: fen} -> fen
+      _ -> nil
+    end
+  end
+
+  defp position_fen(%{fen: fen}) when is_binary(fen), do: fen
+
+  defp position_fen(%{endgame: %{fen: fen}}), do: fen
+
+  defp board_announcement(assigns) do
+    cond do
+      assigns.status == :loading ->
+        "Loading the tablebase."
+
+      assigns.status == :blocked ->
+        "Tablebase unavailable. #{assigns.blocked_reason || "Moves cannot be graded."}"
+
+      assigns.reviewing ->
+        review_announcement(assigns)
+
+      assigns.status == :solved ->
+        join_sentences([solved_sentence(assigns), check_sentence(assigns)])
+
+      assigns.status == :failed ->
+        join_sentences(["Failed.", failure_sentence(assigns), best_move_sentence(assigns)])
+
+      assigns.awaiting_reply ->
+        join_sentences([
+          "Move #{length(assigns.plies)}: you played #{last_san(assigns.plies)}.",
+          grade_sentence(assigns),
+          check_sentence(assigns),
+          "Waiting for the opponent's reply."
+        ])
+
+      assigns.plies == [] ->
+        "You play #{colour_name(assigns.endgame.color)}. #{colour_name(assigns.endgame.color)} to move."
+
+      true ->
+        case List.last(assigns.plies) do
+          %{grade: nil} ->
+            join_sentences([
+              "Move #{length(assigns.plies)}: opponent played #{last_san(assigns.plies)}.",
+              check_sentence(assigns),
+              "Your move."
+            ])
+
+          _ ->
+            join_sentences([
+              "Move #{length(assigns.plies)}: you played #{last_san(assigns.plies)}.",
+              grade_sentence(assigns),
+              check_sentence(assigns),
+              "Your move."
+            ])
+        end
+    end
+  end
+
+  defp review_announcement(assigns) do
+    previous = Enum.at(assigns.line, assigns.review_index - 1)
+
+    position =
+      cond do
+        assigns.review_index <= 0 -> "Starting position."
+        previous -> "After #{previous.san}."
+        true -> "Final position."
+      end
+
+    "Reviewing position #{assigns.review_index} of #{length(assigns.line)}. #{position}"
+  end
+
+  defp failure_sentence(%{endgame: %{result: :draw}}), do: "That move loses the draw."
+  defp failure_sentence(_assigns), do: "That move throws away the win."
+
+  defp solved_sentence(%{endgame: %{result: :draw}}), do: "Draw held!"
+  defp solved_sentence(_assigns), do: "Solved!"
+
+  defp best_move_sentence(%{best_move: nil}), do: ""
+  defp best_move_sentence(%{best_move: best}), do: "Best was #{best}."
+
+  defp grade_sentence(%{plies: plies, endgame: endgame}) do
+    case List.last(plies) do
+      %{grade: grade} ->
+        case grade_label(grade, endgame.result) do
+          nil -> ""
+          label -> "#{label}."
+        end
+
+      _ ->
+        ""
+    end
+  end
+
+  defp check_sentence(%{last_checkmate: true}), do: "Checkmate."
+  defp check_sentence(%{last_check: true}), do: "Check."
+  defp check_sentence(_assigns), do: ""
+
+  defp last_san(plies) do
+    case List.last(plies) do
+      %{san: san} when is_binary(san) -> san
+      _ -> "a move"
+    end
+  end
+
+  defp join_sentences(sentences) do
+    sentences
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join(" ")
+  end
 end

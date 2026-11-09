@@ -14,7 +14,10 @@ defmodule ChesstrainerWeb.UserLive.Registration do
           <h1 class="settings-header">Register for an account</h1>
           <p class="settings-subtitle my-4">
             Already registered?
-            <.link navigate={~p"/users/log-in"} class="font-semibold text-primary hover:underline">
+            <.link
+              navigate={~p"/users/log-in"}
+              class="font-semibold text-primary-text hover:underline"
+            >
               Log in
             </.link>
             to your account now
