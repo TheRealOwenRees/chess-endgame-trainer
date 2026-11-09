@@ -11,8 +11,8 @@ import Config
 # touching templates. The OTP app (`:chesstrainer`) and module namespaces are
 # identity, not branding, and stay as they are.
 config :chesstrainer, :branding,
-  name: "Lucid Chess",
-  wordmark: "LUCID",
+  name: "Inner Square Chess",
+  wordmark: "INNERSQUARE",
   tagline: "Endgame Trainer",
   support_email: "support@lucidchess.app"
 
