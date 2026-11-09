@@ -4,12 +4,16 @@ defmodule ChesstrainerWeb.MailingListControllerTest do
   alias Chesstrainer.MailingList
   alias Chesstrainer.MailingList.Subscriber
   alias Chesstrainer.Repo
+  alias ChesstrainerWeb.MailingListFormToken
 
   @salt "mailing_list_confirm"
 
   describe "POST /mailing-list" do
     test "sends a confirmation email for a new address", %{conn: conn} do
-      conn = post(conn, ~p"/mailing-list", subscriber: %{email: "player@example.com"})
+      conn =
+        post(conn, ~p"/mailing-list",
+          subscriber: %{email: "player@example.com", form_token: form_token()}
+        )
 
       assert redirected_to(conn) == "/#mailing-list"
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Check your inbox"
@@ -26,7 +30,10 @@ defmodule ChesstrainerWeb.MailingListControllerTest do
       {:ok, _subscriber} = MailingList.confirm("player@example.com")
       {:ok, _subscriber} = MailingList.unsubscribe("player@example.com")
 
-      conn = post(conn, ~p"/mailing-list", subscriber: %{email: "player@example.com"})
+      conn =
+        post(conn, ~p"/mailing-list",
+          subscriber: %{email: "player@example.com", form_token: form_token()}
+        )
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Check your inbox"
 
@@ -39,30 +46,116 @@ defmodule ChesstrainerWeb.MailingListControllerTest do
       assert MailingList.count_confirmed_subscribers() == 1
     end
 
-    test "resends confirmation for an address that has not confirmed yet", %{conn: conn} do
-      post(conn, ~p"/mailing-list", subscriber: %{email: "player@example.com"})
+    test "does not resend confirmation while the cooldown is active", %{conn: conn} do
+      post(conn, ~p"/mailing-list",
+        subscriber: %{email: "player@example.com", form_token: form_token()}
+      )
+
       assert_received {:email, _email}
 
-      conn = post(build_conn(), ~p"/mailing-list", subscriber: %{email: "player@example.com"})
+      conn =
+        post(build_conn(), ~p"/mailing-list",
+          subscriber: %{email: "player@example.com", form_token: form_token()}
+        )
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Check your inbox"
-      assert_received {:email, _email}
+      refute_received {:email, _email}
       assert Repo.aggregate(Subscriber, :count) == 1
     end
 
+    test "resends confirmation after the cooldown", %{conn: conn} do
+      post(conn, ~p"/mailing-list",
+        subscriber: %{email: "player@example.com", form_token: form_token()}
+      )
+
+      assert_received {:email, _email}
+
+      subscriber = Repo.get_by(Subscriber, email: "player@example.com")
+
+      subscriber
+      |> Ecto.Changeset.change(
+        confirmation_sent_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
+      )
+      |> Repo.update!()
+
+      post(conn, ~p"/mailing-list",
+        subscriber: %{email: "player@example.com", form_token: form_token()}
+      )
+
+      assert_received {:email, _email}
+    end
+
+    test "silently accepts a honeypot submission", %{conn: conn} do
+      conn =
+        post(conn, ~p"/mailing-list",
+          subscriber: %{
+            email: "player@example.com",
+            company: "spam.example",
+            form_token: form_token()
+          }
+        )
+
+      assert redirected_to(conn) == "/#mailing-list"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Check your inbox"
+      refute_received {:email, _email}
+      assert Repo.aggregate(Subscriber, :count) == 0
+    end
+
+    test "rejects a form token submitted too quickly", %{conn: conn} do
+      conn =
+        post(conn, ~p"/mailing-list",
+          subscriber: %{email: "player@example.com", form_token: MailingListFormToken.sign()}
+        )
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "refresh the page"
+      refute_received {:email, _email}
+      assert Repo.aggregate(Subscriber, :count) == 0
+    end
+
+    test "rejects an expired form token", %{conn: conn} do
+      token = MailingListFormToken.sign(System.system_time(:second) - 3 * 60 * 60)
+
+      conn =
+        post(conn, ~p"/mailing-list",
+          subscriber: %{email: "player@example.com", form_token: token}
+        )
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "refresh the page"
+      refute_received {:email, _email}
+    end
+
+    test "rejects an invalid form token", %{conn: conn} do
+      conn =
+        post(conn, ~p"/mailing-list",
+          subscriber: %{email: "player@example.com", form_token: "oops"}
+        )
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "refresh the page"
+      refute_received {:email, _email}
+    end
+
     test "does not email an address that has already confirmed", %{conn: conn} do
-      post(conn, ~p"/mailing-list", subscriber: %{email: "player@example.com"})
+      post(conn, ~p"/mailing-list",
+        subscriber: %{email: "player@example.com", form_token: form_token()}
+      )
+
       assert_received {:email, email}
       get(build_conn(), "/mailing-list/confirm/#{extract_token(email)}")
 
-      conn = post(build_conn(), ~p"/mailing-list", subscriber: %{email: "player@example.com"})
+      conn =
+        post(build_conn(), ~p"/mailing-list",
+          subscriber: %{email: "player@example.com", form_token: form_token()}
+        )
 
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "already on the mailing list"
       refute_received {:email, _email}
     end
 
     test "reports an invalid address", %{conn: conn} do
-      conn = post(conn, ~p"/mailing-list", subscriber: %{email: "not an email"})
+      conn =
+        post(conn, ~p"/mailing-list",
+          subscriber: %{email: "not an email", form_token: form_token()}
+        )
 
       assert redirected_to(conn) == "/#mailing-list"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "valid email address"
@@ -80,7 +173,10 @@ defmodule ChesstrainerWeb.MailingListControllerTest do
 
   describe "GET /mailing-list/confirm/:token" do
     test "confirms the subscription from the emailed link", %{conn: conn} do
-      post(conn, ~p"/mailing-list", subscriber: %{email: "player@example.com"})
+      post(conn, ~p"/mailing-list",
+        subscriber: %{email: "player@example.com", form_token: form_token()}
+      )
+
       assert_received {:email, email}
 
       conn = get(build_conn(), "/mailing-list/confirm/#{extract_token(email)}")
@@ -126,5 +222,9 @@ defmodule ChesstrainerWeb.MailingListControllerTest do
   defp extract_token(email) do
     [_, token] = Regex.run(~r{/mailing-list/confirm/(\S+)}, email.text_body)
     token
+  end
+
+  defp form_token do
+    MailingListFormToken.sign(System.system_time(:second) - 5)
   end
 end

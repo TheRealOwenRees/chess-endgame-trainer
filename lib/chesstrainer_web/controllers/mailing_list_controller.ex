@@ -3,45 +3,31 @@ defmodule ChesstrainerWeb.MailingListController do
 
   alias Chesstrainer.MailingList
   alias Chesstrainer.MailingList.Notifier
+  alias ChesstrainerWeb.MailingListFormToken
 
   @return_to "/#mailing-list"
   @token_salt "mailing_list_confirm"
   @token_max_age 7 * 24 * 60 * 60
 
-  def create(conn, %{"subscriber" => %{"email" => email}}) when is_binary(email) do
-    email = String.trim(email)
+  def create(conn, %{"subscriber" => params}) when is_map(params) do
+    email = params["email"]
 
-    case MailingList.subscribe(email) do
-      {:ok, :already_subscribed} ->
-        conn
-        |> put_flash(:info, "You're already on the mailing list.")
-        |> redirect(to: @return_to)
+    cond do
+      honeypot_filled?(params) ->
+        fake_success(conn)
 
-      {:ok, :confirmation_required} ->
-        case send_confirmation(email) do
-          :ok ->
-            conn
-            |> put_flash(:info, "Check your inbox to confirm your subscription.")
-            |> redirect(to: @return_to)
+      not is_binary(email) ->
+        invalid_email(conn)
 
-          :error ->
-            conn
-            |> put_flash(:error, "We couldn't send the confirmation email. Please try again.")
-            |> redirect(to: @return_to)
-        end
+      MailingListFormToken.verify(params["form_token"]) != :ok ->
+        form_error(conn)
 
-      {:error, %Ecto.Changeset{}} ->
-        conn
-        |> put_flash(:error, "Enter a valid email address.")
-        |> redirect(to: @return_to)
+      true ->
+        subscribe(conn, email)
     end
   end
 
-  def create(conn, _params) do
-    conn
-    |> put_flash(:error, "Enter a valid email address.")
-    |> redirect(to: @return_to)
-  end
+  def create(conn, _params), do: invalid_email(conn)
 
   def confirm(conn, %{"token" => token}) do
     case Phoenix.Token.verify(
@@ -77,13 +63,63 @@ defmodule ChesstrainerWeb.MailingListController do
     end
   end
 
-  defp send_confirmation(email) do
+  defp subscribe(conn, email) do
+    email = String.trim(email)
+
+    case MailingList.subscribe(email) do
+      {:ok, :already_subscribed} ->
+        conn
+        |> put_flash(:info, "You're already on the mailing list.")
+        |> redirect(to: @return_to)
+
+      {:ok, :confirmation_required} ->
+        if MailingList.confirmation_allowed?(email) do
+          send_confirmation(conn, email)
+        else
+          fake_success(conn)
+        end
+
+      {:error, %Ecto.Changeset{}} ->
+        invalid_email(conn)
+    end
+  end
+
+  defp send_confirmation(conn, email) do
     token = Phoenix.Token.sign(ChesstrainerWeb.Endpoint, @token_salt, email)
     url = url(~p"/mailing-list/confirm/#{token}")
 
     case Notifier.deliver_confirmation_instructions(email, url) do
-      {:ok, _email} -> :ok
-      {:error, _reason} -> :error
+      {:ok, _email} ->
+        _ = MailingList.mark_confirmation_sent(email)
+
+        conn
+        |> put_flash(:info, "Check your inbox to confirm your subscription.")
+        |> redirect(to: @return_to)
+
+      {:error, _reason} ->
+        conn
+        |> put_flash(:error, "We couldn't send the confirmation email. Please try again.")
+        |> redirect(to: @return_to)
     end
+  end
+
+  defp honeypot_filled?(params), do: params["company"] not in [nil, ""]
+
+  defp fake_success(conn) do
+    conn
+    |> put_flash(:info, "Check your inbox to confirm your subscription.")
+    |> redirect(to: @return_to)
+  end
+
+  defp form_error(conn) do
+    conn
+    |> put_flash(:error, "Please refresh the page and try again.")
+    |> redirect(to: @return_to)
+  end
+
+  defp invalid_email(conn) do
+    conn
+    |> put_flash(:error, "Enter a valid email address.")
+    |> redirect(to: @return_to)
   end
 end

@@ -20,6 +20,8 @@ defmodule Chesstrainer.MailingList do
   alias Chesstrainer.MailingList.Subscriber
   alias Chesstrainer.Repo
 
+  @confirmation_cooldown_seconds 10 * 60
+
   @doc """
   Requests a subscription from the landing-page form.
 
@@ -187,6 +189,40 @@ defmodule Chesstrainer.MailingList do
     Subscriber
     |> where([s], not is_nil(s.confirmed_at) and is_nil(s.unsubscribed_at))
     |> Repo.aggregate(:count)
+  end
+
+  @doc """
+  Returns true when a confirmation email may be sent to this address.
+
+  Addresses without a subscriber row are allowed, as are addresses that have
+  not received a confirmation recently. This stops a repeated submission from
+  turning into an email flood.
+  """
+  def confirmation_allowed?(email) when is_binary(email) do
+    case Repo.get_by(Subscriber, email: String.trim(email)) do
+      nil ->
+        true
+
+      %Subscriber{confirmation_sent_at: nil} ->
+        true
+
+      %Subscriber{confirmation_sent_at: sent_at} ->
+        DateTime.diff(DateTime.utc_now(:second), sent_at, :second) >=
+          @confirmation_cooldown_seconds
+    end
+  end
+
+  @doc "Records that a confirmation email was sent to this address."
+  def mark_confirmation_sent(email) when is_binary(email) do
+    case Repo.get_by(Subscriber, email: String.trim(email)) do
+      nil ->
+        :ok
+
+      %Subscriber{} = subscriber ->
+        subscriber
+        |> Ecto.Changeset.change(confirmation_sent_at: DateTime.utc_now(:second))
+        |> Repo.update()
+    end
   end
 
   defp confirm_subscriber(%Subscriber{} = subscriber) do

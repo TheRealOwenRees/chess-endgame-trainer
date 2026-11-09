@@ -254,4 +254,45 @@ defmodule Chesstrainer.MailingListTest do
                MailingList.update_subscriber_email(user, unique_user_email())
     end
   end
+
+  describe "confirmation cooldown" do
+    test "allows an address that has never received a confirmation" do
+      assert MailingList.confirmation_allowed?("player@example.com")
+    end
+
+    test "blocks a recently sent confirmation" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.mark_confirmation_sent("player@example.com")
+
+      refute MailingList.confirmation_allowed?("player@example.com")
+    end
+
+    test "allows another send after the cooldown" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+
+      Repo.get_by(Subscriber, email: "player@example.com")
+      |> Ecto.Changeset.change(
+        confirmation_sent_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
+      )
+      |> Repo.update!()
+
+      assert MailingList.confirmation_allowed?("player@example.com")
+    end
+
+    test "allows a confirmed address" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.confirm("player@example.com")
+
+      assert MailingList.confirmation_allowed?("player@example.com")
+    end
+
+    test "still applies after an unsubscribe" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.confirm("player@example.com")
+      {:ok, _subscriber} = MailingList.unsubscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.mark_confirmation_sent("player@example.com")
+
+      refute MailingList.confirmation_allowed?("player@example.com")
+    end
+  end
 end
