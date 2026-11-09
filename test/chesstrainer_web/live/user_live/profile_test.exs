@@ -4,6 +4,9 @@ defmodule ChesstrainerWeb.UserLive.ProfileTest do
   alias Chesstrainer.Accounts
   alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Attempts
+  alias Chesstrainer.MailingList
+  alias Chesstrainer.MailingList.Subscriber
+  alias Chesstrainer.Repo
   import Phoenix.LiveViewTest
   import Chesstrainer.AccountsFixtures
   import Chesstrainer.EndgamesFixtures
@@ -301,6 +304,40 @@ defmodule ChesstrainerWeb.UserLive.ProfileTest do
       assert path == ~p"/users/log-in"
       assert %{"error" => message} = flash
       assert message == "You must log in to access this page."
+    end
+  end
+
+  describe "mailing list settings" do
+    setup %{conn: conn} do
+      user = user_fixture()
+      %{conn: log_in_user(conn, user), user: user}
+    end
+
+    test "shows the not-subscribed state", %{conn: conn} do
+      {:ok, view, html} = live(conn, ~p"/users/profile/settings")
+
+      assert has_element?(view, "#mailing-list-settings")
+      assert html =~ "not subscribed"
+      refute has_element?(view, "#unsubscribe-mailing-list")
+    end
+
+    test "unsubscribes a subscribed user", %{conn: conn, user: user} do
+      {:ok, _subscriber} = MailingList.subscribe_user(user)
+      MailingList.confirm_user_subscription(user)
+
+      {:ok, view, _html} = live(conn, ~p"/users/profile/settings")
+
+      assert has_element?(view, "#unsubscribe-mailing-list")
+
+      html = view |> element("#unsubscribe-mailing-list") |> render_click()
+
+      assert html =~ "removed from the mailing list"
+      refute has_element?(view, "#unsubscribe-mailing-list")
+
+      assert %Subscriber{unsubscribed_at: unsubscribed_at} =
+               Repo.get_by(Subscriber, user_id: user.id)
+
+      assert unsubscribed_at
     end
   end
 end

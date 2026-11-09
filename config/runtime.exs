@@ -101,6 +101,18 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
+  config :chesstrainer, Chesstrainer.Mailer,
+    adapter: Swoosh.Adapters.AmazonSES,
+    region:
+      System.get_env("SES_REGION") ||
+        raise("environment variable SES_REGION is missing"),
+    access_key:
+      System.get_env("SES_ACCESS_KEY_ID") ||
+        raise("environment variable SES_ACCESS_KEY_ID is missing"),
+    secret:
+      System.get_env("SES_SECRET_ACCESS_KEY") ||
+        raise("environment variable SES_SECRET_ACCESS_KEY is missing")
+
   config :chesstrainer, Chesstrainer.Repo,
     # ssl: true,
     url: database_url,

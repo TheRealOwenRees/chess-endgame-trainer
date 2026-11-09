@@ -7,6 +7,7 @@ defmodule Chesstrainer.Accounts do
   alias Chesstrainer.Repo
 
   alias Chesstrainer.Accounts.{User, UserToken, UserNotifier}
+  alias Chesstrainer.MailingList
 
   ## Database getters
 
@@ -207,6 +208,7 @@ defmodule Chesstrainer.Accounts do
       with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
            %UserToken{sent_to: email} <- Repo.one(query),
            {:ok, user} <- Repo.update(User.email_changeset(user, %{email: email})),
+           {:ok, _subscription} <- MailingList.update_subscriber_email(user, email),
            {_count, _result} <-
              Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: ^context])) do
         {:ok, user}

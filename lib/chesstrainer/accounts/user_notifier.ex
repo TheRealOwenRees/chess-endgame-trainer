@@ -9,7 +9,7 @@ defmodule Chesstrainer.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({Branding.name(), Branding.support_email()})
+      |> from({Branding.name(), Branding.mail_from()})
       |> subject(subject)
       |> text_body(body)
 

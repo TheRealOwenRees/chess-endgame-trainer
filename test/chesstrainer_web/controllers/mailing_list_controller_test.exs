@@ -1,6 +1,7 @@
 defmodule ChesstrainerWeb.MailingListControllerTest do
   use ChesstrainerWeb.ConnCase, async: true
 
+  alias Chesstrainer.MailingList
   alias Chesstrainer.MailingList.Subscriber
   alias Chesstrainer.Repo
 
@@ -17,6 +18,25 @@ defmodule ChesstrainerWeb.MailingListControllerTest do
       assert_received {:email, email}
       assert email.subject == "Confirm your mailing list subscription"
       assert email.text_body =~ "/mailing-list/confirm/"
+      assert email.reply_to == {"", "support@innersquare.app"}
+    end
+
+    test "re-confirms an address that previously unsubscribed", %{conn: conn} do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.confirm("player@example.com")
+      {:ok, _subscriber} = MailingList.unsubscribe("player@example.com")
+
+      conn = post(conn, ~p"/mailing-list", subscriber: %{email: "player@example.com"})
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Check your inbox"
+
+      assert_received {:email, email}
+      get(build_conn(), "/mailing-list/confirm/#{extract_token(email)}")
+
+      subscriber = Repo.get_by(Subscriber, email: "player@example.com")
+      assert subscriber.confirmed_at
+      assert subscriber.unsubscribed_at == nil
+      assert MailingList.count_confirmed_subscribers() == 1
     end
 
     test "resends confirmation for an address that has not confirmed yet", %{conn: conn} do

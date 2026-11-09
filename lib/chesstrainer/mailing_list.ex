@@ -9,6 +9,9 @@ defmodule Chesstrainer.MailingList do
   confirmed when the user's account is. A subscriber created from the landing
   page has no user; one created from registration is linked to the user so
   deleting the account also removes their address.
+
+  Unsubscribing sets `unsubscribed_at` instead of deleting the row, so the
+  address stays suppressed and is never emailed again unless it opts back in.
   """
 
   import Ecto.Query, warn: false
@@ -42,7 +45,8 @@ defmodule Chesstrainer.MailingList do
       email = Ecto.Changeset.get_field(changeset, :email)
 
       case Repo.get_by(Subscriber, email: email) do
-        %Subscriber{confirmed_at: confirmed_at} when not is_nil(confirmed_at) ->
+        %Subscriber{confirmed_at: confirmed_at, unsubscribed_at: nil}
+        when not is_nil(confirmed_at) ->
           {:ok, :already_subscribed}
 
         %Subscriber{} ->
@@ -75,20 +79,92 @@ defmodule Chesstrainer.MailingList do
   @doc """
   Confirms a subscription by email address.
 
+  Confirming also clears a previous unsubscribe, so an address that opted out
+  can rejoin only by going through a fresh confirmation.
+
   Returns `{:error, :not_found}` when the address is not on the list.
   """
   def confirm(email) when is_binary(email) do
     case Repo.get_by(Subscriber, email: String.trim(email)) do
-      nil ->
-        {:error, :not_found}
+      nil -> {:error, :not_found}
+      %Subscriber{} = subscriber -> confirm_subscriber(subscriber)
+    end
+  end
 
-      %Subscriber{confirmed_at: nil} = subscriber ->
-        subscriber
-        |> Ecto.Changeset.change(confirmed_at: DateTime.utc_now(:second))
-        |> Repo.update()
+  @doc """
+  Unsubscribes an address from the mailing list.
+
+  The row is kept so the address remains suppressed. Idempotent.
+  """
+  def unsubscribe(email) when is_binary(email) do
+    case Repo.get_by(Subscriber, email: String.trim(email)) do
+      nil -> {:error, :not_found}
+      %Subscriber{} = subscriber -> mark_unsubscribed(subscriber)
+    end
+  end
+
+  @doc """
+  Unsubscribes the address linked to the given user account.
+  """
+  def unsubscribe_user(%User{} = user) do
+    case Repo.get_by(Subscriber, user_id: user.id) do
+      nil -> {:error, :not_found}
+      %Subscriber{} = subscriber -> mark_unsubscribed(subscriber)
+    end
+  end
+
+  @doc "Returns true when the user has an active mailing-list subscription."
+  def user_subscribed?(%User{} = user) do
+    Subscriber
+    |> where(
+      [s],
+      s.user_id == ^user.id and not is_nil(s.confirmed_at) and is_nil(s.unsubscribed_at)
+    )
+    |> Repo.exists?()
+  end
+
+  @doc """
+  Keeps a user's linked subscription in step with their account email.
+
+  Returns `{:ok, :no_subscription}` when the user was not on the list.
+  """
+  def update_subscriber_email(%User{} = user, new_email) when is_binary(new_email) do
+    case Repo.get_by(Subscriber, user_id: user.id) do
+      nil ->
+        {:ok, :no_subscription}
 
       %Subscriber{} = subscriber ->
-        {:ok, subscriber}
+        new_email = String.trim(new_email)
+
+        case Repo.get_by(Subscriber, email: new_email) do
+          # An anonymous row may already hold the new address. Remove it so the
+          # unique email constraint does not block the account email change,
+          # but keep its unsubscribe so moving an account email cannot opt an
+          # address back in.
+          %Subscriber{user_id: nil, unsubscribed_at: anonymous_unsubscribed_at} =
+              anonymous ->
+            Repo.delete!(anonymous)
+
+            changeset = Subscriber.changeset(subscriber, %{email: new_email})
+
+            changeset =
+              if anonymous_unsubscribed_at do
+                Ecto.Changeset.put_change(
+                  changeset,
+                  :unsubscribed_at,
+                  subscriber.unsubscribed_at || anonymous_unsubscribed_at
+                )
+              else
+                changeset
+              end
+
+            Repo.update(changeset)
+
+          _other ->
+            subscriber
+            |> Subscriber.changeset(%{email: new_email})
+            |> Repo.update()
+        end
     end
   end
 
@@ -103,15 +179,36 @@ defmodule Chesstrainer.MailingList do
 
     Subscriber
     |> where([s], s.user_id == ^user.id and is_nil(s.confirmed_at))
-    |> Repo.update_all(set: [confirmed_at: now, updated_at: now])
+    |> Repo.update_all(set: [confirmed_at: now, unsubscribed_at: nil, updated_at: now])
   end
 
-  @doc "Returns the number of confirmed addresses on the mailing list."
+  @doc "Returns the number of active addresses on the mailing list."
   def count_confirmed_subscribers do
     Subscriber
-    |> where([s], not is_nil(s.confirmed_at))
+    |> where([s], not is_nil(s.confirmed_at) and is_nil(s.unsubscribed_at))
     |> Repo.aggregate(:count)
   end
+
+  defp confirm_subscriber(%Subscriber{} = subscriber) do
+    attrs =
+      if is_nil(subscriber.confirmed_at) do
+        %{confirmed_at: DateTime.utc_now(:second), unsubscribed_at: nil}
+      else
+        %{unsubscribed_at: nil}
+      end
+
+    subscriber
+    |> Ecto.Changeset.change(attrs)
+    |> Repo.update()
+  end
+
+  defp mark_unsubscribed(%Subscriber{unsubscribed_at: nil} = subscriber) do
+    subscriber
+    |> Ecto.Changeset.change(unsubscribed_at: DateTime.utc_now(:second))
+    |> Repo.update()
+  end
+
+  defp mark_unsubscribed(%Subscriber{} = subscriber), do: {:ok, subscriber}
 
   defp insert_subscription(changeset, email) do
     case Repo.insert(changeset) do
@@ -123,9 +220,15 @@ defmodule Chesstrainer.MailingList do
         # above and this insert; the unique constraint decides, so re-read it.
         if email_taken?(changeset) do
           case Repo.get_by(Subscriber, email: email) do
-            %Subscriber{confirmed_at: nil} -> {:ok, :confirmation_required}
-            %Subscriber{} -> {:ok, :already_subscribed}
-            nil -> {:error, changeset}
+            %Subscriber{confirmed_at: confirmed_at, unsubscribed_at: nil}
+            when not is_nil(confirmed_at) ->
+              {:ok, :already_subscribed}
+
+            %Subscriber{} ->
+              {:ok, :confirmation_required}
+
+            nil ->
+              {:error, changeset}
           end
         else
           {:error, changeset}

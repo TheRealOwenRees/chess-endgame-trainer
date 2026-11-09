@@ -9,6 +9,8 @@ defmodule Chesstrainer.AccountsTest do
   alias Chesstrainer.Attempts
   alias Chesstrainer.Attempts.Attempt
   alias Chesstrainer.Accounts.Scope
+  alias Chesstrainer.MailingList
+  alias Chesstrainer.MailingList.Subscriber
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -338,6 +340,19 @@ defmodule Chesstrainer.AccountsTest do
       assert changed_user.email != user.email
       assert changed_user.email == email
       refute Repo.get_by(UserToken, user_id: user.id)
+    end
+
+    test "updates the linked mailing-list address", %{
+      user: user,
+      token: token,
+      email: email
+    } do
+      {:ok, _subscriber} = MailingList.subscribe_user(user)
+      MailingList.confirm_user_subscription(user)
+
+      assert {:ok, %{email: ^email}} = Accounts.update_user_email(user, token)
+
+      assert %Subscriber{email: ^email} = Repo.get_by(Subscriber, user_id: user.id)
     end
 
     test "does not update email with invalid token", %{user: user} do

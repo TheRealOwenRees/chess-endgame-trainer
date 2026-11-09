@@ -8,10 +8,11 @@ defmodule Chesstrainer.Branding do
   """
 
   @defaults [
-    name: "Lucid Chess",
-    wordmark: "LUCID",
+    name: "Inner Square Chess",
+    wordmark: "INNERSQUARE",
     tagline: "Endgame Trainer",
-    support_email: "support@lucidchess.app"
+    support_email: "support@innersquare.app",
+    mail_from: "no-reply@innersquare.app"
   ]
 
   @doc "The display name, e.g. `\"Lucid Chess\"`."
@@ -23,8 +24,11 @@ defmodule Chesstrainer.Branding do
   @doc "The tagline appended to the home title, e.g. `\"Endgame Trainer\"`."
   def tagline, do: get(:tagline)
 
-  @doc "The address shown in legal pages and used as the mailer `from`."
+  @doc "The support address shown in legal pages and used as the mailer reply-to."
   def support_email, do: get(:support_email)
+
+  @doc "The From address used for outgoing mail."
+  def mail_from, do: get(:mail_from)
 
   @doc "The home-page title, e.g. `\"Lucid Chess — Endgame Trainer\"`."
   def home_title, do: "#{name()} — #{tagline()}"
