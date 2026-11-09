@@ -43,7 +43,7 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
             type="button"
             id="clear-endgame-search"
             phx-click="clear_search"
-            class="text-sm text-primary underline underline-offset-4 hover:text-primary/80"
+            class="text-sm text-primary-text underline underline-offset-4 hover:text-primary-text/80"
           >
             Clear
           </button>

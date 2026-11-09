@@ -30,7 +30,7 @@ defmodule ChesstrainerWeb.UserLive.Profile do
           class={[
             "border-b-2 -mb-px px-3 py-2 text-sm font-semibold",
             if(@live_action == tab.id,
-              do: "border-primary text-primary",
+              do: "border-primary text-primary-text",
               else: "border-transparent text-base-content/60 hover:text-base-content"
             )
           ]}

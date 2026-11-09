@@ -112,7 +112,7 @@ defmodule ChesstrainerWeb.CoreComponents do
       <.button phx-click="go" variant="primary">Send!</.button>
       <.button navigate={~p"/"}>Home</.button>
   """
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
+  attr :rest, :global, include: ~w(href navigate patch method download name value disabled type)
   attr :class, :any
   attr :variant, :string, values: ~w(primary secondary ghost danger)
   slot :inner_block, required: true
@@ -123,7 +123,7 @@ defmodule ChesstrainerWeb.CoreComponents do
       "secondary" => "border border-base-300 bg-base-100 text-base-content hover:bg-base-200",
       "ghost" => "text-base-content hover:bg-base-200",
       "danger" => "bg-error text-error-content hover:bg-error/90",
-      nil => "bg-primary/15 text-primary hover:bg-primary/25"
+      nil => "bg-primary/15 text-primary-text hover:bg-primary/25"
     }
 
     assigns =
@@ -338,7 +338,7 @@ defmodule ChesstrainerWeb.CoreComponents do
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""
-    <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
+    <p class="mt-1.5 flex gap-2 items-center text-sm text-error-text">
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
@@ -479,8 +479,8 @@ defmodule ChesstrainerWeb.CoreComponents do
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
         @size == "sm" && "px-1.5 text-[0.7rem]",
         @color == "neutral" && "bg-base-200 text-base-content",
-        @color == "primary" && "bg-primary/15 text-primary",
-        @color == "warning" && "bg-warning/15 text-warning",
+        @color == "primary" && "bg-primary/15 text-primary-text",
+        @color == "warning" && "bg-warning/15 text-warning-text",
         @class
       ]}
       {@rest}

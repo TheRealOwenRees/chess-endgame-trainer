@@ -57,4 +57,13 @@ defmodule ChesstrainerWeb.LayoutsTest do
       assert html =~ ~s(class="nav-right")
     end
   end
+
+  describe "pill button" do
+    test "renders the navigation call to action as a link" do
+      html = render_component(&Layouts.navbar/1, %{current_scope: nil})
+
+      assert html =~ ~r/<a[^>]*class="nav-cta"/
+      refute html =~ ~r/<button[^>]*class="nav-cta"/
+    end
+  end
 end

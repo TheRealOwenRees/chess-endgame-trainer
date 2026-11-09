@@ -67,6 +67,12 @@
     <Layouts.theme_script />
   </head>
   <body>
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-base-100 focus:px-4 focus:py-2 focus:text-base-content focus:shadow-lg"
+    >
+      Skip to main content
+    </a>
     <Layouts.navbar current_scope={@current_scope} />
     {@inner_content}
     <Layouts.footer />

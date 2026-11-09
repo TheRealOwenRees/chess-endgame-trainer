@@ -961,7 +961,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert_receive {^ref, {:push_event, "review_position", _}}, 100
       assert_receive {^ref, {:push_event, "review_position", _}}, 100
 
-      view |> element("#best-move-panel tr[phx-value-uci='d1d5']") |> render_click()
+      view |> element("#best-move-panel button[phx-value-uci='d1d5']") |> render_click()
 
       assert_receive {^ref, {:push_event, "best_line_move", %{from: "d1", to: "d5"}}}, 100
 
@@ -1042,6 +1042,86 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       panel = view |> element("#best-move-panel") |> render()
       refute panel =~ "Best move unavailable here"
       assert panel =~ "Qd7+"
+    end
+  end
+
+  describe "keyboard move input" do
+    defp open_with_moves(conn) do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen, moves: grading_moves())
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
+      view
+    end
+
+    test "accepts SAN and asks the board to apply it", %{conn: conn} do
+      view = open_with_moves(conn)
+      %{proxy: {ref, _topic, _}} = view
+
+      view |> form("#move-input-form", move: "Qd7+") |> render_submit()
+
+      assert_receive {^ref, {:push_event, "apply_move", %{from: "d1", to: "d7", san: "Qd7+"}}},
+                     100
+    end
+
+    test "accepts UCI", %{conn: conn} do
+      view = open_with_moves(conn)
+      %{proxy: {ref, _topic, _}} = view
+
+      view |> form("#move-input-form", move: "d1d5") |> render_submit()
+
+      assert_receive {^ref, {:push_event, "apply_move", %{from: "d1", to: "d5"}}}, 100
+    end
+
+    test "reports an illegal move without asking the board to play it", %{conn: conn} do
+      view = open_with_moves(conn)
+      %{proxy: {ref, _topic, _}} = view
+
+      html = view |> form("#move-input-form", move: "Qh8") |> render_submit()
+
+      assert html =~ "Not a legal move here"
+      refute_receive {^ref, {:push_event, "apply_move", _}}, 100
+    end
+
+    test "labels the input and explains both move formats", %{conn: conn} do
+      view = open_with_moves(conn)
+
+      assert has_element?(view, "label[for='move-input']", "Your move")
+      assert has_element?(view, "#move-input-help", "SAN or UCI")
+      assert has_element?(view, "#move-input[aria-describedby='move-input-help']")
+    end
+  end
+
+  describe "screen reader announcements" do
+    test "announces the opening position and whose move it is", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen)
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
+
+      announcer = view |> element("#board-announcer") |> render()
+      assert announcer =~ "You play White."
+      assert announcer =~ "White to move."
+
+      summary = view |> element("#position-summary") |> render()
+      assert summary =~ "king on"
+    end
+
+    test "announces a failed puzzle and the best move", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      announcer = view |> element("#board-announcer") |> render()
+      assert announcer =~ "Failed."
+      assert announcer =~ "Best was"
+    end
+
+    test "announces the reviewed position", %{conn: conn} do
+      {view, _fens} = seeded_attempt(conn)
+
+      view |> element("button", "Review") |> render_click()
+
+      announcer = view |> element("#board-announcer") |> render()
+      assert announcer =~ "Reviewing position"
+      assert announcer =~ "After Qd4"
     end
   end
 end

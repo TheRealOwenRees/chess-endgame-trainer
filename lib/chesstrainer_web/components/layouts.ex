@@ -42,7 +42,7 @@ defmodule ChesstrainerWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
+    <main id="main-content" tabindex="-1" class="px-4 py-20 sm:px-6 lg:px-8">
       <div class={["mx-auto space-y-4", if(@wide, do: "max-w-7xl", else: "max-w-2xl")]}>
         {render_slot(@inner_block)}
       </div>
@@ -265,6 +265,7 @@ defmodule ChesstrainerWeb.Layouts do
         role="radio"
         aria-checked="true"
         aria-label="Light colour mode"
+        tabindex="0"
       >
         <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
@@ -276,6 +277,7 @@ defmodule ChesstrainerWeb.Layouts do
         role="radio"
         aria-checked="false"
         aria-label="Dark colour mode"
+        tabindex="-1"
       >
         <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>

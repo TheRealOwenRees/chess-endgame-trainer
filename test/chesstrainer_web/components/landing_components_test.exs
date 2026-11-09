@@ -25,6 +25,14 @@ defmodule ChesstrainerWeb.LandingComponentsTest do
     assert html =~ "Today’s position"
   end
 
+  test "describes the board as an image for assistive technology" do
+    html = render_component(&LandingComponents.board_preview/1, %{endgame: @endgame})
+
+    assert html =~ ~s(role="img")
+    assert html =~ "Chess position. White to move"
+    assert html =~ "rook on f3"
+  end
+
   test "falls back to a neutral position without an endgame" do
     html = render_component(&LandingComponents.board_preview/1, %{endgame: nil})
 

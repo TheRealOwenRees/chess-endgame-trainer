@@ -12,6 +12,7 @@ defmodule ChesstrainerWeb.LandingComponents do
 
   alias Chesstrainer.FEN
   alias Chesstrainer.Themes
+  alias ChesstrainerWeb.Board.PositionText
 
   @button_variants %{
     nav: "nav-cta",
@@ -180,14 +181,21 @@ defmodule ChesstrainerWeb.LandingComponents do
     assigns = assign(assigns, :squares, squares)
 
     ~H"""
-    <div class="chessboard" aria-label="Chess position">
+    <div
+      class="chessboard"
+      role="img"
+      aria-label={"Chess position. #{PositionText.summary(assigns.fen)}"}
+    >
       <%= for square <- @squares do %>
-        <div class={[
-          "square",
-          if(square.light, do: "light", else: "dark"),
-          square.selected? && "selected",
-          square.target? && "target"
-        ]}>
+        <div
+          class={[
+            "square",
+            if(square.light, do: "light", else: "dark"),
+            square.selected? && "selected",
+            square.target? && "target"
+          ]}
+          aria-hidden="true"
+        >
           <span :if={square.label_rank} class="rank">{square.rank}</span>
           <span :if={square.label_file} class="file">{square.file}</span>
           <span

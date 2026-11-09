@@ -23,10 +23,12 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
             <span>FEN: {@endgame.fen}</span>
             <button
               id="copy-fen-btn"
+              type="button"
               phx-hook="CopyFen"
               data-fen={@endgame.fen}
-              class="inline-flex items-center cursor-pointer"
+              class="inline-flex items-center justify-center rounded p-1.5 cursor-pointer"
               title="Copy FEN to clipboard"
+              aria-label="Copy FEN to clipboard"
             >
               <.icon name="hero-document-duplicate" class="w-3.5 h-3.5" />
             </button>
@@ -44,6 +46,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
 
       <PlayComponents.play_surface
         endgame={@endgame}
+        fen={@fen}
         status={@status}
         blocked_reason={@blocked_reason}
         best_move={@best_move}
@@ -56,6 +59,10 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         awaiting_reply={@awaiting_reply}
         last_grade={@last_grade}
         awaiting_best_line={@awaiting_best_line}
+        move_input={@move_input}
+        move_input_error={@move_input_error}
+        last_check={@last_check}
+        last_checkmate={@last_checkmate}
       />
 
       <div :if={@user_rating} class="mb-4">
@@ -75,6 +82,13 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
   @impl true
   def handle_event("endgame_move_played", params, socket),
     do: PlayCore.move_played(socket, params)
+
+  def handle_event("submit_move", params, socket), do: PlayCore.submit_move(socket, params)
+
+  def handle_event("move_input", params, socket), do: PlayCore.move_input_changed(socket, params)
+
+  def handle_event("move_input_error", params, socket),
+    do: PlayCore.move_input_error(socket, params)
 
   def handle_event("opponent_reply_applied", params, socket),
     do: PlayCore.opponent_reply_applied(socket, params)

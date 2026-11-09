@@ -69,7 +69,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     refute html =~ "Phoenix Framework"
 
     eyebrow = LazyHTML.query(document, ".eyebrow")
-    assert LazyHTML.text(eyebrow) =~ "Endgames, made clear"
+    assert LazyHTML.text(eyebrow) =~ "Endgames, simplified"
     assert LazyHTML.attribute(LazyHTML.query(eyebrow, "svg"), "aria-hidden") == ["true"]
 
     assert LazyHTML.attribute(LazyHTML.query(document, ~s(meta[name="description"])), "content") ==
@@ -216,18 +216,12 @@ defmodule ChesstrainerWeb.PageControllerTest do
     refute html =~ ~p"/users/register"
   end
 
-  test "renders curated cards and the daily board", %{conn: conn} do
-    {beginner, intermediate, advanced} = curated!()
+  test "renders the daily board", %{conn: conn} do
+    curated!()
     daily = DailyPuzzles.today()
 
     html = conn |> get(~p"/") |> html_response(200)
     document = LazyHTML.from_document(html)
-
-    assert LazyHTML.attribute(LazyHTML.query(document, ".puzzle-card"), "href") == [
-             "/endgames/#{beginner.public_code}/play",
-             "/endgames/#{intermediate.public_code}/play",
-             "/endgames/#{advanced.public_code}/play"
-           ]
 
     board = LazyHTML.text(LazyHTML.query(document, ".board-caption"))
     assert board =~ daily.key
@@ -238,7 +232,6 @@ defmodule ChesstrainerWeb.PageControllerTest do
 
     assert LazyHTML.text(LazyHTML.query(document, ".board-topline")) =~ "White"
     assert html =~ "Try today's puzzle"
-    assert html =~ "<span>puzzles</span>"
   end
 
   test "hero CTA links to the daily puzzle", %{conn: conn} do
@@ -274,7 +267,6 @@ defmodule ChesstrainerWeb.PageControllerTest do
     document = LazyHTML.from_document(html)
 
     assert html =~ "Featured position"
-    assert html =~ "<span>puzzles</span>"
     refute html =~ "puzzle-card"
 
     assert LazyHTML.attribute(LazyHTML.query(document, ".hero-actions a"), "href") == [

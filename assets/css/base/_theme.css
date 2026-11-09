@@ -10,8 +10,11 @@
   --color-coral: var(--coral);
   --color-coral-control: var(--coral);
   --color-coral-control-hover: var(--coral-dark);
-  --color-coral-text: var(--coral-dark);
-  --color-success-text: var(--mint-deep);
+  --color-coral-text: #b8432c;
+  --color-success-text: #3f6d5a;
+  --color-warning-text: #8a5a00;
+  --color-primary-text: #b8432c;
+  --color-error-text: #b8432c;
   --color-mint-chip: var(--mint);
   --color-on-accent-muted: #5f2c23;
 
@@ -71,6 +74,9 @@ html[data-theme="dark"] {
   --color-coral-control-hover: #b8432c;
   --color-coral-text: #ff9c85;
   --color-success-text: #8fd3b5;
+  --color-warning-text: #f0b35a;
+  --color-primary-text: #f2816b;
+  --color-error-text: #f2816b;
   --color-mint-chip: #24403a;
   --color-on-accent-muted: rgba(255, 255, 255, 0.97);
   --color-promotion-surface: #1b2822;

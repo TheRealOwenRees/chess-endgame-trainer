@@ -51,7 +51,7 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
         <p class="text-center text-sm">
           <.link
             navigate={~p"/users/log-in"}
-            class="font-semibold text-primary hover:underline"
+            class="font-semibold text-primary-text hover:underline"
           >
             Back to log in
           </.link>

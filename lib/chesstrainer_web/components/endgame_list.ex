@@ -136,6 +136,7 @@ defmodule ChesstrainerWeb.EndgameList do
             phx-click="remove_theme"
             phx-value-id={theme.id}
             aria-label={"Remove #{theme.name}"}
+            class="px-1"
           >
             ×
           </button>

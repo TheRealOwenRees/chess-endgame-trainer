@@ -12,7 +12,7 @@ defmodule ChesstrainerWeb.Board.PieceComponent do
 
     ~H"""
     <%= if @path do %>
-      <img src={@path} class={@class} />
+      <img src={@path} class={@class} alt="" aria-hidden="true" />
     <% end %>
     """
   end

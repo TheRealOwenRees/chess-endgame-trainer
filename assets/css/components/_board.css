@@ -39,3 +39,10 @@
 /* Admin Chessboard */
 .bg-boardwhite { background-color: #f2f5f3; /* light square */ }
 .bg-boardblack { background-color: #71828f; /* dark square */ }
+
+/* Play board */
+#endgame-board { position: relative; }
+
+/* Chessground's wrapper has no intrinsic height; let it fill the sized
+   aspect-ratio container so the board scales with the viewport. */
+#endgame-board .cg-wrap { width: 100%; height: 100%; }
