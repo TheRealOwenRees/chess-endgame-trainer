@@ -84,9 +84,9 @@ defmodule ChesstrainerWeb.LandingComponents do
     <section class="mailing-list" id="mailing-list">
       <div class="mailing-list-copy">
         <span class="section-kicker">Mailing list</span>
-        <h2>One good endgame idea, now and then.</h2>
+        <h2>Stay in the loop.</h2>
         <p>
-          Occasional emails about new puzzles and features. We'll ask you to confirm your address first.
+          Get occasional endgame ideas, new puzzles, and feature updates delivered to your inbox. (Please confirm your email after signing up.)
         </p>
       </div>
 
