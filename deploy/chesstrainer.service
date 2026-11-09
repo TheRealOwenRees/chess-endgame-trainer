@@ -1,0 +1,19 @@
+[Unit]
+Description=Inner Square Chess (Phoenix)
+After=network.target docker.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=chesstrainer
+Group=chesstrainer
+EnvironmentFile=/etc/chesstrainer/env
+WorkingDirectory=/opt/chesstrainer/current
+ExecStartPre=/opt/chesstrainer/current/bin/migrate
+ExecStart=/opt/chesstrainer/current/bin/server
+Restart=always
+RestartSec=5
+SyslogIdentifier=chesstrainer
+
+[Install]
+WantedBy=multi-user.target

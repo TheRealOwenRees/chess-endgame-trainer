@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Activate a timestamped release on the VPS.
+#
+# Usage:
+#   sudo deploy/activate /tmp/chesstrainer-20261109.tar.gz
+#
+# Environment overrides:
+#   APP_USER, APP_ROOT, SERVICE, HEALTH_URL, KEEP_RELEASES, RELEASE_ID
+
+if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+  echo "activate: run with sudo" >&2
+  exit 1
+fi
+
+TARBALL="${1:-}"
+if [[ -z "$TARBALL" || ! -f "$TARBALL" ]]; then
+  echo "usage: sudo $0 /path/to/chesstrainer-release.tar.gz" >&2
+  exit 1
+fi
+
+APP_USER="${APP_USER:-chesstrainer}"
+APP_ROOT="${APP_ROOT:-/opt/chesstrainer}"
+SERVICE="${SERVICE:-chesstrainer}"
+HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:4100/health}"
+KEEP_RELEASES="${KEEP_RELEASES:-5}"
+RELEASE_ID="${RELEASE_ID:-$(date -u +%Y%m%d%H%M%S)}"
+
+if [[ ! "$RELEASE_ID" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  echo "activate: RELEASE_ID may contain only letters, digits, dot, underscore and dash" >&2
+  exit 1
+fi
+
+if [[ ! "$KEEP_RELEASES" =~ ^[0-9]+$ ]] || [[ "$KEEP_RELEASES" -lt 1 ]]; then
+  echo "activate: KEEP_RELEASES must be a positive integer" >&2
+  exit 1
+fi
+
+health_check() {
+  curl --fail --silent --show-error \
+    --retry 10 --retry-delay 2 --retry-connrefused \
+    "$HEALTH_URL" >/dev/null
+}
+
+install -d -o "$APP_USER" -g "$APP_USER" "$APP_ROOT/releases"
+
+PREVIOUS="$(readlink -f "$APP_ROOT/current" 2>/dev/null || true)"
+RELEASE_DIR="$APP_ROOT/releases/$RELEASE_ID"
+
+echo "activate: extracting $TARBALL -> $RELEASE_DIR"
+install -d -o "$APP_USER" -g "$APP_USER" "$RELEASE_DIR"
+tar -xzf "$TARBALL" -C "$RELEASE_DIR"
+chown -R "$APP_USER:$APP_USER" "$RELEASE_DIR"
+
+echo "activate: pointing current at $RELEASE_DIR"
+ln -sfn "$RELEASE_DIR" "$APP_ROOT/current"
+
+if systemctl restart "$SERVICE" && health_check; then
+  echo "activate: $RELEASE_ID is live"
+
+  if [[ "$KEEP_RELEASES" -gt 0 ]]; then
+    find "$APP_ROOT/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
+      | sort -nr \
+      | tail -n +"$((KEEP_RELEASES + 1))" \
+      | cut -d' ' -f2- \
+      | while read -r old_release; do
+          [[ -z "$old_release" ]] && continue
+          [[ "$old_release" == "$(readlink -f "$APP_ROOT/current")" ]] && continue
+          echo "activate: pruning $old_release"
+          rm -rf -- "$old_release"
+        done
+  fi
+
+  exit 0
+fi
+
+echo "activate: health check failed" >&2
+
+if [[ -n "$PREVIOUS" && -d "$PREVIOUS" ]]; then
+  echo "activate: rolling back to $PREVIOUS" >&2
+  ln -sfn "$PREVIOUS" "$APP_ROOT/current"
+  systemctl restart "$SERVICE" || true
+  health_check || echo "activate: rollback health check also failed" >&2
+fi
+
+exit 1

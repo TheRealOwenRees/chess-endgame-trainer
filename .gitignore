@@ -31,8 +31,12 @@ chesstrainer-*.tar
 # Ignore ETS table backups
 /priv/static/backups/
 
-# Ignore digested assets cache.
+# Ignore digested assets cache and generated digests.
 /priv/static/cache_manifest.json
+/priv/static/favicon-*.ico
+/priv/static/fonts/*-*.woff2
+/priv/static/images/*-*.svg
+/priv/static/images/*.svg.gz
 
 # In case you use Node.js/npm, you want to ignore these.
 npm-debug.log

@@ -1,0 +1,15 @@
+# Reference block for the shared Caddyfile.
+#
+# This file is not installed automatically. On the shared VPS, add this block
+# to the existing Caddy config by hand, then validate and reload Caddy.
+#
+# The app listens on loopback only; Caddy is the public entry point.
+
+innersquare.app {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:4100
+}
+
+www.innersquare.app {
+    redir https://innersquare.app{uri} permanent
+}

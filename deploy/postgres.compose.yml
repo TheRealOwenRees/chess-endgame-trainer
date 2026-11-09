@@ -1,0 +1,26 @@
+# Reference only. Merge the service and volume below into the VPS's unified
+# docker-compose.yml. Do not run this file as a separate Compose project.
+#
+# Pin the Postgres image directly in the unified file. Replace the tag with
+# an exact digest if you want immutable image pinning:
+#   image: postgres:18.0@sha256:...
+
+services:
+  chesstrainer-db:
+    container_name: chesstrainer-db
+    image: postgres:18.0
+    restart: unless-stopped
+    env_file: /etc/chesstrainer/postgres.env
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - chesstrainer_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  chesstrainer_pgdata:
+    name: chesstrainer_pgdata

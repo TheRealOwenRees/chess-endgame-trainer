@@ -91,6 +91,7 @@ defmodule Chesstrainer.MixProject do
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind chesstrainer", "esbuild chesstrainer"],
       "assets.deploy": [
+        "compile",
         "tailwind chesstrainer --minify",
         "esbuild chesstrainer --minify",
         "phx.digest"

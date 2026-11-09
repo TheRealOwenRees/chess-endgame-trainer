@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Roll back to a previous release.
+#
+# Usage:
+#   sudo deploy/rollback                 # most recent previous release
+#   sudo deploy/rollback 20261109120000  # release id under /opt/chesstrainer/releases
+#   sudo deploy/rollback /opt/chesstrainer/releases/20261109120000
+
+if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+  echo "rollback: run with sudo" >&2
+  exit 1
+fi
+
+APP_ROOT="${APP_ROOT:-/opt/chesstrainer}"
+SERVICE="${SERVICE:-chesstrainer}"
+HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:4100/health}"
+
+health_check() {
+  curl --fail --silent --show-error \
+    --retry 10 --retry-delay 2 --retry-connrefused \
+    "$HEALTH_URL" >/dev/null
+}
+
+CURRENT="$(readlink -f "$APP_ROOT/current" 2>/dev/null || true)"
+
+if [[ $# -gt 0 ]]; then
+  case "$1" in
+    /*) TARGET="$1" ;;
+    *) TARGET="$APP_ROOT/releases/$1" ;;
+  esac
+else
+  TARGET="$(
+    find "$APP_ROOT/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' \
+      | sort -nr \
+      | cut -d' ' -f2- \
+      | while read -r release; do
+          if [[ "$release" != "$CURRENT" ]]; then
+            echo "$release"
+            break
+          fi
+        done
+  )"
+fi
+
+if [[ -z "$TARGET" || ! -d "$TARGET" ]]; then
+  echo "rollback: no previous release found" >&2
+  exit 1
+fi
+
+echo "rollback: pointing current at $TARGET"
+ln -sfn "$TARGET" "$APP_ROOT/current"
+
+systemctl restart "$SERVICE"
+health_check
+
+echo "rollback: $TARGET is live"
