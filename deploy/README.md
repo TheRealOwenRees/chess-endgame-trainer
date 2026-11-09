@@ -377,6 +377,10 @@ sudo journalctl -u chesstrainer -n 100 --no-pager
 curl -i http://127.0.0.1:4100/health
 ```
 
+`/health` returns JSON with `status`, `db`, `tablebase`, and `process`.
+It returns 200 for `ok`/`degraded` and 503 for `down`. A missing local tablebase
+reports `degraded` but still 200 because Lichess fallback is available.
+
 ## Backups
 
 Take a logical backup of the production database:
