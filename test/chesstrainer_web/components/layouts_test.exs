@@ -31,14 +31,13 @@ defmodule ChesstrainerWeb.LayoutsTest do
   end
 
   describe "colour_mode_toggle/1" do
-    test "renders all three modes as a labelled radiogroup" do
+    test "renders light and dark modes as a labelled radiogroup" do
       html = render_component(&Layouts.colour_mode_toggle/1, %{})
 
       assert html =~ ~s(role="radiogroup")
       assert html =~ ~s(aria-label="Colour mode")
 
       for {mode, label} <- [
-            {"system", "System colour mode"},
             {"light", "Light colour mode"},
             {"dark", "Dark colour mode"}
           ] do
@@ -47,6 +46,7 @@ defmodule ChesstrainerWeb.LayoutsTest do
         assert html =~ ~s(role="radio")
       end
 
+      refute html =~ ~s(data-phx-theme="system")
       assert html =~ ~s(aria-checked="true")
     end
 

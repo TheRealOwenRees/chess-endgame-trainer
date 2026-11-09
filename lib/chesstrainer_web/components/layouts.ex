@@ -235,7 +235,10 @@ defmodule ChesstrainerWeb.Layouts do
   end
 
   @doc """
-  Provides the system / light / dark colour-mode switch.
+  Provides the light / dark colour-mode switch.
+
+  With no saved preference the page follows the OS setting; only the explicit
+  light and dark modes are selectable here.
 
   The click handling and `aria-checked` syncing live in `theme_script.html.heex`,
   which runs before paint and also on pages without LiveView (the landing page
@@ -250,28 +253,17 @@ defmodule ChesstrainerWeb.Layouts do
       aria-label="Colour mode"
     >
       <div
-        class="absolute w-1/3 h-full rounded-full border border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]"
+        class="absolute w-1/2 h-full rounded-full border border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=dark]_&]:left-1/2 transition-[left]"
         aria-hidden="true"
       >
       </div>
 
       <button
         type="button"
-        class="flex p-2 cursor-pointer w-1/3 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        data-phx-theme="system"
-        role="radio"
-        aria-checked="true"
-        aria-label="System colour mode"
-      >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
-      </button>
-
-      <button
-        type="button"
-        class="flex p-2 cursor-pointer w-1/3 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        class="flex p-2 cursor-pointer w-1/2 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         data-phx-theme="light"
         role="radio"
-        aria-checked="false"
+        aria-checked="true"
         aria-label="Light colour mode"
       >
         <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
@@ -279,7 +271,7 @@ defmodule ChesstrainerWeb.Layouts do
 
       <button
         type="button"
-        class="flex p-2 cursor-pointer w-1/3 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        class="flex p-2 cursor-pointer w-1/2 justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         data-phx-theme="dark"
         role="radio"
         aria-checked="false"

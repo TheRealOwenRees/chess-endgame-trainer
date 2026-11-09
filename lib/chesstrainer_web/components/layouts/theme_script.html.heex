@@ -16,10 +16,9 @@
       }
     };
 
-    const selectedMode = () => {
-      const source = document.documentElement.getAttribute("data-theme-source");
-      return source === "system" ? "system" : document.documentElement.getAttribute("data-theme");
-    };
+    // There is no system button, so report the effective theme. This keeps the
+    // visible light/dark control in sync when the page is following the OS.
+    const selectedMode = () => document.documentElement.getAttribute("data-theme");
 
     const syncChecked = () => {
       document.querySelectorAll("[data-phx-theme]").forEach((button) => {
