@@ -163,8 +163,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
                 </.button>
               <% end %>
             </div>
-            <.button navigate={~p"/"} variant="ghost" class="mt-2 w-full justify-center">
-              Cancel
+            <.button navigate={~p"/"} variant="ghost" class="mt-2 w-full justify-center bg-orange-200">
+              <.icon name="hero-arrow-left" />Return Home
             </.button>
           </div>
         </div>
