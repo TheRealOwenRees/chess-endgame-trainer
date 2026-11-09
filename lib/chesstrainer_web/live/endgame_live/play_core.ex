@@ -450,7 +450,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
             |> assign(:last_rating_delta, nil)
             |> put_flash(
               :info,
-              "Replay recorded. Your rating is unchanged because you played this recently."
+              "Your rating is unchanged because you played this puzzle recently."
             )
         end
 
