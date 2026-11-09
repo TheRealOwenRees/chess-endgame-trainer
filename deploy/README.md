@@ -150,6 +150,27 @@ openssl rand -base64 64   # SECRET_KEY_BASE
 openssl rand -hex 32      # Postgres password
 ```
 
+### Secret key base
+
+`SECRET_KEY_BASE` is required in production; the release raises at boot without
+it. It signs cookies, session tokens, LiveView tokens, and mailing-list
+confirmation links.
+
+Generate it with `mix phx.gen.secret` or:
+
+```sh
+openssl rand -base64 64
+```
+
+Keep it stable. Rotating it signs every user out and invalidates outstanding
+confirmation and unsubscribe links. Never reuse the dev/test value or commit it.
+
+Verify it is set without printing it:
+
+```sh
+sudo awk -F= '/^SECRET_KEY_BASE=/{print length($2)}' /etc/chesstrainer/env
+```
+
 ## Postgres env file
 
 `/etc/chesstrainer/postgres.env`:
