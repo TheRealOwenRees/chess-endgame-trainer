@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inner Square Chess — Endgame Trainer</title>
+    <meta
+      name="description"
+      content="Short, focused endgame puzzles against tablebase-perfect defence. Learn to see the winning move and make the endgame your strongest phase."
+    />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f4f0e6" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Inner Square Chess" />
+    <meta property="og:title" content="Inner Square Chess — Endgame Trainer" />
+    <meta
+      property="og:description"
+      content="Short, focused endgame puzzles against tablebase-perfect defence. Launching soon."
+    />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="/favicon.ico" />
+
+    <style>
+      @font-face {
+        font-family: "DM Sans";
+        font-style: normal;
+        font-weight: 100 1000;
+        font-display: swap;
+        src: url("/fonts/dm-sans-variable.woff2") format("woff2");
+      }
+
+      @font-face {
+        font-family: "DM Serif Display";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("/fonts/dm-serif-display.woff2") format("woff2");
+      }
+
+      @font-face {
+        font-family: "DM Serif Display";
+        font-style: italic;
+        font-weight: 400;
+        font-display: swap;
+        src: url("/fonts/dm-serif-display-italic.woff2") format("woff2");
+      }
+
+      :root {
+        --ink: #17352d;
+        --ink-soft: #587068;
+        --paper: #f4f0e6;
+        --cream: #fffcf4;
+        --mint: #b9d7c9;
+        --coral: #ef755d;
+        --coral-dark: #d95d48;
+        --line: rgba(23, 53, 45, 0.15);
+
+        --color-canvas: var(--paper);
+        --color-canvas-raised: var(--cream);
+        --color-body: var(--ink);
+        --color-muted: var(--ink-soft);
+        --color-hairline: var(--line);
+        --color-deep: var(--ink);
+        --color-on-deep: var(--paper);
+        --color-coral: var(--coral);
+        --color-coral-text: #b8432c;
+        --color-mint-chip: var(--mint);
+
+        --color-board-light: #e9e1cc;
+        --color-board-dark: #81a996;
+        --color-piece-light: #fffdf5;
+        --color-piece-outline: #17352d;
+
+        color-scheme: light;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        background: var(--color-canvas);
+        color: var(--color-body);
+        font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--color-coral-text);
+        outline-offset: 2px;
+      }
+
+      main {
+        flex: 1 0 auto;
+        overflow: hidden;
+      }
+
+      /* Navigation */
+      .nav-wrap {
+        width: min(1180px, calc(100% - 48px));
+        height: 92px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--color-hairline);
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background: var(--color-deep);
+        color: var(--color-on-deep);
+        font-size: 21px;
+        letter-spacing: 0;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border: 1px solid var(--color-hairline);
+        border-radius: 999px;
+        color: var(--color-muted);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .status::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--color-coral);
+      }
+
+      /* Hero */
+      .hero {
+        width: min(1180px, calc(100% - 48px));
+        min-height: 650px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 0.91fr 1.09fr;
+        align-items: center;
+        gap: 60px;
+      }
+
+      .hero-copy {
+        position: relative;
+        z-index: 2;
+        padding: 74px 0 92px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--color-coral-text);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--color-coral);
+      }
+
+      h1 {
+        max-width: 590px;
+        margin: 18px 0 0;
+        font-family: "DM Serif Display", Georgia, serif;
+        font-size: clamp(56px, 6vw, 87px);
+        font-weight: 400;
+        letter-spacing: -0.035em;
+        line-height: 0.93;
+      }
+
+      h1 em {
+        color: var(--color-coral);
+        font-weight: 400;
+      }
+
+      .hero-copy > p {
+        max-width: 480px;
+        margin: 29px 0 0;
+        color: var(--color-muted);
+        font-size: 17px;
+        line-height: 1.65;
+      }
+
+      .hero-copy > .note {
+        margin-top: 20px;
+        color: var(--color-muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      /* Board */
+      .board-stage {
+        position: relative;
+        min-height: 580px;
+        display: grid;
+        place-items: center;
+      }
+
+      .coral-orbit,
+      .mint-orbit {
+        position: absolute;
+        border-radius: 50%;
+      }
+
+      .coral-orbit {
+        width: 460px;
+        height: 460px;
+        right: -34px;
+        top: 46px;
+        background: var(--color-coral);
+      }
+
+      .mint-orbit {
+        width: 230px;
+        height: 230px;
+        left: 14px;
+        bottom: 28px;
+        background: var(--color-mint-chip);
+      }
+
+      .board-shell {
+        position: relative;
+        z-index: 2;
+        width: min(458px, 85vw);
+        padding: 18px;
+        border-radius: 12px;
+        background: var(--color-canvas-raised);
+        box-shadow: 0 26px 65px rgba(23, 53, 45, 0.25);
+        transform: rotate(1.5deg);
+      }
+
+      .board-topline,
+      .board-caption {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .board-topline {
+        padding: 1px 1px 13px;
+      }
+
+      .player {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .player-piece {
+        display: grid;
+        place-items: center;
+        width: 31px;
+        height: 31px;
+        border-radius: 50%;
+        background: var(--color-deep);
+        color: var(--color-on-deep);
+        font-size: 20px;
+      }
+
+      .player span:last-child {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.05;
+      }
+
+      .player small {
+        color: var(--color-muted);
+        font-size: 8px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .player strong {
+        font-size: 12px;
+      }
+
+      .piece-count {
+        color: var(--color-muted);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .chessboard {
+        aspect-ratio: 1;
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        overflow: hidden;
+        border-radius: 4px;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+      }
+
+      .square {
+        position: relative;
+        display: grid;
+        place-items: center;
+        aspect-ratio: 1;
+      }
+
+      .square.light {
+        background: var(--color-board-light);
+      }
+
+      .square.dark {
+        background: var(--color-board-dark);
+      }
+
+      .piece {
+        position: relative;
+        z-index: 2;
+        font-family: Georgia, serif;
+        font-size: clamp(25px, 4vw, 42px);
+        line-height: 1;
+        transform: translateY(-1px);
+      }
+
+      .white-piece {
+        color: var(--color-piece-light);
+        text-shadow:
+          0 2px 0 var(--color-piece-outline),
+          1px 0 0 var(--color-piece-outline),
+          -1px 0 0 var(--color-piece-outline),
+          0 -1px 0 var(--color-piece-outline);
+      }
+
+      .black-piece {
+        color: var(--color-piece-outline);
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+      }
+
+      .rank,
+      .file {
+        position: absolute;
+        z-index: 3;
+        color: rgba(23, 53, 45, 0.65);
+        font-size: 7px;
+        font-weight: 700;
+      }
+
+      .rank {
+        top: 3px;
+        left: 4px;
+      }
+
+      .file {
+        right: 4px;
+        bottom: 2px;
+      }
+
+      .square.dark .rank,
+      .square.dark .file {
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      .board-caption {
+        padding: 14px 2px 0;
+      }
+
+      .board-caption div {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .board-caption span {
+        color: var(--color-muted);
+        font-size: 9px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .board-caption strong {
+        font-size: 13px;
+      }
+
+      .board-themes {
+        color: var(--color-coral-text) !important;
+        font-size: 8px !important;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+
+      /* Footer */
+      .site-footer {
+        width: min(1180px, calc(100% - 48px));
+        margin: 0 auto;
+        padding: 44px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 30px;
+        border-top: 1px solid var(--color-hairline);
+      }
+
+      .footer-brand {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .footer-brand p {
+        margin: 0;
+        color: var(--color-muted);
+        font-size: 13px;
+      }
+
+      .site-footer > small {
+        color: var(--color-muted);
+        font-size: 11px;
+      }
+
+      @media (max-width: 900px) {
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 0;
+        }
+
+        .hero-copy {
+          padding-bottom: 30px;
+        }
+
+        .hero-copy > p {
+          max-width: 560px;
+        }
+
+        .coral-orbit {
+          right: 6%;
+        }
+
+        .mint-orbit {
+          left: 10%;
+        }
+
+        .board-stage {
+          min-height: 620px;
+        }
+      }
+
+      @media (max-width: 650px) {
+        .nav-wrap,
+        .hero,
+        .site-footer {
+          width: calc(100% - 36px);
+        }
+
+        .nav-wrap {
+          height: 74px;
+        }
+
+        .status {
+          padding: 7px 10px;
+          font-size: 9px;
+        }
+
+        .hero-copy {
+          padding: 65px 0 24px;
+        }
+
+        .hero-copy > p {
+          font-size: 15px;
+        }
+
+        h1 {
+          font-size: clamp(51px, 15vw, 68px);
+        }
+
+        .board-stage {
+          min-height: 500px;
+        }
+
+        .coral-orbit {
+          width: 340px;
+          height: 340px;
+          right: -28%;
+          top: 65px;
+        }
+
+        .mint-orbit {
+          width: 170px;
+          height: 170px;
+          left: -8%;
+        }
+
+        .board-shell {
+          width: min(390px, 92vw);
+          padding: 12px;
+        }
+
+        .piece {
+          font-size: clamp(24px, 9vw, 38px);
+        }
+
+        .site-footer {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 24px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <nav class="nav-wrap" aria-label="Main navigation">
+        <a class="brand" href="/" aria-label="Inner Square Chess home">
+          <span class="brand-mark" aria-hidden="true">♞</span>
+          <span>INNERSQUARE</span>
+        </a>
+        <span class="status">Launching soon</span>
+      </nav>
+    </header>
+
+    <main id="main-content">
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="eyebrow">Endgame training, coming soon</span>
+          <h1>Master the <em>endgame.</em></h1>
+          <p>
+            Short, focused endgame puzzles against tablebase-perfect defence.
+            Learn to see the winning move and make the endgame your strongest
+            phase.
+          </p>
+          <p class="note">
+            We&rsquo;re putting the finishing touches on the trainer.
+            Check back soon.
+          </p>
+        </div>
+
+        <div class="board-stage">
+          <div class="coral-orbit" aria-hidden="true"></div>
+          <div class="mint-orbit" aria-hidden="true"></div>
+
+          <div class="board-shell">
+            <div class="board-topline">
+              <div class="player">
+                <span class="player-piece" aria-hidden="true">♚</span>
+                <span>
+                  <small>To move</small>
+                  <strong>White</strong>
+                </span>
+              </div>
+              <span class="piece-count">3 pieces</span>
+            </div>
+
+            <div
+              class="chessboard"
+              role="img"
+              aria-label="Chess position: white king on d5, white rook on g3, black king on f7. White to move."
+            >
+              <div class="square light"><span class="rank">8</span></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+
+              <div class="square dark"><span class="rank">7</span></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"><span class="piece black-piece" aria-hidden="true">♚</span></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+
+              <div class="square light"><span class="rank">6</span></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+
+              <div class="square dark"><span class="rank">5</span></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"><span class="piece white-piece" aria-hidden="true">♔</span></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+
+              <div class="square light"><span class="rank">4</span></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+
+              <div class="square dark"><span class="rank">3</span></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"><span class="piece white-piece" aria-hidden="true">♖</span></div>
+              <div class="square light"></div>
+
+              <div class="square light"><span class="rank">2</span></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+              <div class="square light"></div>
+              <div class="square dark"></div>
+
+              <div class="square dark"><span class="rank">1</span><span class="file">a</span></div>
+              <div class="square light"><span class="file">b</span></div>
+              <div class="square dark"><span class="file">c</span></div>
+              <div class="square light"><span class="file">d</span></div>
+              <div class="square dark"><span class="file">e</span></div>
+              <div class="square light"><span class="file">f</span></div>
+              <div class="square dark"><span class="file">g</span></div>
+              <div class="square light"><span class="file">h</span></div>
+            </div>
+
+            <div class="board-caption">
+              <div>
+                <span>Sample position</span>
+                <strong>King and rook vs king</strong>
+                <small class="board-themes">Rook endgame</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <a class="brand" href="/" aria-label="Inner Square Chess home">
+          <span class="brand-mark" aria-hidden="true">♞</span>
+          <span>INNERSQUARE</span>
+        </a>
+        <p>Short, focused endgame training.</p>
+      </div>
+      <small>&copy; 2026 Inner Square Chess</small>
+    </footer>
+  </body>
+</html>
