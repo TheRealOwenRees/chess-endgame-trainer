@@ -6,13 +6,19 @@ newsletter form, and no JavaScript — just static files and Caddy.
 
 ```
 deploy/static/
-├── index.html      # page + inline CSS; uses the app's real brand tokens
-├── fonts/          # DM Sans + DM Serif Display woff2 files
-├── favicon.ico     # copied from priv/static
-├── Caddyfile       # site block template; rendered by deploy.sh --caddy
-├── deploy.sh       # upload files; optional marked Caddy block
+├── index.html              # page + inline CSS; uses the app's real brand tokens
+├── privacy.html            # privacy policy, served at /privacy
+├── terms-conditions.html   # terms, served at /terms-conditions
+├── legal.css               # shared styles for the legal pages
+├── fonts/                  # DM Sans + DM Serif Display woff2 files
+├── favicon.ico             # copied from priv/static
+├── Caddyfile               # site block template; rendered by deploy.sh --caddy
+├── deploy.sh               # upload files; optional marked Caddy block
 └── README.md
 ```
+
+The Caddyfile uses `try_files {path}.html {path}` so `/privacy` and
+`/terms-conditions` serve the matching `.html` files without a redirect.
 
 ## Preview locally
 
@@ -20,6 +26,26 @@ deploy/static/
 python3 -m http.server 8080 --directory deploy/static
 # open http://localhost:8080
 ```
+
+Python maps URLs directly to files, so it serves `/privacy.html` and
+`/terms-conditions.html` but not the extensionless `/privacy` or
+`/terms-conditions` links. Those depend on Caddy's `try_files`.
+
+To preview the exact production routing, run the Caddyfile locally:
+
+```sh
+sed -e 's#__SITE_ADDRESS__#:8098#' \
+    -e 's#/var/www/innersquare#/srv#' \
+    deploy/static/Caddyfile > /tmp/Caddyfile.local
+
+docker run --rm -it -p 8098:8098 \
+  -v "$PWD/deploy/static:/srv:ro" \
+  -v /tmp/Caddyfile.local:/etc/caddy/Caddyfile:ro \
+  caddy:2-alpine \
+  caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
+Then open `http://localhost:8098/`, `/privacy` and `/terms-conditions`.
 
 The page is deliberately light-only — it uses the brand's paper palette
 regardless of the visitor's OS theme. It references `/fonts/...` and
@@ -77,7 +103,7 @@ Pass `--caddy` and a `SITE_ADDRESS` to have the script add or update the site
 block:
 
 ```sh
-SITE_ADDRESS="innersquarechess.com, www.innersquarechess.com" \
+SITE_ADDRESS="innersquare.app, www.innersquare.app" \
 VPS_HOST=203.0.113.10 \
 VPS_USER=ubuntu \
 ./deploy/static/deploy.sh --caddy
@@ -110,7 +136,7 @@ the main Caddyfile:
 
 ```sh
 REMOTE_CADDYFILE=/etc/caddy/conf.d/innersquare.caddy \
-SITE_ADDRESS=innersquarechess.com \
+SITE_ADDRESS=innersquare.app \
 VPS_HOST=203.0.113.10 \
 VPS_USER=ubuntu \
 ./deploy/static/deploy.sh --caddy
@@ -126,7 +152,8 @@ Optional overrides: `SSH_PORT`, `WEB_ROOT` (default `/var/www/innersquare`),
 ## What this page deliberately does not do
 
 - **No newsletter signup** — that waits on real mail delivery (#84) and the
-  gated app (#116).
+  gated app (#116). The legal pages are linked from the footer so the public
+  site has a privacy policy and terms while the signup is still gated.
 - **No analytics, cookies, or JavaScript.**
 - **No indexing** — `robots.txt` is absent and Caddy sends
   `X-Robots-Tag: noindex, nofollow` plus the page has a robots meta tag.
