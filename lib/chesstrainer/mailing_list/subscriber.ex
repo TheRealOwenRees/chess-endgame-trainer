@@ -10,6 +10,8 @@ defmodule Chesstrainer.MailingList.Subscriber do
     field :email, :string
     field :source, Ecto.Enum, values: [:home, :registration], default: :home
     field :confirmed_at, :utc_datetime
+    field :unsubscribed_at, :utc_datetime
+    field :confirmation_sent_at, :utc_datetime
     belongs_to :user, User
 
     timestamps(type: :utc_datetime)

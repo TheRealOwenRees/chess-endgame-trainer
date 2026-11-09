@@ -127,4 +127,172 @@ defmodule Chesstrainer.MailingListTest do
                Repo.get_by(Subscriber, email: "player@example.com")
     end
   end
+
+  describe "unsubscribe/1" do
+    test "marks a confirmed address as unsubscribed" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.confirm("player@example.com")
+
+      assert {:ok, %Subscriber{unsubscribed_at: unsubscribed_at}} =
+               MailingList.unsubscribe("player@example.com")
+
+      assert unsubscribed_at
+      assert MailingList.count_confirmed_subscribers() == 0
+    end
+
+    test "is idempotent" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.confirm("player@example.com")
+
+      {:ok, first} = MailingList.unsubscribe("player@example.com")
+      {:ok, second} = MailingList.unsubscribe("player@example.com")
+
+      assert first.unsubscribed_at == second.unsubscribed_at
+    end
+
+    test "returns not found for an unknown address" do
+      assert {:error, :not_found} = MailingList.unsubscribe("nobody@example.com")
+    end
+  end
+
+  describe "unsubscribe_user/1" do
+    test "unsubscribes the address linked to the user" do
+      user = user_fixture()
+      {:ok, _subscriber} = MailingList.subscribe_user(user)
+      MailingList.confirm_user_subscription(user)
+
+      assert {:ok, %Subscriber{unsubscribed_at: unsubscribed_at}} =
+               MailingList.unsubscribe_user(user)
+
+      assert unsubscribed_at
+      refute MailingList.user_subscribed?(user)
+    end
+
+    test "returns not found when the user is not on the list" do
+      assert {:error, :not_found} = MailingList.unsubscribe_user(user_fixture())
+    end
+  end
+
+  describe "user_subscribed?/1" do
+    test "is true only for a confirmed, active subscription" do
+      user = user_fixture()
+      {:ok, _subscriber} = MailingList.subscribe_user(user)
+
+      refute MailingList.user_subscribed?(user)
+
+      MailingList.confirm_user_subscription(user)
+      assert MailingList.user_subscribed?(user)
+
+      {:ok, _subscriber} = MailingList.unsubscribe_user(user)
+      refute MailingList.user_subscribed?(user)
+    end
+  end
+
+  describe "re-subscribing after unsubscribe" do
+    test "requires a fresh confirmation and clears the unsubscribe" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.confirm("player@example.com")
+      {:ok, _subscriber} = MailingList.unsubscribe("player@example.com")
+
+      assert {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+
+      assert {:ok, %Subscriber{confirmed_at: confirmed_at, unsubscribed_at: nil}} =
+               MailingList.confirm("player@example.com")
+
+      assert confirmed_at
+      assert MailingList.count_confirmed_subscribers() == 1
+    end
+  end
+
+  describe "update_subscriber_email/2" do
+    test "moves the linked subscription to the new address" do
+      user = user_fixture()
+      {:ok, _subscriber} = MailingList.subscribe_user(user)
+      MailingList.confirm_user_subscription(user)
+
+      new_email = unique_user_email()
+
+      assert {:ok, %Subscriber{email: ^new_email}} =
+               MailingList.update_subscriber_email(user, new_email)
+
+      assert Repo.get_by(Subscriber, user_id: user.id).email == new_email
+    end
+
+    test "removes an anonymous row that already holds the new address" do
+      user = user_fixture()
+      {:ok, _subscriber} = MailingList.subscribe_user(user)
+      new_email = unique_user_email()
+      {:ok, :confirmation_required} = MailingList.subscribe(new_email)
+
+      assert {:ok, _subscriber} = MailingList.update_subscriber_email(user, new_email)
+
+      assert Repo.aggregate(Subscriber, :count) == 1
+      assert %Subscriber{user_id: user_id} = Repo.get_by(Subscriber, email: new_email)
+      assert user_id == user.id
+    end
+
+    test "keeps an unsubscribe from an anonymous row at the new address" do
+      user = user_fixture()
+      {:ok, _subscriber} = MailingList.subscribe_user(user)
+      MailingList.confirm_user_subscription(user)
+      new_email = unique_user_email()
+      {:ok, :confirmation_required} = MailingList.subscribe(new_email)
+      {:ok, _subscriber} = MailingList.confirm(new_email)
+      {:ok, _subscriber} = MailingList.unsubscribe(new_email)
+
+      assert {:ok, %Subscriber{unsubscribed_at: unsubscribed_at}} =
+               MailingList.update_subscriber_email(user, new_email)
+
+      assert unsubscribed_at
+      refute MailingList.user_subscribed?(user)
+    end
+
+    test "does nothing when the user is not on the list" do
+      user = user_fixture()
+
+      assert {:ok, :no_subscription} =
+               MailingList.update_subscriber_email(user, unique_user_email())
+    end
+  end
+
+  describe "confirmation cooldown" do
+    test "allows an address that has never received a confirmation" do
+      assert MailingList.confirmation_allowed?("player@example.com")
+    end
+
+    test "blocks a recently sent confirmation" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.mark_confirmation_sent("player@example.com")
+
+      refute MailingList.confirmation_allowed?("player@example.com")
+    end
+
+    test "allows another send after the cooldown" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+
+      Repo.get_by(Subscriber, email: "player@example.com")
+      |> Ecto.Changeset.change(
+        confirmation_sent_at: DateTime.add(DateTime.utc_now(:second), -11, :minute)
+      )
+      |> Repo.update!()
+
+      assert MailingList.confirmation_allowed?("player@example.com")
+    end
+
+    test "allows a confirmed address" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.confirm("player@example.com")
+
+      assert MailingList.confirmation_allowed?("player@example.com")
+    end
+
+    test "still applies after an unsubscribe" do
+      {:ok, :confirmation_required} = MailingList.subscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.confirm("player@example.com")
+      {:ok, _subscriber} = MailingList.unsubscribe("player@example.com")
+      {:ok, _subscriber} = MailingList.mark_confirmation_sent("player@example.com")
+
+      refute MailingList.confirmation_allowed?("player@example.com")
+    end
+  end
 end

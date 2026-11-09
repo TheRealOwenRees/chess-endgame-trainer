@@ -14,7 +14,8 @@ config :chesstrainer, :branding,
   name: "Inner Square Chess",
   wordmark: "INNERSQUARE",
   tagline: "Endgame Trainer",
-  support_email: "support@lucidchess.app"
+  support_email: "support@innersquare.app",
+  mail_from: "no-reply@innersquare.app"
 
 config :chesstrainer, :scopes,
   user: [

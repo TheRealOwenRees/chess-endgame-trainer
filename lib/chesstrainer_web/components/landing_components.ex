@@ -13,6 +13,7 @@ defmodule ChesstrainerWeb.LandingComponents do
   alias Chesstrainer.FEN
   alias Chesstrainer.Themes
   alias ChesstrainerWeb.Board.PositionText
+  alias ChesstrainerWeb.MailingListFormToken
 
   @button_variants %{
     nav: "nav-cta",
@@ -93,6 +94,19 @@ defmodule ChesstrainerWeb.LandingComponents do
 
       <form action="/mailing-list" method="post" id="mailing-list-form" class="mailing-list-form">
         <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+        <input type="hidden" name="subscriber[form_token]" value={MailingListFormToken.sign()} />
+
+        <div class="mailing-list-honeypot" aria-hidden="true">
+          <label for="mailing-list-company">Company</label>
+          <input
+            id="mailing-list-company"
+            type="text"
+            name="subscriber[company]"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </div>
+
         <label for="mailing-list-email">Email address</label>
         <div class="mailing-list-row">
           <input

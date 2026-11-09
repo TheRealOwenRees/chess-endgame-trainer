@@ -4,6 +4,7 @@ defmodule ChesstrainerWeb.UserLive.Profile do
   alias Chesstrainer.Accounts
   alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Attempts
+  alias Chesstrainer.MailingList
 
   @recent_attempts 25
 
@@ -157,6 +158,27 @@ defmodule ChesstrainerWeb.UserLive.Profile do
               Premium membership is not available yet. When it arrives it will add session
               analytics, weak-theme reports and the full puzzle search.
             </p>
+          </section>
+
+          <section id="mailing-list-settings" class="space-y-3 rounded-lg border border-base-300 p-4">
+            <h2 class="settings-header">Mailing list</h2>
+
+            <p :if={@mailing_list_subscribed?} class="settings-subtitle">
+              You're subscribed to occasional endgame tips and site news.
+            </p>
+
+            <p :if={!@mailing_list_subscribed?} class="settings-subtitle">
+              You're not subscribed to the mailing list.
+            </p>
+
+            <.button
+              :if={@mailing_list_subscribed?}
+              id="unsubscribe-mailing-list"
+              variant="secondary"
+              phx-click="unsubscribe_mailing_list"
+            >
+              Unsubscribe
+            </.button>
           </section>
 
           <p id="settings-empty-state" class="text-sm text-base-content/60">
@@ -332,6 +354,24 @@ defmodule ChesstrainerWeb.UserLive.Profile do
     end
   end
 
+  def handle_event("unsubscribe_mailing_list", _params, socket) do
+    user = socket.assigns.current_scope.user
+
+    case MailingList.unsubscribe_user(user) do
+      {:ok, _subscriber} ->
+        {:noreply,
+         socket
+         |> assign(:mailing_list_subscribed?, false)
+         |> put_flash(:info, "You've been removed from the mailing list.")}
+
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> assign(:mailing_list_subscribed?, false)
+         |> put_flash(:info, "You're not on the mailing list.")}
+    end
+  end
+
   def handle_event("delete_account", _params, socket) do
     user = socket.assigns.current_scope.user
     true = Accounts.sudo_mode?(user)
@@ -348,8 +388,14 @@ defmodule ChesstrainerWeb.UserLive.Profile do
     case socket.assigns.live_action do
       :account -> assign_account(socket)
       :data -> assign_data(socket)
+      :settings -> assign_settings(socket)
       _ -> socket
     end
+  end
+
+  defp assign_settings(socket) do
+    user = socket.assigns.current_scope.user
+    assign(socket, :mailing_list_subscribed?, MailingList.user_subscribed?(user))
   end
 
   defp assign_account(socket) do

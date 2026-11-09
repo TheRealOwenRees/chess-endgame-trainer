@@ -17,6 +17,7 @@
 .mailing-list-copy p { margin-top: 16px; color: var(--color-on-deep-muted); font-size: 14px; line-height: 1.65; }
 
 .mailing-list-form { width: min(420px, 100%); flex-shrink: 0; }
+.mailing-list-honeypot { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .mailing-list-form label { display: block; margin-bottom: 8px; color: var(--color-on-deep-faint); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .11em; }
 .mailing-list-row { display: flex; gap: 10px; }
 .mailing-list-row input { flex: 1; min-width: 0; padding: 15px 17px; border: 1px solid rgba(255, 255, 255, .22); border-radius: 8px; background: rgba(255, 255, 255, .1); color: var(--color-on-deep); font-size: 14px; }

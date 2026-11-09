@@ -33,7 +33,8 @@ defmodule Chesstrainer.MailingList.Notifier do
     email =
       new()
       |> to(recipient)
-      |> from({Branding.name(), Branding.support_email()})
+      |> from({Branding.name(), Branding.mail_from()})
+      |> reply_to(Branding.support_email())
       |> subject(subject)
       |> text_body(body)
 
