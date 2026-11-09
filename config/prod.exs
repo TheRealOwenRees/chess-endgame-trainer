@@ -15,10 +15,14 @@ config :chesstrainer, ChesstrainerWeb.Endpoint,
   force_ssl: [
     rewrite_on: [:x_forwarded_proto],
     exclude: [
-      # paths: ["/health"],
+      paths: ["/health"],
       hosts: ["localhost", "127.0.0.1"]
     ]
   ]
+
+# Fail closed in production: the mailing list stays off until SES production
+# access is granted and MAILING_LIST_ENABLED is set explicitly.
+config :chesstrainer, :mailing_list_enabled, false
 
 # Configure Swoosh API Client
 config :swoosh, api_client: Swoosh.ApiClient.Req

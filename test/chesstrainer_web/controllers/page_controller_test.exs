@@ -180,6 +180,29 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert LazyHTML.text(LazyHTML.query(document, ".rating-note strong")) == "0"
   end
 
+  test "renders the coming soon page while prelaunch is on", %{conn: conn} do
+    previous = Application.get_env(:chesstrainer, :prelaunch)
+    on_exit(fn -> restore_env(:prelaunch, previous) end)
+    Application.put_env(:chesstrainer, :prelaunch, true)
+
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ "coming soon"
+    assert html =~ "Master the"
+    refute html =~ "Try today"
+  end
+
+  test "hides the mailing list when it is disabled", %{conn: conn} do
+    previous = Application.get_env(:chesstrainer, :mailing_list_enabled)
+    on_exit(fn -> restore_env(:mailing_list_enabled, previous) end)
+    Application.put_env(:chesstrainer, :mailing_list_enabled, false)
+
+    html = conn |> get(~p"/") |> html_response(200)
+
+    refute html =~ ~s(id="mailing-list-form")
+    refute html =~ "Join the list"
+  end
+
   test "renders the mailing list signup form", %{conn: conn} do
     html = conn |> get(~p"/") |> html_response(200)
     document = LazyHTML.from_document(html)
@@ -305,4 +328,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ "Browse puzzles"
     assert html =~ ~s(href="/endgames")
   end
+
+  defp restore_env(key, nil), do: Application.delete_env(:chesstrainer, key)
+  defp restore_env(key, value), do: Application.put_env(:chesstrainer, key, value)
 end

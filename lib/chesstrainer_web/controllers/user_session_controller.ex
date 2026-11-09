@@ -5,20 +5,28 @@ defmodule ChesstrainerWeb.UserSessionController do
   alias ChesstrainerWeb.UserAuth
 
   def create(conn, %{"user" => user_params}) do
+    authenticate(conn, user_params, ~p"/users/log-in", nil)
+  end
+
+  def create_admin(conn, %{"user" => user_params}) do
+    if ChesstrainerWeb.prelaunch?() do
+      authenticate(conn, user_params, ~p"/admin/log-in", ~p"/admin/endgames")
+    else
+      authenticate(conn, user_params, ~p"/users/log-in", nil)
+    end
+  end
+
+  defp authenticate(conn, user_params, failure_path, success_path) do
     %{"email" => login, "password" => password} = user_params
 
     case Accounts.get_user_by_login_and_password(login, password) do
       nil ->
-        # In order to prevent user enumeration attacks, don't disclose whether
-        # the email or username is registered.
-        conn
-        |> put_flash(:error, "Invalid email, username or password")
-        |> put_flash(:email, String.slice(login, 0, 160))
-        |> redirect(to: ~p"/users/log-in")
+        invalid_credentials(conn, login, failure_path)
 
       user ->
         if user.confirmed_at do
           conn
+          |> maybe_put_return_to(success_path)
           |> put_flash(:info, "Welcome back!")
           |> UserAuth.log_in_user(user, user_params)
         else
@@ -30,13 +38,20 @@ defmodule ChesstrainerWeb.UserSessionController do
 
           # In order to prevent user enumeration attacks, report the same error
           # as invalid credentials.
-          conn
-          |> put_flash(:error, "Invalid email, username or password")
-          |> put_flash(:email, String.slice(login, 0, 160))
-          |> redirect(to: ~p"/users/log-in")
+          invalid_credentials(conn, login, failure_path)
         end
     end
   end
+
+  defp invalid_credentials(conn, login, path) do
+    conn
+    |> put_flash(:error, "Invalid email, username or password")
+    |> put_flash(:email, String.slice(login, 0, 160))
+    |> redirect(to: path)
+  end
+
+  defp maybe_put_return_to(conn, nil), do: conn
+  defp maybe_put_return_to(conn, path), do: put_session(conn, :user_return_to, path)
 
   def update_password(conn, %{"user" => user_params}) do
     user = conn.assigns.current_scope.user

@@ -17,6 +17,11 @@ config :chesstrainer, :branding,
   support_email: "support@innersquare.app",
   mail_from: "no-reply@innersquare.app"
 
+# Prelaunch gating. Production sets these from PRELAUNCH and
+# MAILING_LIST_ENABLED; dev and test use these defaults.
+config :chesstrainer, :prelaunch, false
+config :chesstrainer, :mailing_list_enabled, true
+
 config :chesstrainer, :scopes,
   user: [
     default: true,

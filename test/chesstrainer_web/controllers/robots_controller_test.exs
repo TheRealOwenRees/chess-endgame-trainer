@@ -1,5 +1,5 @@
 defmodule ChesstrainerWeb.RobotsControllerTest do
-  use ChesstrainerWeb.ConnCase, async: true
+  use ChesstrainerWeb.ConnCase, async: false
 
   alias ChesstrainerWeb.Endpoint
 
@@ -18,5 +18,20 @@ defmodule ChesstrainerWeb.RobotsControllerTest do
       assert [content_type] = get_resp_header(conn, "content-type")
       assert content_type =~ "text/plain"
     end
+
+    test "disallows crawlers while prelaunch is on", %{conn: conn} do
+      previous = Application.get_env(:chesstrainer, :prelaunch)
+      on_exit(fn -> restore_env(:prelaunch, previous) end)
+      Application.put_env(:chesstrainer, :prelaunch, true)
+
+      body = conn |> get(~p"/robots.txt") |> response(200)
+
+      assert body =~ "User-agent: *"
+      assert body =~ "Disallow: /"
+      refute body =~ "Allow: /"
+    end
   end
+
+  defp restore_env(key, nil), do: Application.delete_env(:chesstrainer, key)
+  defp restore_env(key, value), do: Application.put_env(:chesstrainer, key, value)
 end

@@ -10,24 +10,16 @@ defmodule ChesstrainerWeb.MailingListController do
   @token_max_age 7 * 24 * 60 * 60
 
   def create(conn, %{"subscriber" => params}) when is_map(params) do
-    email = params["email"]
-
-    cond do
-      honeypot_filled?(params) ->
-        fake_success(conn)
-
-      not is_binary(email) ->
-        invalid_email(conn)
-
-      MailingListFormToken.verify(params["form_token"]) != :ok ->
-        form_error(conn)
-
-      true ->
-        subscribe(conn, email)
+    if mailing_list_enabled?() do
+      create_subscription(conn, params)
+    else
+      closed(conn)
     end
   end
 
-  def create(conn, _params), do: invalid_email(conn)
+  def create(conn, _params) do
+    if mailing_list_enabled?(), do: invalid_email(conn), else: closed(conn)
+  end
 
   def confirm(conn, %{"token" => token}) do
     case Phoenix.Token.verify(
@@ -60,6 +52,24 @@ defmodule ChesstrainerWeb.MailingListController do
           "That address is no longer on the mailing list. Please sign up again."
         )
         |> redirect(to: @return_to)
+    end
+  end
+
+  defp create_subscription(conn, params) do
+    email = params["email"]
+
+    cond do
+      honeypot_filled?(params) ->
+        fake_success(conn)
+
+      not is_binary(email) ->
+        invalid_email(conn)
+
+      MailingListFormToken.verify(params["form_token"]) != :ok ->
+        form_error(conn)
+
+      true ->
+        subscribe(conn, email)
     end
   end
 
@@ -121,5 +131,15 @@ defmodule ChesstrainerWeb.MailingListController do
     conn
     |> put_flash(:error, "Enter a valid email address.")
     |> redirect(to: @return_to)
+  end
+
+  defp closed(conn) do
+    conn
+    |> put_flash(:info, "The mailing list isn't open yet.")
+    |> redirect(to: @return_to)
+  end
+
+  defp mailing_list_enabled? do
+    Application.get_env(:chesstrainer, :mailing_list_enabled, true)
   end
 end

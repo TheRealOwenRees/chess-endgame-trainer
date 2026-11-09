@@ -10,6 +10,7 @@ defmodule ChesstrainerWeb.Router do
     plug :put_root_layout, html: {ChesstrainerWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug ChesstrainerWeb.Plugs.Prelaunch
     plug :fetch_current_scope_for_user
   end
 
@@ -34,13 +35,17 @@ defmodule ChesstrainerWeb.Router do
     get "/terms-conditions", PageController, :terms_conditions
     post "/mailing-list", MailingListController, :create
     get "/mailing-list/confirm/:token", MailingListController, :confirm
+    post "/admin/log-in", UserSessionController, :create_admin
   end
 
   scope "/admin", ChesstrainerWeb do
     pipe_through [:browser, :noindex, :require_admin_user]
 
     live_session :endgames,
-      on_mount: [{ChesstrainerWeb.UserAuth, :require_admin}] do
+      on_mount: [
+        {ChesstrainerWeb.UserAuth, :enforce_prelaunch},
+        {ChesstrainerWeb.UserAuth, :require_admin}
+      ] do
       live "/endgames", EndgameLive.Index, :index
       live "/endgames/new", EndgameLive.Form, :new
       live "/endgames/:id", EndgameLive.Show, :show
@@ -76,7 +81,10 @@ defmodule ChesstrainerWeb.Router do
     pipe_through [:browser, :require_authenticated_user]
 
     live_session :require_authenticated_user,
-      on_mount: [{ChesstrainerWeb.UserAuth, :require_authenticated}] do
+      on_mount: [
+        {ChesstrainerWeb.UserAuth, :enforce_prelaunch},
+        {ChesstrainerWeb.UserAuth, :require_authenticated}
+      ] do
       live "/endgames", EndgameLive.PlayerIndex, :index
       live "/train", EndgameLive.Train, :train
       live "/users/profile", UserLive.Profile, :account
@@ -95,11 +103,15 @@ defmodule ChesstrainerWeb.Router do
     pipe_through [:browser]
 
     live_session :current_user,
-      on_mount: [{ChesstrainerWeb.UserAuth, :mount_current_scope}] do
+      on_mount: [
+        {ChesstrainerWeb.UserAuth, :enforce_prelaunch},
+        {ChesstrainerWeb.UserAuth, :mount_current_scope}
+      ] do
       live "/guest-train", EndgameLive.GuestTrain, :play
       live "/endgames/:public_code/play", EndgameLive.Play, :play
       live "/users/register", UserLive.Registration, :new
       live "/users/log-in", UserLive.Login, :new
+      live "/admin/log-in", UserLive.Login, :new
       live "/users/reset-password", UserLive.ResetPassword, :new
       live "/users/reset-password/:token", UserLive.ResetPassword, :edit
     end
@@ -115,6 +127,7 @@ defmodule ChesstrainerWeb.Router do
   scope "/", ChesstrainerWeb do
     pipe_through :seo
 
+    get "/health", HealthController, :index
     get "/robots.txt", RobotsController, :index
     get "/sitemap.xml", SitemapController, :index
   end

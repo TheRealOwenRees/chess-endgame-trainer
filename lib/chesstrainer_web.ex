@@ -19,6 +19,14 @@ defmodule ChesstrainerWeb do
 
   def static_paths, do: ~w(assets fonts images favicon.ico)
 
+  @doc "Whether the app is gated behind the prelaunch page."
+  def prelaunch?, do: Application.get_env(:chesstrainer, :prelaunch, false)
+
+  @doc "Whether the mailing-list form and endpoint are open."
+  def mailing_list_enabled? do
+    Application.get_env(:chesstrainer, :mailing_list_enabled, true)
+  end
+
   def router do
     quote do
       use Phoenix.Router, helpers: false

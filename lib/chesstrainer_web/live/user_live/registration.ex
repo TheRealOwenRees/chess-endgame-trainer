@@ -74,19 +74,40 @@ defmodule ChesstrainerWeb.UserLive.Registration do
   end
 
   @impl true
-  def mount(_params, _session, %{assigns: %{current_scope: %{user: user}}} = socket)
-      when not is_nil(user) do
+  def mount(_params, _session, socket) do
+    if prelaunch?() do
+      {:ok, redirect(socket, to: ~p"/")}
+    else
+      do_mount(socket)
+    end
+  end
+
+  @impl true
+  def handle_event("save", %{"user" => user_params}, socket) do
+    if prelaunch?() do
+      {:noreply, push_navigate(socket, to: ~p"/")}
+    else
+      save_registration(socket, user_params)
+    end
+  end
+
+  def handle_event("validate", %{"user" => user_params}, socket) do
+    changeset = Accounts.change_user_registration(%User{}, user_params, validate_unique: false)
+    {:noreply, assign_form(socket, Map.put(changeset, :action, :validate))}
+  end
+
+  defp do_mount(%{assigns: %{current_scope: %{user: user}}} = socket)
+       when not is_nil(user) do
     {:ok, redirect(socket, to: ChesstrainerWeb.UserAuth.signed_in_path(socket))}
   end
 
-  def mount(_params, _session, socket) do
+  defp do_mount(socket) do
     changeset = Accounts.change_user_registration(%User{}, %{}, validate_unique: false)
 
     {:ok, assign_form(socket, changeset), temporary_assigns: [form: nil]}
   end
 
-  @impl true
-  def handle_event("save", %{"user" => user_params}, socket) do
+  defp save_registration(socket, user_params) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->
         if user.mailing_list, do: MailingList.subscribe_user(user)
@@ -110,10 +131,7 @@ defmodule ChesstrainerWeb.UserLive.Registration do
     end
   end
 
-  def handle_event("validate", %{"user" => user_params}, socket) do
-    changeset = Accounts.change_user_registration(%User{}, user_params, validate_unique: false)
-    {:noreply, assign_form(socket, Map.put(changeset, :action, :validate))}
-  end
+  defp prelaunch?, do: Application.get_env(:chesstrainer, :prelaunch, false)
 
   defp assign_form(socket, %Ecto.Changeset{} = changeset) do
     form = to_form(changeset, as: "user")

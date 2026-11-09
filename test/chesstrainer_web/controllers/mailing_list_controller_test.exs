@@ -1,5 +1,5 @@
 defmodule ChesstrainerWeb.MailingListControllerTest do
-  use ChesstrainerWeb.ConnCase, async: true
+  use ChesstrainerWeb.ConnCase, async: false
 
   alias Chesstrainer.MailingList
   alias Chesstrainer.MailingList.Subscriber
@@ -169,6 +169,22 @@ defmodule ChesstrainerWeb.MailingListControllerTest do
       assert redirected_to(conn) == "/#mailing-list"
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "valid email address"
     end
+
+    test "rejects signups when the mailing list is disabled", %{conn: conn} do
+      previous = Application.get_env(:chesstrainer, :mailing_list_enabled)
+      on_exit(fn -> restore_env(:mailing_list_enabled, previous) end)
+      Application.put_env(:chesstrainer, :mailing_list_enabled, false)
+
+      conn =
+        post(conn, ~p"/mailing-list",
+          subscriber: %{email: "player@example.com", form_token: form_token()}
+        )
+
+      assert redirected_to(conn) == "/#mailing-list"
+      assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "isn't open yet"
+      refute_received {:email, _email}
+      assert Repo.aggregate(Subscriber, :count) == 0
+    end
   end
 
   describe "GET /mailing-list/confirm/:token" do
@@ -227,4 +243,7 @@ defmodule ChesstrainerWeb.MailingListControllerTest do
   defp form_token do
     MailingListFormToken.sign(System.system_time(:second) - 5)
   end
+
+  defp restore_env(key, nil), do: Application.delete_env(:chesstrainer, key)
+  defp restore_env(key, value), do: Application.put_env(:chesstrainer, key, value)
 end

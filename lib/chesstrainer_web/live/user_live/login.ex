@@ -11,7 +11,7 @@ defmodule ChesstrainerWeb.UserLive.Login do
           <%= if @current_scope do %>
             You need to reauthenticate to perform sensitive actions on your account.
           <% else %>
-            <p class="settings-subtitle my-4">
+            <p :if={!@prelaunch} class="settings-subtitle my-4">
               Don't have an account? <.link
                 navigate={~p"/users/register"}
                 class="font-semibold text-primary-text hover:underline"
@@ -25,7 +25,7 @@ defmodule ChesstrainerWeb.UserLive.Login do
           :let={f}
           for={@form}
           id="login_form_password"
-          action={~p"/users/log-in"}
+          action={@login_action}
           phx-submit="submit_password"
           phx-trigger-action={@trigger_submit}
         >
@@ -73,8 +73,18 @@ defmodule ChesstrainerWeb.UserLive.Login do
         get_in(socket.assigns, [:current_scope, Access.key(:user), Access.key(:email)])
 
     form = to_form(%{"email" => email}, as: "user")
+    prelaunch = ChesstrainerWeb.prelaunch?()
 
-    {:ok, assign(socket, form: form, trigger_submit: false)}
+    login_action =
+      if prelaunch, do: ~p"/admin/log-in", else: ~p"/users/log-in"
+
+    {:ok,
+     assign(socket,
+       form: form,
+       trigger_submit: false,
+       prelaunch: prelaunch,
+       login_action: login_action
+     )}
   end
 
   @impl true

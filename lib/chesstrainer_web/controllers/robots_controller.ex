@@ -9,15 +9,25 @@ defmodule ChesstrainerWeb.RobotsController do
   use ChesstrainerWeb, :controller
 
   def index(conn, _params) do
-    body = """
-    User-agent: *
-    Allow: /
+    body =
+      if prelaunch?() do
+        """
+        User-agent: *
+        Disallow: /
+        """
+      else
+        """
+        User-agent: *
+        Allow: /
 
-    Sitemap: #{url(conn, ~p"/sitemap.xml")}
-    """
+        Sitemap: #{url(conn, ~p"/sitemap.xml")}
+        """
+      end
 
     conn
     |> put_resp_content_type("text/plain")
     |> send_resp(200, body)
   end
+
+  defp prelaunch?, do: Application.get_env(:chesstrainer, :prelaunch, false)
 end

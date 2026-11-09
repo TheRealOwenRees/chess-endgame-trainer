@@ -20,6 +20,14 @@ if System.get_env("PHX_SERVER") do
   config :chesstrainer, ChesstrainerWeb.Endpoint, server: true
 end
 
+if prelaunch = System.get_env("PRELAUNCH") do
+  config :chesstrainer, :prelaunch, prelaunch in ~w(true 1)
+end
+
+if mailing_list_enabled = System.get_env("MAILING_LIST_ENABLED") do
+  config :chesstrainer, :mailing_list_enabled, mailing_list_enabled in ~w(true 1)
+end
+
 # Local Syzygy tablebases: set TABLEBASE_PATH to the directory holding the
 # .rtbw/.rtbz files. When unset, the local backend stays disabled and lookups
 # fall back to Lichess.

@@ -63,11 +63,17 @@ defmodule ChesstrainerWeb.Layouts do
     doc: "the current [scope](https://phoenix.hexdocs.pm/scopes.html)"
 
   def navbar(assigns) do
+    user = signed_in_user(assigns.current_scope)
+    nav_links = nav_links(assigns.current_scope)
+    prelaunch = ChesstrainerWeb.prelaunch?()
+
     assigns =
       assigns
-      |> assign(:nav_links, nav_links(assigns.current_scope))
+      |> assign(:nav_links, nav_links)
       |> assign(:start_href, start_href(assigns.current_scope))
-      |> assign(:user, signed_in_user(assigns.current_scope))
+      |> assign(:user, user)
+      |> assign(:prelaunch, prelaunch)
+      |> assign(:show_nav, not prelaunch or not is_nil(user) or nav_links != [])
 
     ~H"""
     <header>
@@ -80,41 +86,47 @@ defmodule ChesstrainerWeb.Layouts do
         <div class="nav-right">
           <.colour_mode_toggle />
 
-          <button
-            class="menu-button"
-            type="button"
-            aria-expanded="false"
-            aria-controls="nav-links"
-            aria-label="Toggle menu"
-          >
-            <span></span>
-            <span></span>
-          </button>
+          <%= if @show_nav do %>
+            <button
+              class="menu-button"
+              type="button"
+              aria-expanded="false"
+              aria-controls="nav-links"
+              aria-label="Toggle menu"
+            >
+              <span></span>
+              <span></span>
+            </button>
 
-          <div class="nav-links" id="nav-links">
-            <%= for link <- @nav_links do %>
-              <.link href={link.href}>{link.label}</.link>
-            <% end %>
+            <div class="nav-links" id="nav-links">
+              <%= for link <- @nav_links do %>
+                <.link href={link.href}>{link.label}</.link>
+              <% end %>
 
-            <%= if @user do %>
-              <details class="nav-user-menu">
-                <summary>{@user.username}</summary>
-                <div class="nav-user-menu-panel">
-                  <.link navigate={~p"/users/profile"}>Account</.link>
-                  <.link navigate={~p"/users/profile/settings"}>Settings</.link>
-                  <.link navigate={~p"/users/profile/data"}>Data</.link>
-                  <.link href={~p"/users/log-out"} method="delete">Log out</.link>
-                </div>
-              </details>
-            <% else %>
-              <.link href={~p"/users/log-in"}>Log in</.link>
-              <.link href={~p"/users/register"}>Register</.link>
-            <% end %>
+              <%= if @user do %>
+                <details class="nav-user-menu">
+                  <summary>{@user.username}</summary>
+                  <div class="nav-user-menu-panel">
+                    <.link navigate={~p"/users/profile"}>Account</.link>
+                    <.link navigate={~p"/users/profile/settings"}>Settings</.link>
+                    <.link navigate={~p"/users/profile/data"}>Data</.link>
+                    <.link href={~p"/users/log-out"} method="delete">Log out</.link>
+                  </div>
+                </details>
+              <% else %>
+                <%= if !@prelaunch do %>
+                  <.link href={~p"/users/log-in"}>Log in</.link>
+                  <.link href={~p"/users/register"}>Register</.link>
+                <% end %>
+              <% end %>
 
-            <.pill_button variant={:nav} href={@start_href}>
-              Start training <.icon_arrow />
-            </.pill_button>
-          </div>
+              <%= if !@prelaunch do %>
+                <.pill_button variant={:nav} href={@start_href}>
+                  Start training <.icon_arrow />
+                </.pill_button>
+              <% end %>
+            </div>
+          <% end %>
         </div>
       </nav>
     </header>

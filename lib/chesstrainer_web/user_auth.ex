@@ -212,6 +212,24 @@ defmodule ChesstrainerWeb.UserAuth do
         live "/profile", ProfileLive, :index
       end
   """
+  @prelaunch_allowed_views [
+    ChesstrainerWeb.UserLive.Login,
+    ChesstrainerWeb.UserLive.ResetPassword,
+    ChesstrainerWeb.UserLive.Profile,
+    ChesstrainerWeb.EndgameLive.Index,
+    ChesstrainerWeb.EndgameLive.Form,
+    ChesstrainerWeb.EndgameLive.Show
+  ]
+
+  def on_mount(:enforce_prelaunch, _params, _session, socket) do
+    if Application.get_env(:chesstrainer, :prelaunch, false) and
+         socket.view not in @prelaunch_allowed_views do
+      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/")}
+    else
+      {:cont, socket}
+    end
+  end
+
   def on_mount(:mount_current_scope, _params, session, socket) do
     {:cont, mount_current_scope(socket, session)}
   end

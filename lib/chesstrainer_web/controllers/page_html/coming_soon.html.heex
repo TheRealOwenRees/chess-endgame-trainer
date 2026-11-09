@@ -1,0 +1,26 @@
+<Layouts.flash_group flash={@flash} />
+<main id="main-content" tabindex="-1">
+  <section class="hero">
+    <div class="hero-copy">
+      <div class="eyebrow">
+        <.icon_spark /> Endgame training, coming soon
+      </div>
+      <h1>
+        Master the <em>endgame.</em>
+      </h1>
+      <p>
+        Short, focused endgame puzzles against tablebase-perfect defence. We're putting the finishing touches on the trainer.
+      </p>
+      <div :if={@mailing_list_enabled} class="hero-actions">
+        <.pill_button variant={:primary} href="#mailing-list">Join the list</.pill_button>
+      </div>
+    </div>
+    <div class="board-stage" id="trainer">
+      <div class="coral-orbit" />
+      <div class="mint-orbit" />
+      <.board_preview />
+    </div>
+  </section>
+
+  <.mailing_list_signup :if={@mailing_list_enabled} />
+</main>
