@@ -129,15 +129,6 @@ defmodule ChesstrainerWeb.PlayComponents do
             </div>
           <% else %>
             <div class="rounded-lg bg-canvas-raised p-3 text-sm">
-              <p class="flex items-center justify-between gap-2 font-semibold">
-                <span>{turn_label(@status, @awaiting_reply)}</span>
-                <span class="text-xs font-normal text-muted">
-                  You play {colour_name(@endgame.color)}
-                </span>
-              </p>
-            </div>
-
-            <div class="rounded-lg bg-canvas-raised p-3 text-sm">
               <%= cond do %>
                 <% @status == :loading -> %>
                   <p class="text-muted">Loading tablebase…</p>
@@ -161,7 +152,7 @@ defmodule ChesstrainerWeb.PlayComponents do
                     </p>
                   <% end %>
                 <% @awaiting_reply -> %>
-                  <p class="text-muted">Opponent is replying…</p>
+                  <p class="text-muted">Thinkin...</p>
                 <% @last_grade == :optimal -> %>
                   <p class="font-semibold text-success-text">Optimal move</p>
                 <% @last_grade == :winning -> %>
@@ -179,7 +170,8 @@ defmodule ChesstrainerWeb.PlayComponents do
                 <% @last_grade == :unknown -> %>
                   <p class="font-semibold text-muted">Could not grade that move</p>
                 <% true -> %>
-                  <p class="text-muted">Make a move to have it graded.</p>
+                  <p class="text-muted font-bold">Make a move.</p>
+                  <p class="text-muted">You play {colour_name(@endgame.color)}</p>
               <% end %>
               <p :if={@status in [:solved, :failed]} class="mt-1 text-xs text-muted">
                 Puzzle rating: {round(@endgame.rating)}
@@ -334,13 +326,6 @@ defmodule ChesstrainerWeb.PlayComponents do
 
   defp display_plies(true, line, _plies), do: line
   defp display_plies(false, _line, plies), do: plies
-
-  defp turn_label(:playing, false), do: "Your move"
-  defp turn_label(:playing, true), do: "Opponent's move"
-  defp turn_label(:solved, _awaiting_reply), do: "Solved"
-  defp turn_label(:failed, _awaiting_reply), do: "Finished"
-  defp turn_label(:blocked, _awaiting_reply), do: "Unavailable"
-  defp turn_label(_status, _awaiting_reply), do: "Loading…"
 
   defp colour_name(:white), do: "White"
   defp colour_name(:black), do: "Black"
