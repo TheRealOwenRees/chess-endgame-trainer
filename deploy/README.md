@@ -18,13 +18,55 @@ Internet
 | Erlang | 28.5 |
 | Elixir | 1.19.5-otp-28 |
 | Rust | 1.98.1 |
-| Postgres | `postgres:18.6`, pinned directly in the unified compose |
+| Postgres | `postgres:18.0`, pinned directly in the unified compose |
 | Caddy | 2.11.9 |
 | Docker | 29.9.3 |
 | Docker Compose | v5.7.0 |
+| GitHub runner | `ubuntu-24.04` |
 
 The release ships its own ERTS. The host needs the runtime libraries for the
 Rust NIF (`libstdc++6`), OpenSSL, and CA certificates.
+
+## Host prerequisites
+
+A new Ubuntu 24.04 VPS needs:
+
+- Docker Engine and the Compose plugin
+- Caddy
+- `curl`, `ca-certificates`, `libstdc++6`, `openssl`
+- DNS and TLS for the domain
+- A non-root deploy user with SSH access
+
+Install the host libraries:
+
+```sh
+sudo apt update
+sudo apt install -y curl ca-certificates libstdc++6 openssl
+```
+
+Install Docker and Caddy from their official repositories. The Caddy install
+commands already used for the static site are in `deploy/static/README.md`.
+
+Firewall:
+
+```sh
+sudo ufw allow OpenSSH
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+```
+
+Do **not** open `4100` or `5432`. Phoenix binds to loopback, and Postgres is
+published only on `127.0.0.1`.
+
+DNS:
+
+- `A`/`AAAA` for `innersquare.app` and `www` point at the VPS.
+- Do not remove the existing mail records:
+  - root MX records for `support@innersquare.app`
+  - SES DKIM CNAMEs
+  - the `mail.innersquare.app` custom MAIL FROM MX/TXT records
+  - DMARC at `_dmarc.innersquare.app`
 
 ## Shared-host choices
 
@@ -45,7 +87,8 @@ Rust NIF (`libstdc++6`), OpenSSL, and CA certificates.
 ├── releases/
 │   ├── 20261109120000/
 │   └── 20261109153000/
-└── current -> releases/20261109153000
+├── current -> releases/20261109153000
+└── src/                 # optional checkout of this repo / deploy scripts
 ```
 
 `/etc/chesstrainer/env` is the application environment file, owned by
@@ -56,6 +99,19 @@ also `root:root` and `0600`.
 
 The app runs as the dedicated `chesstrainer` system user. It must own
 `/opt/chesstrainer` so it can write `priv/static/backups`.
+
+## Copy the deploy artifacts
+
+Run these commands from a checkout of this repo on the VPS, or copy the
+`deploy/` directory to `/opt/chesstrainer/src/deploy`.
+
+```sh
+sudo install -d -o root -g root /opt/chesstrainer/src/deploy
+sudo cp -a deploy/. /opt/chesstrainer/src/deploy/
+```
+
+If you prefer to keep the checkout elsewhere, use that path in the commands
+below.
 
 ## Application env file
 
@@ -76,8 +132,8 @@ SES_REGION=eu-north-1
 SES_ACCESS_KEY_ID=AKIA...
 SES_SECRET_ACCESS_KEY=...
 
-MATOMO_URL=https://analytics.innersquare.app/
-MATOMO_SITE_ID=1
+MATOMO_URL=https://analytics.owenrees.eu/
+MATOMO_SITE_ID=6
 
 # Optional:
 # TABLEBASE_PATH=/path/to/syzygy
@@ -86,6 +142,13 @@ MATOMO_SITE_ID=1
 
 The production endpoint binds to `127.0.0.1` only. Caddy is the public
 entry point.
+
+Generate the two secrets:
+
+```sh
+openssl rand -base64 64   # SECRET_KEY_BASE
+openssl rand -hex 32      # Postgres password
+```
 
 ## Postgres env file
 
@@ -102,7 +165,7 @@ Compose volume mounts the parent:
 
 ```yaml
 volumes:
-  - pgdata:/var/lib/postgresql
+  - chesstrainer_pgdata:/var/lib/postgresql
 ```
 
 ## First-time setup
@@ -125,16 +188,16 @@ install -m 600 /dev/null /etc/chesstrainer/postgres.env
 chown root:root /etc/chesstrainer/env /etc/chesstrainer/postgres.env
 ```
 
+Edit both files with `sudoedit` and set the generated secrets and
+`DATABASE_URL`.
+
+## Unified Compose: add Postgres
+
 Add the `chesstrainer-db` service and `chesstrainer_pgdata` volume from
 `deploy/postgres.compose.yml` to the VPS's existing unified
 `docker-compose.yml`. Do not run the reference file as a separate project.
 
-```sh
-docker compose -f <UNIFIED_COMPOSE> up -d chesstrainer-db
-docker compose -f <UNIFIED_COMPOSE> ps chesstrainer-db
-```
-
-The Postgres image is pinned directly in the unified compose:
+The image is pinned directly in the unified compose:
 
 ```yaml
 image: postgres:18.0
@@ -146,27 +209,50 @@ For an immutable pin, replace it with the exact digest:
 image: postgres:18.0@sha256:...
 ```
 
-There is no `POSTGRES_IMAGE` environment variable involved. To change the
-Postgres version, edit the `image:` line in the unified compose, then:
+There is no `POSTGRES_IMAGE` environment variable involved.
+
+Because `postgres.env` is root-owned `0600`, run Compose with `sudo`:
 
 ```sh
-docker compose -f <UNIFIED_COMPOSE> pull chesstrainer-db
-docker compose -f <UNIFIED_COMPOSE> up -d chesstrainer-db
+sudo docker compose -f <UNIFIED_COMPOSE> config >/dev/null
+sudo docker compose -f <UNIFIED_COMPOSE> up -d chesstrainer-db
+sudo docker compose -f <UNIFIED_COMPOSE> ps chesstrainer-db
+sudo docker compose -f <UNIFIED_COMPOSE> logs --tail=50 chesstrainer-db
 ```
 
-Install the systemd unit:
+Verify the database:
 
 ```sh
-install -o root -g root -m 644 deploy/chesstrainer.service /etc/systemd/system/chesstrainer.service
-systemctl daemon-reload
-systemctl enable chesstrainer
+sudo docker compose -f <UNIFIED_COMPOSE> exec -T chesstrainer-db \
+  psql -U chesstrainer -d chesstrainer_prod -c 'select 1;'
 ```
 
-Do not start the service until a release is in `/opt/chesstrainer/current`.
+To change the Postgres version:
+
+```sh
+# edit the image: line in the unified compose
+sudo docker compose -f <UNIFIED_COMPOSE> pull chesstrainer-db
+sudo docker compose -f <UNIFIED_COMPOSE> up -d chesstrainer-db
+```
+
+## systemd unit
+
+From the deploy artifact copy:
+
+```sh
+sudo install -o root -g root -m 644 /opt/chesstrainer/src/deploy/chesstrainer.service \
+  /etc/systemd/system/chesstrainer.service
+sudo systemctl daemon-reload
+sudo systemctl enable chesstrainer
+```
+
+The unit includes `ConditionPathExists=/opt/chesstrainer/current/bin/server`, so
+it is safe to enable before the first release. systemd skips it until a release
+is in place.
 
 ## Caddy
 
-This VPS uses a single `/etc/caddy/Caddyfile` with no imports. Add the block
+On the current VPS the Caddyfile is a single file with no imports. Add the block
 from `deploy/Caddyfile` by hand:
 
 ```caddy
@@ -180,11 +266,16 @@ www.innersquare.app {
 }
 ```
 
+If a new VPS uses imports, put the block in its own site file instead.
+
+Do **not** switch Caddy until a release is running and verified on
+`127.0.0.1:4100`. Before that, keep the static coming-soon site live.
+
 Validate and reload:
 
 ```sh
-caddy validate --config /etc/caddy/Caddyfile
-systemctl reload caddy
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
 ```
 
 Do not let a deploy overwrite the shared Caddyfile.
@@ -206,12 +297,18 @@ tar -czf chesstrainer-release.tar.gz -C _build/prod/rel/chesstrainer .
 `mix assets.deploy` runs `compile` first so the generated LiveView colocated
 CSS exists.
 
-## Deploying a release
+## First deploy and Caddy switch
 
-Copy the tarball to the VPS, then:
+Upload the tarball:
 
 ```sh
-sudo deploy/activate /tmp/chesstrainer-release.tar.gz
+scp chesstrainer-release.tar.gz <VPS_USER>@<VPS_HOST>:/tmp/
+```
+
+On the VPS:
+
+```sh
+sudo /opt/chesstrainer/src/deploy/activate /tmp/chesstrainer-release.tar.gz
 ```
 
 The script:
@@ -225,25 +322,49 @@ The script:
 7. Rolls back to the previous release on failure
 8. Prunes old releases, keeping 5 by default
 
+Verify locally before touching Caddy:
+
+```sh
+curl -i http://127.0.0.1:4100/health
+curl -i http://127.0.0.1:4100/
+sudo journalctl -u chesstrainer -n 100 --no-pager
+```
+
+Then add the Caddy block and reload. Verify publicly:
+
+```sh
+curl -I https://innersquare.app/
+curl -I https://innersquare.app/privacy
+curl -I https://innersquare.app/terms-conditions
+```
+
+## Subsequent deploys
+
+```sh
+scp chesstrainer-release.tar.gz <VPS_USER>@<VPS_HOST>:/tmp/
+ssh <VPS_USER>@<VPS_HOST>
+sudo /opt/chesstrainer/src/deploy/activate /tmp/chesstrainer-release.tar.gz
+```
+
 Optional overrides:
 
 ```sh
 RELEASE_ID=20261109120000 \
 HEALTH_URL=http://127.0.0.1:4100/health \
 KEEP_RELEASES=5 \
-sudo -E deploy/activate /tmp/chesstrainer-release.tar.gz
+sudo -E /opt/chesstrainer/src/deploy/activate /tmp/chesstrainer-release.tar.gz
 ```
 
 ## Rollback
 
 ```sh
-sudo deploy/rollback
+sudo /opt/chesstrainer/src/deploy/rollback
 ```
 
 Or target a specific release:
 
 ```sh
-sudo deploy/rollback 20261109120000
+sudo /opt/chesstrainer/src/deploy/rollback 20261109120000
 ```
 
 The script flips `current`, restarts the service, and checks `/health`.
@@ -251,8 +372,8 @@ The script flips `current`, restarts the service, and checks `/health`.
 ## Logs and health
 
 ```sh
-systemctl status chesstrainer
-journalctl -u chesstrainer -n 100 --no-pager
+sudo systemctl status chesstrainer
+sudo journalctl -u chesstrainer -n 100 --no-pager
 curl -i http://127.0.0.1:4100/health
 ```
 
@@ -261,9 +382,30 @@ curl -i http://127.0.0.1:4100/health
 Take a logical backup of the production database:
 
 ```sh
-docker compose -f <UNIFIED_COMPOSE> \
+sudo docker compose -f <UNIFIED_COMPOSE> \
   exec -T chesstrainer-db pg_dump -U chesstrainer chesstrainer_prod \
   | gzip > /var/backups/chesstrainer-$(date -u +%Y%m%d%H%M%S).sql.gz
 ```
 
-Keep the backup directory outside `/opt/chesstrainer/releases`.
+Example nightly entry in root's crontab (`sudo crontab -e`):
+
+```cron
+15 3 * * * docker compose -f /home/owen/docker-compose.yml exec -T chesstrainer-db pg_dump -U chesstrainer chesstrainer_prod | gzip > /var/backups/chesstrainer-$(date +\%Y\%m\%d).sql.gz
+```
+
+Keep `/var/backups` outside `/opt/chesstrainer/releases` and copy backups off
+the VPS regularly.
+
+## New VPS checklist
+
+1. Ubuntu 24.04, DNS pointed at the VPS, firewall allows 22/80/443.
+2. Docker, Compose, Caddy, and runtime libraries installed.
+3. `chesstrainer` user, `/opt/chesstrainer` layout, root-owned env files.
+4. `chesstrainer-db` merged into the unified compose and healthy.
+5. systemd unit installed and enabled; `ConditionPathExists` keeps it skipped
+   until a release exists.
+6. Release built on a matching Ubuntu runner and activated.
+7. `/health` and `/` verified on `127.0.0.1:4100`.
+8. Caddy block added, validated, reloaded.
+9. Public `/`, `/privacy`, `/terms-conditions`, and `/health` verified.
+10. Backups scheduled and tested.

@@ -2,6 +2,7 @@
 Description=Inner Square Chess (Phoenix)
 After=network.target docker.service
 Wants=network.target
+ConditionPathExists=/opt/chesstrainer/current/bin/server
 
 [Service]
 Type=simple
