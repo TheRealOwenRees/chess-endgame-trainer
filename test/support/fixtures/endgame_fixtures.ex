@@ -7,18 +7,39 @@ defmodule Chesstrainer.EndgamesFixtures do
   @doc """
   Generate a unique endgame FEN.
 
-  Endgames have a unique constraint on :fen, so tests need
-  distinct FENs when inserting more than one. Each call
-  shifts the white king's file to avoid FEN collisions.
+  Endgames have a unique constraint on :fen, so tests need distinct FENs when
+  inserting more than one. The white king moves across 56 board squares and the
+  fullmove number is always unique, so repeated calls cannot collide.
   """
   def unique_endgame_fen do
-    # White king on rank 1 in columns b..g, leaving 1-6 empty squares
-    # before and 6-1 after. Both before_king and after_king are valid
-    # single digits (1-8), and the rank sums to 8.
-    offset = System.unique_integer([:positive]) |> rem(6)
-    before_king = offset + 1
-    after_king = 7 - before_king
-    "4k3/8/8/8/8/8/8/#{before_king}K#{after_king} w - - 0 1"
+    n = System.unique_integer([:positive, :monotonic])
+    rank = rem(div(n, 8), 7) + 1
+    file = rem(n, 8)
+    # Avoid placing the white king directly next to the black king on e8.
+    file = if rank == 7 and file == 4, do: 0, else: file
+
+    white_king_row = row_with_king(file)
+
+    board =
+      8..1//-1
+      |> Enum.map(fn
+        8 -> "4k3"
+        ^rank -> white_king_row
+        _ -> "8"
+      end)
+      |> Enum.join("/")
+
+    "#{board} w - - 0 #{n}"
+  end
+
+  defp row_with_king(file) do
+    before_count = file
+    after_count = 7 - file
+
+    before_part = if before_count > 0, do: Integer.to_string(before_count), else: ""
+    after_part = if after_count > 0, do: Integer.to_string(after_count), else: ""
+
+    before_part <> "K" <> after_part
   end
 
   @doc """
