@@ -12,6 +12,16 @@
       guest trainer.
     </p>
 
+    <h2>Data controller</h2>
+    <p>
+      The controller responsible for your personal information is Owen REES, an
+      entrepreneur individuel (EI) established in France, trading as {Branding.name()}. Our business register number (SIRET) is
+      929&nbsp;553&nbsp;774&nbsp;00019. You can contact us about anything in this
+      policy, or about your data, at
+      <a href={"mailto:" <> Branding.support_email()}>{Branding.support_email()}</a>
+      or <a href="tel:+33683019513">+33 6 83 01 95 13</a>.
+    </p>
+
     <h2>What we collect</h2>
     <ul>
       <li>
@@ -33,17 +43,18 @@
       </li>
       <li>
         <strong>Technical data.</strong>
-        Our hosting and server infrastructure may keep standard request logs
-        (IP address, browser, timestamps) for security and troubleshooting.
-        These logs are rotated regularly.
+        We do not keep our own access logs. The companies that host the site
+        and run our content delivery network keep short-lived request logs
+        (IP address, browser, timestamps) for security, abuse prevention, and
+        troubleshooting, under their own retention policies.
       </li>
       <li>
         <strong>Usage data.</strong>
         On public pages and the guest trainer, we use a self-hosted Matomo
         instance to understand aggregate usage. Matomo is configured without
-        cookies, with IP anonymisation, and to respect Do Not Track. We do not
-        use user IDs, track signed-in account pages, or share this data with
-        third parties.
+        cookies, with IP addresses shortened before storage, and to respect Do
+        Not Track. We do not use user IDs, track signed-in account pages, or
+        share this data with third parties.
       </li>
       <li>
         <strong>Messages you send us.</strong>
@@ -60,6 +71,10 @@
     <ul>
       <li>a session cookie that keeps you signed in;</li>
       <li>a CSRF token that protects forms from cross-site requests;</li>
+      <li>
+        a security cookie that our content delivery network, Cloudflare, may set
+        when it checks that a request is not automated abuse;
+      </li>
       <li>a colour-mode preference stored in your browser.</li>
       <li>
         an analytics opt-out preference stored in your browser's local storage,
@@ -67,11 +82,12 @@
       </li>
     </ul>
     <p>
-      We do not use advertising cookies, third-party analytics, or cross-site
-      tracking. Our analytics is self-hosted Matomo and is configured without
-      cookies. You can clear these entries at any time in your browser settings;
-      doing so will sign you out, reset your colour mode, and reset your
-      analytics preference.
+      We do not use advertising cookies, analytics cookies, or cross-site
+      tracking. The only cookie not set by this site is Cloudflare's security
+      check described above; our analytics is self-hosted Matomo and is
+      configured without cookies. You can clear these entries at any time in
+      your browser settings; doing so will sign you out, reset your colour mode,
+      and reset your analytics preference.
     </p>
 
     <h2>Analytics</h2>
@@ -79,9 +95,9 @@
       We use a self-hosted Matomo instance at
       <a href="https://analytics.owenrees.eu/">analytics.owenrees.eu</a>
       to understand aggregate use of the public site and guest trainer. It is
-      configured without cookies, with IP anonymisation, and to respect Do Not
-      Track. We do not use user IDs, track signed-in account pages, or share
-      this data with third parties.
+      configured without cookies, with IP addresses shortened before storage,
+      and to respect Do Not Track. We do not use user IDs, track signed-in
+      account pages, or share this data with third parties.
     </p>
     <p>
       Raw analytics data is retained for up to 180 days. We process it on the
@@ -148,15 +164,38 @@
       to object to this processing; to do so, contact us using the address below.
     </p>
 
+    <h2 id="hosting-and-infrastructure">Hosting and infrastructure</h2>
+    <p>
+      The site runs on a virtual private server operated for us by Hetzner
+      inside the European Union. Our database runs on the same server, our
+      transactional email is sent through Amazon SES in the EU, and our
+      self-hosted Matomo analytics runs on infrastructure we control in the EU.
+    </p>
+    <p>
+      We also use Cloudflare as our content delivery network and security proxy.
+      Because Cloudflare sits between your browser and our server, it processes
+      your IP address, the requested URL, and request headers. Cloudflare is a
+      US company, so that request data may be transferred outside the UK and
+      EEA. The transfer relies on the EU–US Data Privacy Framework and standard
+      contractual clauses. Cloudflare and Hetzner each keep their own logs
+      under their own retention policies; we do not receive or keep them.
+    </p>
+    <p>
+      These providers act as our processors under data protection law. We share
+      with them only what they need to run the service, and we remain
+      responsible for how your information is handled.
+    </p>
+
     <h2>Sharing</h2>
     <p>
-      We do not sell your personal information. We share it only with providers
-      who help us run the site — for example hosting, database, and email
-      delivery providers — and only as far as they need it to perform that work.
-      Self-hosted Matomo analytics is operated by us on infrastructure we
-      control; we do not share that data with third parties. We may also
-      disclose information where the law requires it or to protect the rights
-      and safety of our users.
+      We do not sell your personal information. We share it only with the
+      providers described under
+      <a href="#hosting-and-infrastructure">hosting and infrastructure</a>
+      — our hosting, content delivery, database, and email delivery providers —
+      and only as far as they need it to perform that work. Self-hosted Matomo
+      analytics is operated by us on infrastructure we control; we do not share
+      that data with third parties. We may also disclose information where the
+      law requires it or to protect the rights and safety of our users.
     </p>
 
     <h2>Retention</h2>
@@ -165,6 +204,15 @@
       delete your account, we remove your personal information within a
       reasonable period, except where we must keep records for legal, security,
       or accounting reasons. We retain raw analytics data for up to 180 days.
+    </p>
+    <p>
+      Two exceptions are worth naming. If you unsubscribe from the mailing list,
+      or ask us not to email you, we keep your address on a suppression list so
+      that we do not contact you again; we hold only what is needed to recognise
+      the address. We also keep database backups for disaster recovery, stored
+      off the primary server, so a deleted account may remain in a backup for
+      some time after deletion. We do not use backups to restore individual
+      accounts, and we delete them once they are no longer needed.
     </p>
 
     <h2>Your rights</h2>
@@ -176,13 +224,6 @@
       us using the address below. If you are in the UK or EU and are unhappy
       with our response, you can complain to your local data protection
       authority.
-    </p>
-
-    <h2>Children</h2>
-    <p>
-      The service is not directed at children under 13, and we do not knowingly
-      collect their personal information. If you believe a child has created an
-      account, contact us and we will remove it.
     </p>
 
     <h2>Changes</h2>

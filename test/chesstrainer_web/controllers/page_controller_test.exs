@@ -109,6 +109,11 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ "Guest puzzle limit"
     assert html =~ "HMAC-SHA256"
     assert html =~ "Article 6(1)(f) GDPR"
+    assert html =~ "Hosting and infrastructure"
+    assert html =~ "Cloudflare"
+    assert html =~ "Data controller"
+    assert html =~ "suppression list"
+    refute html =~ "not directed at children"
 
     assert LazyHTML.text(LazyHTML.query(document, "title")) ==
              Branding.title("Privacy Policy")
@@ -124,10 +129,11 @@ defmodule ChesstrainerWeb.PageControllerTest do
     document = LazyHTML.from_document(html)
 
     assert LazyHTML.text(LazyHTML.query(document, "h1")) == "Terms & Conditions"
-    assert html =~ "Last updated: 6 November 2026"
+    assert html =~ "Last updated: 10 November 2026"
     assert html =~ "Acceptable use"
     assert html =~ "Governing law"
     assert html =~ "fixed number of puzzles per UTC day"
+    assert html =~ "consent of a parent or guardian"
     assert html =~ ~p"/privacy"
 
     assert LazyHTML.text(LazyHTML.query(document, "title")) ==
@@ -137,6 +143,27 @@ defmodule ChesstrainerWeb.PageControllerTest do
              LazyHTML.attribute(LazyHTML.query(document, ~s(link[rel="canonical"])), "href")
 
     assert URI.parse(canonical).path == "/terms-conditions"
+  end
+
+  test "GET /mentions-legales renders the French legal notice", %{conn: conn} do
+    html = conn |> get(~p"/mentions-legales") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert LazyHTML.text(LazyHTML.query(document, "h1")) == "Mentions légales"
+    assert html =~ "Owen REES"
+    assert html =~ "929"
+    assert html =~ "293 B"
+    assert html =~ "Hetzner Online GmbH"
+    assert html =~ "Directeur de la publication"
+    assert html =~ ~p"/privacy"
+
+    assert LazyHTML.text(LazyHTML.query(document, "title")) ==
+             Branding.title("Mentions légales")
+
+    assert [canonical] =
+             LazyHTML.attribute(LazyHTML.query(document, ~s(link[rel="canonical"])), "href")
+
+    assert URI.parse(canonical).path == "/mentions-legales"
   end
 
   test "branding is read from application config", %{conn: conn} do

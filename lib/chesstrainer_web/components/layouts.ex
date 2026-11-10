@@ -186,6 +186,7 @@ defmodule ChesstrainerWeb.Layouts do
       <nav class="footer-links" aria-label="Footer">
         <a href="/privacy">Privacy Policy</a>
         <a href="/terms-conditions">Terms & Conditions</a>
+        <a href="/mentions-legales">Mentions légales</a>
       </nav>
 
       <small>© {@year} {Branding.name()}</small>

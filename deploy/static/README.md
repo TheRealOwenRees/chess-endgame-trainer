@@ -9,6 +9,7 @@ deploy/static/
 ├── index.html              # page + inline CSS; uses the app's real brand tokens
 ├── privacy.html            # privacy policy, served at /privacy
 ├── terms-conditions.html   # terms, served at /terms-conditions
+├── mentions-legales.html   # French legal notice, served at /mentions-legales
 ├── legal.css               # shared styles for the legal pages
 ├── fonts/                  # DM Sans + DM Serif Display woff2 files
 ├── favicon.ico             # copied from priv/static
@@ -17,8 +18,9 @@ deploy/static/
 └── README.md
 ```
 
-The Caddyfile uses `try_files {path}.html {path}` so `/privacy` and
-`/terms-conditions` serve the matching `.html` files without a redirect.
+The Caddyfile uses `try_files {path}.html {path}` so `/privacy`,
+`/terms-conditions`, and `/mentions-legales` serve the matching `.html` files
+without a redirect.
 
 ## Preview locally
 

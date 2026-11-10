@@ -14,7 +14,8 @@ defmodule ChesstrainerWeb.SitemapController do
     urls = [
       url(conn, ~p"/"),
       url(conn, ~p"/privacy"),
-      url(conn, ~p"/terms-conditions")
+      url(conn, ~p"/terms-conditions"),
+      url(conn, ~p"/mentions-legales")
     ]
 
     conn

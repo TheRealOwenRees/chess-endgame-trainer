@@ -15,6 +15,7 @@ defmodule ChesstrainerWeb.Plugs.Prelaunch do
     /
     /privacy
     /terms-conditions
+    /mentions-legales
     /health
     /robots.txt
     /sitemap.xml

@@ -33,6 +33,7 @@ defmodule ChesstrainerWeb.Router do
     get "/", PageController, :home
     get "/privacy", PageController, :privacy
     get "/terms-conditions", PageController, :terms_conditions
+    get "/mentions-legales", PageController, :mentions_legales
     post "/mailing-list", MailingListController, :create
     get "/mailing-list/confirm/:token", MailingListController, :confirm
     post "/admin/log-in", UserSessionController, :create_admin

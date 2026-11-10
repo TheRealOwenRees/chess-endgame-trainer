@@ -13,7 +13,8 @@ defmodule ChesstrainerWeb.SitemapControllerTest do
       assert body =~ "<loc>#{base_url}/</loc>"
       assert body =~ "<loc>#{base_url}/privacy</loc>"
       assert body =~ "<loc>#{base_url}/terms-conditions</loc>"
-      assert length(:binary.matches(body, "<url>")) == 3
+      assert body =~ "<loc>#{base_url}/mentions-legales</loc>"
+      assert length(:binary.matches(body, "<url>")) == 4
     end
 
     test "is served as XML", %{conn: conn} do
