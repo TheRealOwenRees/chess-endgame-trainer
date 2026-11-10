@@ -310,6 +310,121 @@ sudo docker compose -f <UNIFIED_COMPOSE> pull chesstrainer-db
 sudo docker compose -f <UNIFIED_COMPOSE> up -d chesstrainer-db
 ```
 
+## Read-only database access
+
+The app connects as `chesstrainer`, which is a superuser. Use a separate
+read-only role for inspection, debugging, and dashboards.
+
+Create it once per environment:
+
+```sh
+sudo docker compose -f <UNIFIED_COMPOSE> exec -T chesstrainer-db \
+  psql -U chesstrainer -d chesstrainer_prod <<'SQL'
+CREATE ROLE chesstrainer_ro LOGIN PASSWORD '<generated-password>';
+GRANT CONNECT ON DATABASE chesstrainer_prod TO chesstrainer_ro;
+GRANT USAGE ON SCHEMA public TO chesstrainer_ro;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO chesstrainer_ro;
+
+-- Cover tables created by future migrations. Migrations run as chesstrainer.
+ALTER DEFAULT PRIVILEGES FOR ROLE chesstrainer IN SCHEMA public
+  GRANT SELECT ON TABLES TO chesstrainer_ro;
+
+-- Optional: read other sessions and server settings in pg_stat_* views.
+GRANT pg_read_all_stats TO chesstrainer_ro;
+SQL
+```
+
+Generate the password with `openssl rand -hex 32` and keep it in a password
+manager. The only access it has is `SELECT`; there are no `INSERT`, `UPDATE`,
+`DELETE`, or object-creation grants. If the role already exists, skip the
+`CREATE ROLE` line and re-run the grants.
+
+Optional defence in depth:
+
+```sql
+ALTER ROLE chesstrainer_ro SET default_transaction_read_only = on;
+```
+
+This is not a hard boundary (the role can override it per session), but it
+turns an accidental write into an error.
+
+### Connect from the VPS
+
+`docker exec` connects over the container's Unix socket, which the Postgres
+image trusts locally, so no password is needed:
+
+```sh
+sudo docker exec -it chesstrainer-db \
+  psql -U chesstrainer_ro -d chesstrainer_prod
+```
+
+### Connect from a workstation over SSH
+
+Postgres is published on `127.0.0.1:5432` only. OpenSSH also disables
+forwarding by default in `/etc/ssh/sshd_config` (`AllowTcpForwarding no`).
+Allow local forwarding for the deploy user only, restricted to Postgres, by
+appending this to the **end** of that file:
+
+```text
+Match User <username>
+    AllowTcpForwarding local
+    PermitOpen 127.0.0.1:5432
+```
+
+Then validate and reload:
+
+```sh
+sudo sshd -t
+sudo systemctl reload ssh
+sudo sshd -T -C user=<username>,host=localhost,addr=127.0.0.1 | grep -iE 'allowtcpforwarding|permitopen'
+```
+
+Open the tunnel (local port `5433` because the dev database already binds
+`5432`):
+
+```sh
+ssh -N -L 5433:127.0.0.1:5432 <VPS_USER>@<VPS_HOST>
+```
+
+Connect from a second terminal:
+
+```sh
+psql "postgres://chesstrainer_ro@127.0.0.1:5433/chesstrainer_prod"
+```
+
+Install `postgresql-client` if `psql` is not available on the workstation.
+
+To avoid the password prompt, add this to `~/.pgpass` (mode `0600`):
+
+```text
+127.0.0.1:5433:chesstrainer_prod:chesstrainer_ro:<password>
+```
+
+DBeaver uses the same tunnel. Create a PostgreSQL connection with host
+`127.0.0.1`, port `5432`, database `chesstrainer_prod`, user
+`chesstrainer_ro`, then on the **SSH** tab enable the tunnel with host
+`<VPS_HOST>`, port `22`, user `<VPS_USER>`, and a public key. The
+`AllowTcpForwarding local` rule above is required for any tunnelled client.
+
+Reset the role password:
+
+```sh
+sudo docker compose -f <UNIFIED_COMPOSE> exec -T chesstrainer-db \
+  psql -U chesstrainer -d chesstrainer_prod \
+  -c "ALTER ROLE chesstrainer_ro PASSWORD '<new-password>';"
+```
+
+Verify the role is read-only:
+
+```sh
+psql "postgres://chesstrainer_ro@127.0.0.1:5433/chesstrainer_prod" \
+  -c 'select current_user, current_database();'
+psql "postgres://chesstrainer_ro@127.0.0.1:5433/chesstrainer_prod" \
+  -c 'create table should_fail (i int);'
+```
+
+The second command must fail with `permission denied for schema public`.
+
 ## systemd unit
 
 From the deploy artifact copy:
@@ -438,7 +553,7 @@ sudo -E /opt/chesstrainer/src/deploy/activate /tmp/chesstrainer-release.tar.gz
 ## GitHub Actions CD
 
 Merging to `main` (or running the workflow manually) tests, builds, uploads,
-and deploys the release. The deploy job uses SSH as `owen`.
+and deploys the release. The deploy job uses SSH as `<username>`.
 
 ### Deploy key
 
@@ -447,7 +562,7 @@ Generate a dedicated key, not your personal one:
 ```sh
 ssh-keygen -t ed25519 -C "github-actions-chesstrainer" \
   -f ~/.ssh/chesstrainer_deploy -N ""
-ssh-copy-id -i ~/.ssh/chesstrainer_deploy.pub owen@<VPS_HOST>
+ssh-copy-id -i ~/.ssh/chesstrainer_deploy.pub <username>@<VPS_HOST>
 ```
 
 `VPS_HOST` must be the public IP or DNS name reachable from GitHub. Do not use
@@ -460,7 +575,7 @@ sudo visudo -f /etc/sudoers.d/chesstrainer-deploy
 ```
 
 ```text
-owen ALL=(root) NOPASSWD: /opt/chesstrainer/src/deploy/activate, /opt/chesstrainer/src/deploy/rollback
+<username> ALL=(root) NOPASSWD: /opt/chesstrainer/src/deploy/activate, /opt/chesstrainer/src/deploy/rollback
 ```
 
 Validate:
@@ -481,7 +596,7 @@ add environment secrets:
 | Secret | Value |
 |---|---|
 | `VPS_HOST` | public VPS IP or DNS name |
-| `VPS_USER` | `owen` |
+| `VPS_USER` | `<username>` |
 | `VPS_SSH_KEY` | private deploy key |
 | `VPS_KNOWN_HOSTS` | `ssh-keyscan -H <VPS_HOST>` output |
 
@@ -535,22 +650,52 @@ reports `degraded` but still 200 because Lichess fallback is available.
 
 ## Backups
 
-Take a logical backup of the production database:
+`docker exec` connects over the container's Unix socket, which the Postgres
+image trusts locally, so `pg_dump` needs no password. Run it as the owner
+(`chesstrainer`), not `chesstrainer_ro`: a full dump also needs sequence access
+and ownership information.
+
+Take a compressed logical backup (custom format, restorable with `pg_restore`):
 
 ```sh
-sudo docker compose -f <UNIFIED_COMPOSE> \
-  exec -T chesstrainer-db pg_dump -U chesstrainer chesstrainer_prod \
+sudo docker compose -f <UNIFIED_COMPOSE> exec -T chesstrainer-db \
+  pg_dump -U chesstrainer -d chesstrainer_prod -Fc \
+  > /var/backups/chesstrainer-$(date -u +%Y%m%d%H%M%S).dump
+```
+
+For a plain SQL file instead (human-readable, restorable with `psql`):
+
+```sh
+sudo docker compose -f <UNIFIED_COMPOSE> exec -T chesstrainer-db \
+  pg_dump -U chesstrainer -d chesstrainer_prod \
   | gzip > /var/backups/chesstrainer-$(date -u +%Y%m%d%H%M%S).sql.gz
+```
+
+Check that a custom-format dump is readable before trusting it:
+
+```sh
+sudo docker exec -i chesstrainer-db pg_restore -l \
+  < /var/backups/<timestamp>.dump > /dev/null
+```
+
+Restore into a scratch database (do not restore over the live database without
+stopping `chesstrainer` first):
+
+```sh
+sudo docker compose -f <UNIFIED_COMPOSE> exec -T chesstrainer-db \
+  createdb -U chesstrainer chesstrainer_restore
+sudo docker exec -i chesstrainer-db pg_restore -U chesstrainer \
+  -d chesstrainer_restore < /var/backups/<timestamp>.dump
 ```
 
 Example nightly entry in root's crontab (`sudo crontab -e`):
 
 ```cron
-15 3 * * * docker compose -f /home/owen/docker-compose.yml exec -T chesstrainer-db pg_dump -U chesstrainer chesstrainer_prod | gzip > /var/backups/chesstrainer-$(date +\%Y\%m\%d).sql.gz
+15 3 * * * docker compose -f /home/<username>/docker-compose.yml exec -T chesstrainer-db pg_dump -U chesstrainer -d chesstrainer_prod -Fc > /var/backups/chesstrainer-$(date +\%Y\%m\%d).dump
 ```
 
 Keep `/var/backups` outside `/opt/chesstrainer/releases` and copy backups off
-the VPS regularly.
+the VPS regularly. A backup that is only on the VPS is not a backup.
 
 ## New VPS checklist
 
@@ -564,4 +709,4 @@ the VPS regularly.
 7. `/health` and `/` verified on `127.0.0.1:4100`.
 8. Caddy block added, validated, reloaded.
 9. Public `/`, `/privacy`, `/terms-conditions`, and `/health` verified.
-10. Backups scheduled and tested.
+10. Read-only role created, tunnel verified, backups scheduled and tested.
