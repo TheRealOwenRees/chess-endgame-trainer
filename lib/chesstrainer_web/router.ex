@@ -6,6 +6,7 @@ defmodule ChesstrainerWeb.Router do
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
+    plug ChesstrainerWeb.Plugs.PutRequestId
     plug :fetch_live_flash
     plug :put_root_layout, html: {ChesstrainerWeb.Layouts, :root}
     plug :protect_from_forgery

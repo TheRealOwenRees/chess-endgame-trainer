@@ -290,6 +290,10 @@ defmodule ChesstrainerWeb.UserAuth do
   end
 
   defp mount_current_scope(socket, session) do
+    if request_id = session["request_id"] do
+      Logger.metadata(request_id: request_id)
+    end
+
     Phoenix.Component.assign_new(socket, :current_scope, fn ->
       {user, _} =
         if user_token = session["user_token"] do
