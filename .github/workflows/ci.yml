@@ -94,3 +94,43 @@ jobs:
           name: chesstrainer-release
           path: chesstrainer-release.tar.gz
           retention-days: 7
+
+  deploy:
+      name: Deploy
+      needs: build-release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      runs-on: ubuntu-24.04
+      environment: production
+      concurrency:
+        group: production
+        cancel-in-progress: false
+
+      steps:
+        - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 #v8.0.2
+          with:
+            name: chesstrainer-release
+
+        - name: Install SSH key
+          run: |
+            mkdir -p ~/.ssh
+            printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+            chmod 600 ~/.ssh/id_ed25519
+            printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+            chmod 644 ~/.ssh/known_hosts
+
+        - name: Upload release
+          run: |
+            scp -i ~/.ssh/id_ed25519 -o BatchMode=yes \
+              chesstrainer-release.tar.gz \
+              "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/tmp/chesstrainer-release.tar.gz"
+
+        - name: Activate release
+          run: |
+            ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
+              "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+              'sudo -n /opt/chesstrainer/src/deploy/activate /tmp/chesstrainer-release.tar.gz'
+
+        - name: Public smoke test
+          run: |
+            curl -fsS https://innersquare.app/health
+            curl -fsS -o /dev/null https://innersquare.app/
