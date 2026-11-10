@@ -11,6 +11,8 @@ defmodule Chesstrainer.Endgames.Tablebase.Parser do
   import Chesstrainer.Ratelimiters
   alias Chesstrainer.Endgames.Tablebase
 
+  require Logger
+
   @lichess_tablebase_url "https://tablebase.lichess.ovh/standard?fen="
 
   @spec from_fen(String.t()) ::
@@ -74,6 +76,7 @@ defmodule Chesstrainer.Endgames.Tablebase.Parser do
 
       # Server errors
       {:ok, %Req.Response{status: status, body: body}} when status in 500..599 ->
+        Logger.warning("tablebase fetch failed with HTTP #{status}", status: status)
         {:error, {:server_error, status, body}}
 
       # Catch‑all for other status codes
@@ -82,6 +85,7 @@ defmodule Chesstrainer.Endgames.Tablebase.Parser do
 
       # Network / client‑side failure
       {:error, reason} ->
+        Logger.warning("tablebase fetch failed: #{inspect(reason)}", reason: reason)
         {:error, reason}
     end
   end

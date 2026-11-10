@@ -11,7 +11,8 @@ defmodule Chesstrainer.Cache do
   that were used heavily once but have not been used since eventually age out.
 
   A daily backup runs off the cache process at a configurable UTC time, so reads
-  and writes stay responsive while the snapshot is written.
+  and writes stay responsive while the snapshot is written. Failures are logged
+  rather than lost.
 
   ## Examples
 
@@ -19,7 +20,9 @@ defmodule Chesstrainer.Cache do
   """
 
   use GenServer
+  require Logger
 
+  alias Chesstrainer.Background
   alias Chesstrainer.Cache.BackupSchedule
   alias Chesstrainer.Cache.Persist
 
@@ -121,7 +124,18 @@ defmodule Chesstrainer.Cache do
     table = state.table
     backup_fun = state.backup_fun
 
-    Task.Supervisor.start_child(Chesstrainer.Cache.BackupSupervisor, fn -> backup_fun.(table) end)
+    task = fn ->
+      Background.run("cache backup", [table: table], fn -> backup_fun.(table) end)
+    end
+
+    case Task.Supervisor.start_child(Chesstrainer.Cache.BackupSupervisor, task) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.error("cache backup could not start", table: table, reason: reason)
+        :ok
+    end
   end
 
   defp schedule_backup(state) do

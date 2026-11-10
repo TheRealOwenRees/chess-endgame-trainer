@@ -5,7 +5,12 @@ defmodule Chesstrainer.Cache.Persist do
   A backup is written to a temporary DETS file in the same directory and then
   atomically renamed into place. A crash during the write therefore leaves the
   previous backup untouched instead of a truncated file that fails to restore.
+
+  A backup that cannot be opened at boot is logged and skipped, so a damaged
+  file does not stop the application from starting with an empty cache.
   """
+
+  require Logger
 
   @backup_path "priv/static/backups"
   @format_version "v2"
@@ -54,7 +59,8 @@ defmodule Chesstrainer.Cache.Persist do
 
           :dets.close(table)
 
-        {:error, _} ->
+        {:error, reason} ->
+          Logger.warning("cache backup restore failed", table: table, reason: reason)
           :ok
       end
     end

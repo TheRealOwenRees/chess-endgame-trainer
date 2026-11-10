@@ -41,7 +41,10 @@ defmodule ChesstrainerWeb.Endpoint do
     cookie_key: "request_logger"
 
   plug Plug.RequestId
-  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+
+  # Access lines come from ChesstrainerWeb.RequestLogger (one structured line
+  # per request); disable Phoenix.Logger's endpoint start/stop pair.
+  plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint], log: false
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],

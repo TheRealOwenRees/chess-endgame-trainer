@@ -33,5 +33,10 @@ config :swoosh, local: false
 # Do not print debug messages in production
 config :logger, level: :info
 
+# Emit one JSON object per line in production so journald output can be
+# filtered and shipped without parsing prose. Dev and test keep the readable
+# default formatter configured in config.exs.
+config :logger, :default_handler, formatter: {Chesstrainer.JSONLogFormatter, %{}}
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
