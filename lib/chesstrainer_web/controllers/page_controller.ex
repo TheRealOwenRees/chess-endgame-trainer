@@ -57,6 +57,19 @@ defmodule ChesstrainerWeb.PageController do
     |> render(:terms_conditions)
   end
 
+  def mentions_legales(conn, _params) do
+    conn
+    |> assign(:js_entry, ~p"/assets/js/marketing.js")
+    |> assign(:page_title, Branding.title("Mentions légales"))
+    |> assign(:title_suffix, "")
+    |> assign(
+      :meta_description,
+      "Éditeur, hébergeur et informations légales de #{Branding.name()}."
+    )
+    |> assign(:canonical_url, current_url(conn))
+    |> render(:mentions_legales)
+  end
+
   def not_found(conn, _params) do
     conn
     |> put_status(:not_found)
