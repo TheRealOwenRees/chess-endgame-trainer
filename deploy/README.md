@@ -19,7 +19,7 @@ Internet
 | Elixir | 1.19.5-otp-28 |
 | Rust | 1.98.1 |
 | Node.js | 24 (asset build only) |
-| Postgres | `postgres:18.0`, pinned directly in the unified compose |
+| Postgres | `postgres:18.6`, pinned directly in the unified compose |
 | Caddy | 2.11.9 |
 | Docker | 29.9.3 |
 | Docker Compose | v5.7.0 |
@@ -137,13 +137,22 @@ SES_SECRET_ACCESS_KEY=...
 MATOMO_URL=https://analytics.owenrees.eu/
 MATOMO_SITE_ID=6
 
+TABLEBASE_PATH=/opt/chesstrainer/tablebases
+
 # Optional:
-# TABLEBASE_PATH=/path/to/syzygy
 # RELEASE_COOKIE=...
 ```
 
 The production endpoint binds to `127.0.0.1` only. Caddy is the public
 entry point.
+
+## Matomo analytics
+
+Set `MATOMO_URL` and `MATOMO_SITE_ID` to enable cookieless analytics on public
+pages and the guest trainer. Signed-in account and admin pages are excluded.
+
+The privacy controls, Matomo server settings, retention, and opt-out behaviour
+are documented in `docs/analytics.md`.
 
 Generate the two secrets:
 
@@ -191,6 +200,49 @@ volumes:
   - chesstrainer_pgdata:/var/lib/postgresql
 ```
 
+## Local tablebases (optional)
+
+The production tablebase directory is `/opt/chesstrainer/tablebases`. Keep the
+`.rtbw`/`.rtbz` files flat in that directory, and make sure the `chesstrainer`
+user can read them:
+
+```sh
+sudo install -d -o chesstrainer -g chesstrainer /opt/chesstrainer/tablebases
+sudo chown -R chesstrainer:chesstrainer /opt/chesstrainer/tablebases
+sudo chmod -R u=rwX,g=rX,o= /opt/chesstrainer/tablebases
+```
+
+Set the path in `/etc/chesstrainer/env`:
+
+```sh
+TABLEBASE_PATH=/opt/chesstrainer/tablebases
+```
+
+Then restart the service, because `TABLEBASE_PATH` is read at boot:
+
+```sh
+sudo systemctl restart chesstrainer
+```
+
+Check `/health`. It should move from `degraded` / `not_configured` to
+`ok` / `local`:
+
+```sh
+curl -s http://127.0.0.1:4100/health
+sudo journalctl -u chesstrainer -n 50 --no-pager | grep -i tablebase
+```
+
+If the path is missing, unreadable, or empty, the app falls back to Lichess and
+health stays `degraded` but still returns 200.
+
+To refresh the files:
+
+```sh
+mix tablebase.fetch --path /opt/chesstrainer/tablebases
+sudo chown -R chesstrainer:chesstrainer /opt/chesstrainer/tablebases
+sudo systemctl restart chesstrainer
+```
+
 ## First-time setup
 
 Run as root or with sudo:
@@ -223,13 +275,13 @@ Add the `chesstrainer-db` service and `chesstrainer_pgdata` volume from
 The image is pinned directly in the unified compose:
 
 ```yaml
-image: postgres:18.0
+image: postgres:18.6
 ```
 
 For an immutable pin, replace it with the exact digest:
 
 ```yaml
-image: postgres:18.0@sha256:...
+image: postgres:18.6@sha256:...
 ```
 
 There is no `POSTGRES_IMAGE` environment variable involved.

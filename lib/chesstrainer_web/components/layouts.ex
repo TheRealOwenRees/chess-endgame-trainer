@@ -296,4 +296,48 @@ defmodule ChesstrainerWeb.Layouts do
     </div>
     """
   end
+
+  @doc """
+  Renders the Matomo configuration for anonymous public pages.
+
+  The actual tracker is initialised by `assets/js/analytics.js`. Signed-in
+  visitors never get the config element, so account and admin pages are not
+  tracked.
+  """
+  attr :current_scope, :map, default: nil
+
+  def analytics(assigns) do
+    config = Application.get_env(:chesstrainer, :matomo, [])
+    url = normalize_matomo_url(config[:url])
+    site_id = config[:site_id]
+    user = Map.get(assigns, :current_scope) && assigns.current_scope.user
+
+    assigns =
+      assign(assigns,
+        matomo_url: url,
+        matomo_site_id: site_id && to_string(site_id),
+        analytics_enabled:
+          is_binary(url) and url != "" and site_id not in [nil, ""] and is_nil(user)
+      )
+
+    ~H"""
+    <div
+      :if={@analytics_enabled}
+      id="matomo-config"
+      data-url={@matomo_url}
+      data-site-id={@matomo_site_id}
+      hidden
+    >
+    </div>
+    """
+  end
+
+  defp normalize_matomo_url(url) when is_binary(url) do
+    case String.trim(url) do
+      "" -> nil
+      url -> String.trim_trailing(url, "/") <> "/"
+    end
+  end
+
+  defp normalize_matomo_url(_url), do: nil
 end

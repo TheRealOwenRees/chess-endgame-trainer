@@ -36,7 +36,7 @@
     <main id="main-content">
       <article class="legal">
         <h1>Privacy Policy</h1>
-        <p class="legal-meta">Last updated: 6 November 2026</p>
+        <p class="legal-meta">Last updated: 10 November 2026</p>
 
         <p>
           Inner Square Chess is an endgame training site. This policy explains what
@@ -71,6 +71,14 @@
             These logs are rotated regularly.
           </li>
           <li>
+            <strong>Usage data.</strong>
+            On public pages and the guest trainer, we use a self-hosted Matomo
+            instance to understand aggregate usage. Matomo is configured without
+            cookies, with IP anonymisation, and to respect Do Not Track. We do
+            not use user IDs, track signed-in account pages, or share this data
+            with third parties.
+          </li>
+          <li>
             <strong>Messages you send us.</strong>
             If you contact us, we keep the message and our reply for as long as
             needed to help you.
@@ -86,12 +94,39 @@
           <li>a session cookie that keeps you signed in;</li>
           <li>a CSRF token that protects forms from cross-site requests;</li>
           <li>a colour-mode preference stored in your browser.</li>
+          <li>
+            an analytics opt-out preference stored in your browser's local
+            storage, if you choose to opt out.
+          </li>
         </ul>
         <p>
           We do not use advertising cookies, third-party analytics, or cross-site
-          tracking. You can clear these entries at any time in your browser
-          settings; doing so will sign you out and reset your colour mode.
+          tracking. Our analytics is self-hosted Matomo and is configured without
+          cookies. You can clear these entries at any time in your browser
+          settings; doing so will sign you out, reset your colour mode, and reset
+          your analytics preference.
         </p>
+
+        <h2>Analytics</h2>
+        <p>
+          We use a self-hosted Matomo instance at
+          <a href="https://analytics.owenrees.eu/">analytics.owenrees.eu</a>
+          to understand aggregate use of the public site and guest trainer. It is
+          configured without cookies, with IP anonymisation, and to respect Do
+          Not Track. We do not use user IDs, track signed-in account pages, or
+          share this data with third parties.
+        </p>
+        <p>
+          Raw analytics data is retained for up to 180 days. We process it on the
+          basis of our legitimate interests in improving the service. You can
+          object at any time using the control below or by emailing
+          <a href="mailto:support@innersquare.app">support@innersquare.app</a>.
+        </p>
+        <p id="analytics-status">Analytics is currently on in this browser.</p>
+        <div class="analytics-buttons">
+          <button id="analytics-opt-out" type="button">Opt out of analytics</button>
+          <button id="analytics-opt-in" type="button" hidden>Opt back in</button>
+        </div>
 
         <h2>How we use your information</h2>
         <ul>
@@ -99,6 +134,10 @@
           <li>To run the trainer and remember your progress.</li>
           <li>To send service emails, such as confirmation and password reset links.</li>
           <li>To send occasional endgame tips and site news, if you opted in.</li>
+          <li>
+            To understand aggregate use of the public site and guest trainer, and
+            improve the service.
+          </li>
           <li>To keep the site available, prevent abuse, and fix faults.</li>
           <li>To respond when you ask for help.</li>
         </ul>
@@ -135,8 +174,10 @@
           We do not sell your personal information. We share it only with providers
           who help us run the site — for example hosting, database, and email
           delivery providers — and only as far as they need it to perform that work.
-          We may also disclose information where the law requires it or to protect
-          the rights and safety of our users.
+          Self-hosted Matomo analytics is operated by us on infrastructure we
+          control; we do not share that data with third parties. We may also
+          disclose information where the law requires it or to protect the rights
+          and safety of our users.
         </p>
 
         <h2>Retention</h2>
@@ -144,16 +185,18 @@
           We keep account and training data while your account is open. If you
           delete your account, we remove your personal information within a
           reasonable period, except where we must keep records for legal, security,
-          or accounting reasons.
+          or accounting reasons. We retain raw analytics data for up to 180 days.
         </p>
 
         <h2>Your rights</h2>
         <p>
           Depending on where you live, you may have the right to access, correct,
           delete, restrict, or export your personal information, and to object to
-          some uses of it. To make a request, contact us using the address below. If
-          you are in the UK or EU and are unhappy with our response, you can complain
-          to your local data protection authority.
+          some uses of it. You can object to analytics processing at any time using
+          the control on this page or by contacting us. To make a request, contact
+          us using the address below. If you are in the UK or EU and are unhappy
+          with our response, you can complain to your local data protection
+          authority.
         </p>
 
         <h2>Children</h2>
@@ -192,5 +235,53 @@
       </nav>
       <small>&copy; 2026 Inner Square Chess</small>
     </footer>
+
+    <script>
+      (function () {
+        var key = "matomo_optout";
+        var optOut = document.getElementById("analytics-opt-out");
+        var optIn = document.getElementById("analytics-opt-in");
+        var status = document.getElementById("analytics-status");
+
+        function optedOut() {
+          try {
+            return localStorage.getItem(key) === "1";
+          } catch (error) {
+            return true;
+          }
+        }
+
+        function update() {
+          var off = optedOut();
+          if (optOut) optOut.hidden = off;
+          if (optIn) optIn.hidden = !off;
+          if (status) {
+            status.textContent = off
+              ? "Analytics is currently off in this browser."
+              : "Analytics is currently on in this browser.";
+          }
+        }
+
+        if (optOut) {
+          optOut.addEventListener("click", function () {
+            try {
+              localStorage.setItem(key, "1");
+            } catch (error) {}
+            update();
+          });
+        }
+
+        if (optIn) {
+          optIn.addEventListener("click", function () {
+            try {
+              localStorage.removeItem(key);
+            } catch (error) {}
+            update();
+          });
+        }
+
+        update();
+      })();
+    </script>
   </body>
 </html>

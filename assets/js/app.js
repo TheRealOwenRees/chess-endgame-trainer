@@ -21,6 +21,8 @@
 import "phoenix_html";
 // Plain-DOM mobile navigation (works on controller and LiveView pages).
 import "./nav";
+// Cookieless Matomo for anonymous public pages.
+import { initAnalytics } from "./analytics";
 // Establish Phoenix Socket and LiveView configuration.
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
@@ -57,6 +59,8 @@ liveSocket.connect();
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket;
+
+initAnalytics();
 
 // The lines below enable quality of life phoenix_live_reload
 // development features:

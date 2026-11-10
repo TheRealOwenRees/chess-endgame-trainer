@@ -1,5 +1,5 @@
 defmodule ChesstrainerWeb.LayoutsTest do
-  use ChesstrainerWeb.ConnCase, async: true
+  use ChesstrainerWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
@@ -66,4 +66,48 @@ defmodule ChesstrainerWeb.LayoutsTest do
       refute html =~ ~r/<button[^>]*class="nav-cta"/
     end
   end
+
+  describe "analytics/1" do
+    setup do
+      previous = Application.get_env(:chesstrainer, :matomo)
+      on_exit(fn -> restore_env(:matomo, previous) end)
+      :ok
+    end
+
+    test "renders the Matomo config for anonymous visitors" do
+      Application.put_env(:chesstrainer, :matomo,
+        url: "https://analytics.owenrees.eu/",
+        site_id: "6"
+      )
+
+      html = render_component(&Layouts.analytics/1, %{current_scope: nil})
+
+      assert html =~ ~s(id="matomo-config")
+      assert html =~ ~s(data-url="https://analytics.owenrees.eu/")
+      assert html =~ ~s(data-site-id="6")
+    end
+
+    test "does not render for signed-in users" do
+      Application.put_env(:chesstrainer, :matomo,
+        url: "https://analytics.owenrees.eu/",
+        site_id: "6"
+      )
+
+      scope = Scope.for_user(%User{username: "alice"})
+      html = render_component(&Layouts.analytics/1, %{current_scope: scope})
+
+      refute html =~ ~s(id="matomo-config")
+    end
+
+    test "does not render when Matomo is unconfigured" do
+      Application.delete_env(:chesstrainer, :matomo)
+
+      html = render_component(&Layouts.analytics/1, %{current_scope: nil})
+
+      refute html =~ ~s(id="matomo-config")
+    end
+  end
+
+  defp restore_env(key, nil), do: Application.delete_env(:chesstrainer, key)
+  defp restore_env(key, value), do: Application.put_env(:chesstrainer, key, value)
 end

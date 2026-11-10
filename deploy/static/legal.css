@@ -201,6 +201,28 @@ main {
   opacity: 0.75;
 }
 
+.analytics-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.analytics-buttons button {
+  padding: 10px 16px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  background: var(--color-canvas-raised);
+  color: var(--color-body);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.analytics-buttons button:hover {
+  background: var(--color-canvas);
+}
+
 .site-footer {
   width: min(1180px, calc(100% - 48px));
   margin: 0 auto;

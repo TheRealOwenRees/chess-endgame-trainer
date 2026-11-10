@@ -99,9 +99,13 @@ defmodule ChesstrainerWeb.PageControllerTest do
     document = LazyHTML.from_document(html)
 
     assert LazyHTML.text(LazyHTML.query(document, "h1")) == "Privacy Policy"
-    assert html =~ "Last updated: 6 November 2026"
+    assert html =~ "Last updated: 10 November 2026"
     assert html =~ "What we collect"
     assert html =~ "Cookies and local storage"
+    assert html =~ "Analytics"
+    assert html =~ "self-hosted Matomo"
+    assert html =~ "without cookies"
+    assert html =~ ~s(id="analytics-opt-out")
     assert html =~ "Guest puzzle limit"
     assert html =~ "HMAC-SHA256"
     assert html =~ "Article 6(1)(f) GDPR"
