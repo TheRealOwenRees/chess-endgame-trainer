@@ -21,6 +21,10 @@ mix tablebase.fetch --path /path/to/syzygy/3-4-5   # once per host (~939 MB)
 export TABLEBASE_PATH=/path/to/syzygy/3-4-5        # set per environment
 ```
 
+On the production VPS the directory is `/opt/chesstrainer/tablebases`, owned by
+the `chesstrainer` user. Set `TABLEBASE_PATH` in `/etc/chesstrainer/env` and
+restart the service; the value is read at boot.
+
 See [docs/tablebases.md](docs/tablebases.md) for the full reference — dev vs
 VPS paths, `mix tablebase.check`, and boot logging.
 

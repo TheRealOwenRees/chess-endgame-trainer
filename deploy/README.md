@@ -137,7 +137,7 @@ SES_SECRET_ACCESS_KEY=...
 MATOMO_URL=https://analytics.owenrees.eu/
 MATOMO_SITE_ID=6
 
-TABLEBASE_PATH=/path/to/syzygy
+TABLEBASE_PATH=/opt/chesstrainer/tablebases
 
 # Optional:
 # RELEASE_COOKIE=...
@@ -190,6 +190,49 @@ Compose volume mounts the parent:
 ```yaml
 volumes:
   - chesstrainer_pgdata:/var/lib/postgresql
+```
+
+## Local tablebases (optional)
+
+The production tablebase directory is `/opt/chesstrainer/tablebases`. Keep the
+`.rtbw`/`.rtbz` files flat in that directory, and make sure the `chesstrainer`
+user can read them:
+
+```sh
+sudo install -d -o chesstrainer -g chesstrainer /opt/chesstrainer/tablebases
+sudo chown -R chesstrainer:chesstrainer /opt/chesstrainer/tablebases
+sudo chmod -R u=rwX,g=rX,o= /opt/chesstrainer/tablebases
+```
+
+Set the path in `/etc/chesstrainer/env`:
+
+```sh
+TABLEBASE_PATH=/opt/chesstrainer/tablebases
+```
+
+Then restart the service, because `TABLEBASE_PATH` is read at boot:
+
+```sh
+sudo systemctl restart chesstrainer
+```
+
+Check `/health`. It should move from `degraded` / `not_configured` to
+`ok` / `local`:
+
+```sh
+curl -s http://127.0.0.1:4100/health
+sudo journalctl -u chesstrainer -n 50 --no-pager | grep -i tablebase
+```
+
+If the path is missing, unreadable, or empty, the app falls back to Lichess and
+health stays `degraded` but still returns 200.
+
+To refresh the files:
+
+```sh
+mix tablebase.fetch --path /opt/chesstrainer/tablebases
+sudo chown -R chesstrainer:chesstrainer /opt/chesstrainer/tablebases
+sudo systemctl restart chesstrainer
 ```
 
 ## First-time setup

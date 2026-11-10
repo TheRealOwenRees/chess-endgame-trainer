@@ -23,9 +23,26 @@ machine and a VPS will point at different copies.
 export TABLEBASE_PATH=/home/you/Downloads/tablebase
 mix phx.server
 
-# Production (release)
-TABLEBASE_PATH=/data/syzygy/3-4-5 bin/chesstrainer start
+# Production (release), behind systemd
+TABLEBASE_PATH=/opt/chesstrainer/tablebases bin/chesstrainer start
 ```
+
+On the production VPS the directory is `/opt/chesstrainer/tablebases`, owned by
+the `chesstrainer` user. Set `TABLEBASE_PATH` in `/etc/chesstrainer/env` rather
+than an interactive shell, then restart `chesstrainer.service` — the value is
+read at boot.
+
+```sh
+sudo chown -R chesstrainer:chesstrainer /opt/chesstrainer/tablebases
+sudo chmod -R u=rwX,g=rX,o= /opt/chesstrainer/tablebases
+sudo systemctl restart chesstrainer
+curl -s http://127.0.0.1:4100/health
+```
+
+Healthy local tablebases report `tablebase: "local"` and `status: "ok"`. A
+missing, empty, or unreadable directory reports `tablebase: "fallback"` or
+`"not_configured"` and `status: "degraded"`, still with HTTP 200 because the
+Lichess fallback is available.
 
 The value must reach the process. A bare `TABLEBASE_PATH=...` line in bash
 only sets a shell variable and is **not** exported to `mix` or the release —
