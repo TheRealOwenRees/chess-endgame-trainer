@@ -121,6 +121,10 @@ if config_env() == :prod do
       System.get_env("SES_SECRET_ACCESS_KEY") ||
         raise("environment variable SES_SECRET_ACCESS_KEY is missing")
 
+  config :chesstrainer, :matomo,
+    url: System.get_env("MATOMO_URL"),
+    site_id: System.get_env("MATOMO_SITE_ID")
+
   config :chesstrainer, Chesstrainer.Repo,
     # ssl: true,
     url: database_url,

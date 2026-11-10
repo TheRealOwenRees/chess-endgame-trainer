@@ -2,3 +2,6 @@
 // page. Keep this small: no Phoenix Socket, LiveView, hooks, or topbar.
 import "phoenix_html";
 import "./nav";
+import { initAnalytics } from "./analytics";
+
+initAnalytics();

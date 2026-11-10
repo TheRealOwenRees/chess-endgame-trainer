@@ -146,6 +146,14 @@ TABLEBASE_PATH=/opt/chesstrainer/tablebases
 The production endpoint binds to `127.0.0.1` only. Caddy is the public
 entry point.
 
+## Matomo analytics
+
+Set `MATOMO_URL` and `MATOMO_SITE_ID` to enable cookieless analytics on public
+pages and the guest trainer. Signed-in account and admin pages are excluded.
+
+The privacy controls, Matomo server settings, retention, and opt-out behaviour
+are documented in `docs/analytics.md`.
+
 Generate the two secrets:
 
 ```sh
