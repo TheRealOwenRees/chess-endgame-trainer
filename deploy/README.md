@@ -383,6 +383,78 @@ KEEP_RELEASES=5 \
 sudo -E /opt/chesstrainer/src/deploy/activate /tmp/chesstrainer-release.tar.gz
 ```
 
+## GitHub Actions CD
+
+Merging to `main` (or running the workflow manually) tests, builds, uploads,
+and deploys the release. The deploy job uses SSH as `owen`.
+
+### Deploy key
+
+Generate a dedicated key, not your personal one:
+
+```sh
+ssh-keygen -t ed25519 -C "github-actions-chesstrainer" \
+  -f ~/.ssh/chesstrainer_deploy -N ""
+ssh-copy-id -i ~/.ssh/chesstrainer_deploy.pub owen@<VPS_HOST>
+```
+
+`VPS_HOST` must be the public IP or DNS name reachable from GitHub. Do not use
+a local SSH alias such as `personal-projects`.
+
+### Passwordless sudo for the deploy scripts
+
+```sh
+sudo visudo -f /etc/sudoers.d/chesstrainer-deploy
+```
+
+```text
+owen ALL=(root) NOPASSWD: /opt/chesstrainer/src/deploy/activate, /opt/chesstrainer/src/deploy/rollback
+```
+
+Validate:
+
+```sh
+sudo chown root:root /etc/sudoers.d/chesstrainer-deploy
+sudo chmod 0440 /etc/sudoers.d/chesstrainer-deploy
+sudo visudo -c
+sudo -n -l /opt/chesstrainer/src/deploy/activate
+sudo -n -l /opt/chesstrainer/src/deploy/rollback
+```
+
+### GitHub environment
+
+Create the **production** environment, optionally with required reviewers, and
+add environment secrets:
+
+| Secret | Value |
+|---|---|
+| `VPS_HOST` | public VPS IP or DNS name |
+| `VPS_USER` | `owen` |
+| `VPS_SSH_KEY` | private deploy key |
+| `VPS_KNOWN_HOSTS` | `ssh-keyscan -H <VPS_HOST>` output |
+
+Generate known_hosts with:
+
+```sh
+ssh-keyscan -H <VPS_HOST>
+```
+
+### Workflow
+
+The workflow:
+
+1. Runs `mix precommit` against Postgres.
+2. Builds the release artifact on `ubuntu-24.04`.
+3. On `main` or `workflow_dispatch`, uploads the tarball, installs the SSH key,
+   runs `sudo -n .../activate`, and performs public smoke checks.
+4. A failed activation health check rolls back to the previous release.
+
+Manual dispatch is available from the Actions UI or:
+
+```sh
+gh workflow run ci.yml --ref main
+```
+
 ## Rollback
 
 ```sh
