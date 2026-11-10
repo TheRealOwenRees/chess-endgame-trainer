@@ -648,6 +648,52 @@ curl -i http://127.0.0.1:4100/health
 It returns 200 for `ok`/`degraded` and 503 for `down`. A missing local tablebase
 reports `degraded` but still 200 because Lichess fallback is available.
 
+### Reading production logs
+
+Production emits one JSON object per line. Use `-o cat` so journald prints the
+raw line instead of its own field wrapper, then pipe to `jq`:
+
+```sh
+# Recent logs, pretty-printed
+sudo journalctl -u chesstrainer -o cat -n 50 --no-pager | jq .
+
+# Errors only
+sudo journalctl -u chesstrainer -o cat --since "1 hour ago" | jq 'select(.level == "error")'
+
+# Everything from one request
+sudo journalctl -u chesstrainer -o cat | jq 'select(.request_id == "REQUEST_ID")'
+
+# Crash reasons and stacktraces
+sudo journalctl -u chesstrainer -o cat | jq -r 'select(.error) | .error.reason, (.error.stacktrace[]?)'
+```
+
+Each line has `timestamp`, `level` and `message`, plus `request_id` when one
+exists. Access lines add `method`, `path`, `status` and `duration_ms`; crashes
+add an `error` object with `kind`, `reason` and `stacktrace`. Query parameters
+and request bodies are never logged, token-shaped path segments are redacted,
+and email addresses or credentials in metadata render as `[REDACTED]`.
+
+The full field table, redaction rules and examples for adding background logs
+are in [`docs/logging.md`](../docs/logging.md).
+
+Dev and test still use the readable `[level] message` formatter.
+
+### Keep the journal
+
+By default some distributions keep journald logs in memory only. On the VPS,
+make sure they survive a reboot and have a retention budget:
+
+```sh
+sudo mkdir -p /var/log/journal
+sudo systemctl restart systemd-journald
+journalctl --disk-usage
+```
+
+Set `Storage=persistent` and a `SystemMaxUse=` value in
+`/etc/systemd/journald.conf` if the distribution does not already. journald
+rate-limits bursts; if a crash storm drops lines, raise `RateLimitBurst` or
+`RateLimitIntervalSec` there.
+
 ## Backups
 
 `docker exec` connects over the container's Unix socket, which the Postgres

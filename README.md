@@ -28,6 +28,14 @@ restart the service; the value is read at boot.
 See [docs/tablebases.md](docs/tablebases.md) for the full reference — dev vs
 VPS paths, `mix tablebase.check`, and boot logging.
 
+## Logging
+
+Production logs are one JSON object per line so they can be filtered with
+`journalctl` and `jq`; development and test keep the readable formatter. See
+[docs/logging.md](docs/logging.md) for the line shape, redaction rules and the
+background-work audit, and [`deploy/README.md`](deploy/README.md) for the VPS
+runbook.
+
 ## Learn more
 
 * Official website: https://www.phoenixframework.org/
