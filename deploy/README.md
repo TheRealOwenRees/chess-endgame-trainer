@@ -18,6 +18,7 @@ Internet
 | Erlang | 28.5 |
 | Elixir | 1.19.5-otp-28 |
 | Rust | 1.98.1 |
+| Node.js | 24 (asset build only) |
 | Postgres | `postgres:18.0`, pinned directly in the unified compose |
 | Caddy | 2.11.9 |
 | Docker | 29.9.3 |
@@ -34,6 +35,7 @@ A new Ubuntu 24.04 VPS needs:
 - Docker Engine and the Compose plugin
 - Caddy
 - `curl`, `ca-certificates`, `libstdc++6`, `openssl`
+- Node.js 24 + npm if you build the release on this host instead of CI
 - DNS and TLS for the domain
 - A non-root deploy user with SSH access
 
@@ -307,6 +309,8 @@ Build on a machine matching Ubuntu 24.04 / glibc 2.39, or let CI do it.
 The release tarball is the contents of the release directory:
 
 ```sh
+npm ci --prefix assets --no-audit --no-fund
+
 export MIX_ENV=prod
 mix deps.get --only prod
 mix assets.deploy
@@ -314,6 +318,9 @@ mix release
 
 tar -czf chesstrainer-release.tar.gz -C _build/prod/rel/chesstrainer .
 ```
+
+`npm ci` is required before `mix assets.deploy`: Tailwind imports the
+Chessground CSS and esbuild bundles the package from `assets/node_modules`.
 
 `mix assets.deploy` runs `compile` first so the generated LiveView colocated
 CSS exists.

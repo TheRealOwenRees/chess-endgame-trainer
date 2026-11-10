@@ -77,12 +77,14 @@ jobs:
             _build
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-mix-prod-${{ hashFiles('mix.lock', 'mise.toml') }}
+            assets/node_modules
+          key: ${{ runner.os }}-mix-prod-${{ hashFiles('mix.lock', 'mise.toml', 'assets/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-mix-prod-
 
       - run: mix local.hex --force
       - run: mix local.rebar --force
+      - run: npm ci --prefix assets --no-audit --no-fund
       - run: mix deps.get --only prod
       - run: mix assets.setup
       - run: mix assets.deploy
