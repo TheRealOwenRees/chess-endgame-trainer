@@ -91,19 +91,22 @@ In the Cloudflare dashboard, add a rate limiting rule for login POSTs:
 | Name | Login POST flood |
 | Expression | `(http.request.method eq "POST" and http.request.uri.path in {"/admin/log-in" "/users/log-in"})` |
 | Characteristic | IP |
-| Period | 1 minute |
-| Requests | 20 |
+| Period | 10 seconds |
+| Requests | 10 |
 | Action | Block |
 | Duration | 10 minutes |
 
+If the plan only offers a 10-second period, that is fine. This rule is an
+anti-flood control; the application's 5-per-login and 10-per-address limits in a
+15-minute window remain the real credential controls. A slow attacker staying
+under 10 requests per 10 seconds still hits the application throttle.
+
 Tune the threshold upward if legitimate users behind shared NAT are affected.
-The application's 5-per-login and 10-per-address limits remain the real
-credential controls; this rule only stops a source that floods the endpoint.
 
 Also consider:
 
-- a broader site-wide rule such as 300 requests per minute per IP with a
-  managed challenge or block;
+- a broader site-wide rule such as 100 requests per 10 seconds per IP with a
+  managed challenge (adjust for page assets and LiveView traffic);
 - Cloudflare Bot Fight Mode and the managed WAF ruleset;
 - Under Attack Mode during an active incident.
 
