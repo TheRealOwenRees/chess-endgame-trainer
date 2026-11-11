@@ -114,6 +114,22 @@ Availability and rule counts depend on the Cloudflare plan. If rate limiting
 rules are not available, use Bot Fight Mode, managed challenges and Under
 Attack Mode instead.
 
+### Registration cannot be limited this way
+
+`/users/register` is a LiveView. The form submit is a LiveView event sent over
+the shared `/live/websocket` connection, not a `POST /users/register` request.
+Cloudflare therefore cannot count account creations with a rule on the
+registration path.
+
+A Cloudflare rule on `GET /users/register` only limits page opens; a bot can
+open one page and submit many registrations over the socket. If registration
+spam becomes a problem, add an application-level registration throttle keyed by
+`ChesstrainerWeb.ClientAddress.from_socket/1`, and/or add Cloudflare Turnstile
+to the form.
+
+While `PRELAUNCH=true`, registration is blocked entirely by the prelaunch plug
+and LiveView mount redirect.
+
 ## 4. Why not fail2ban for HTTP?
 
 fail2ban needs the raw client address to build a firewall rule. The application
