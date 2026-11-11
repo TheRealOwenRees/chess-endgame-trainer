@@ -1,0 +1,16 @@
+[Unit]
+Description=Inner Square Chess database backup
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/deploy/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+OnFailure=chesstrainer-backup-failure.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/chesstrainer-backup
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=10min
+SyslogIdentifier=chesstrainer-backup

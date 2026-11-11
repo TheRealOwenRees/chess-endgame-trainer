@@ -1,0 +1,248 @@
+#!/usr/bin/env bash
+#
+# Pull the encrypted database archives from the VPS, verify them end to end,
+# and apply the 7 daily / 4 weekly / 6 monthly retention policy.
+#
+# Runs on the workstation, never on the server. Install as
+# ~/.local/bin/chesstrainer-backup-pull and enable
+# chesstrainer-backup-pull.timer as a user unit.
+#
+# Configuration: ~/.config/chesstrainer/backup-pull.env (0600). See
+# deploy/README.md §Backups.
+
+set -euo pipefail
+umask 077
+
+CONFIG="${PULL_ENV_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/chesstrainer/backup-pull.env}"
+if [[ -r "$CONFIG" ]]; then
+  # shellcheck disable=SC1090
+  source "$CONFIG"
+fi
+
+VPS_HOST="${VPS_HOST:-}"
+REMOTE_DIR="${REMOTE_DIR:-/var/backups/chesstrainer/offsite}"
+DEST="${DEST:-$HOME/chesstrainer-backups}"
+AGE_KEY="${AGE_KEY:-${XDG_CONFIG_HOME:-$HOME/.config}/chesstrainer/age.key}"
+MAX_STALENESS_HOURS="${MAX_STALENESS_HOURS:-48}"
+KEEP_DAILY_DAYS="${KEEP_DAILY_DAYS:-7}"
+KEEP_WEEKLY_WEEKS="${KEEP_WEEKLY_WEEKS:-4}"
+KEEP_MONTHLY_MONTHS="${KEEP_MONTHLY_MONTHS:-6}"
+PULL_HEALTHCHECK_URL="${PULL_HEALTHCHECK_URL:-}"
+SSH_OPTIONS="${SSH_OPTIONS:--o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15}"
+RSYNC_ATTEMPTS="${RSYNC_ATTEMPTS:-3}"
+
+START_SECONDS=$SECONDS
+FAILURE=""
+VERIFIED=0
+
+log_event() {
+  local event="$1"
+  local extra="${2:-}"
+
+  printf '{"timestamp":"%s","event":"%s"%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$event" "$extra"
+}
+
+heartbeat() {
+  local outcome="$1"
+
+  [[ -n "$PULL_HEALTHCHECK_URL" ]] || return 0
+
+  local url="${PULL_HEALTHCHECK_URL%/}"
+  [[ "$outcome" == "fail" ]] && url="$url/fail"
+
+  if ! curl --fail --silent --show-error \
+    --max-time 10 --retry 2 --retry-delay 2 \
+    --output /dev/null "$url"; then
+    echo "backup-pull: heartbeat ping failed (run result is unaffected)" >&2
+  fi
+}
+
+fail() {
+  FAILURE="$*"
+  exit 1
+}
+
+cleanup() {
+  local status=$?
+
+  if [[ -d "$DEST" ]]; then
+    find "$DEST" -maxdepth 1 -name '.verify.*' -type d -exec rm -rf {} + 2>/dev/null || true
+  fi
+
+  if ((status != 0)); then
+    log_event pull.failed ",\"reason\":\"${FAILURE:-exit $status}\""
+    heartbeat fail
+  fi
+
+  exit "$status"
+}
+
+trap cleanup EXIT
+trap 'exit 143' TERM INT
+
+[[ -n "$VPS_HOST" ]] || fail "VPS_HOST is not set"
+[[ -r "$AGE_KEY" ]] || fail "age identity not readable: $AGE_KEY"
+[[ "$MAX_STALENESS_HOURS" =~ ^[0-9]+$ ]] || fail "MAX_STALENESS_HOURS must be an integer"
+[[ "$KEEP_DAILY_DAYS" =~ ^[0-9]+$ ]] || fail "KEEP_DAILY_DAYS must be an integer"
+[[ "$KEEP_WEEKLY_WEEKS" =~ ^[0-9]+$ ]] || fail "KEEP_WEEKLY_WEEKS must be an integer"
+[[ "$KEEP_MONTHLY_MONTHS" =~ ^[0-9]+$ ]] || fail "KEEP_MONTHLY_MONTHS must be an integer"
+[[ "$RSYNC_ATTEMPTS" =~ ^[0-9]+$ ]] || fail "RSYNC_ATTEMPTS must be an integer"
+
+for cmd in rsync ssh age tar sha256sum curl flock; do
+  command -v "$cmd" >/dev/null 2>&1 || fail "missing command: $cmd"
+done
+
+# Never create DEST on the root filesystem when the backup disk is unmounted.
+[[ -d "$(dirname "$DEST")" ]] ||
+  fail "parent directory of $DEST does not exist (is the backup disk mounted?)"
+
+install -d -m 0700 "$DEST"
+install -d -m 0700 "$DEST/.verified"
+
+exec 9>"$DEST/.pull.lock"
+if ! flock -n 9; then
+  # A manual run overlapping the timer is not an error; the other run reports.
+  log_event pull.skipped ',"reason":"another pull is running"'
+  exit 0
+fi
+
+archive_epoch() {
+  local name="$1"
+  local ts="${name:0:16}"
+
+  [[ "$ts" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || return 1
+
+  date -u -d "${ts:0:4}-${ts:4:2}-${ts:6:2} ${ts:9:2}:${ts:11:2}:${ts:13:2}Z" +%s
+}
+
+verify_archive() {
+  local archive="$1"
+  local name="${archive##*/}"
+  local marker="$DEST/.verified/$name"
+  local sum tmp
+
+  sum="$(sha256sum "$archive" | awk '{ print $1 }')"
+
+  if [[ -f "$marker" && "$(cat "$marker")" == "$sum" ]]; then
+    return 0
+  fi
+
+  tmp="$(mktemp -d "$DEST/.verify.XXXXXX")"
+
+  if ! age --decrypt --identity "$AGE_KEY" --output "$tmp/$name.tar" "$archive"; then
+    rm -rf "$tmp"
+    echo "backup-pull: $name failed to decrypt" >&2
+    return 1
+  fi
+
+  if ! tar -xf "$tmp/$name.tar" -C "$tmp"; then
+    rm -rf "$tmp"
+    echo "backup-pull: $name did not contain a readable tar archive" >&2
+    return 1
+  fi
+
+  if ! (cd "$tmp" && sha256sum --check --strict --quiet ./*.sha256); then
+    rm -rf "$tmp"
+    echo "backup-pull: $name failed its checksum verification" >&2
+    return 1
+  fi
+
+  rm -rf "$tmp"
+
+  printf '%s\n' "$sum" >"$marker.tmp"
+  mv "$marker.tmp" "$marker"
+
+  VERIFIED=$((VERIFIED + 1))
+}
+
+# ---------------------------------------------------------------------------
+# Copy
+# ---------------------------------------------------------------------------
+
+attempt=1
+while true; do
+  if rsync --archive --partial --compress --timeout=120 \
+    --include='*.tar.age' --exclude='*' \
+    --rsh "ssh $SSH_OPTIONS" \
+    "$VPS_HOST:$REMOTE_DIR/" "$DEST/"; then
+    break
+  fi
+
+  if ((attempt >= RSYNC_ATTEMPTS)); then
+    fail "rsync from $VPS_HOST failed after $attempt attempts"
+  fi
+
+  echo "backup-pull: rsync attempt $attempt failed, retrying" >&2
+  attempt=$((attempt + 1))
+  sleep 20
+done
+
+mapfile -t archives < <(
+  find "$DEST" -maxdepth 1 -type f -name '*.tar.age' -printf '%f\n' | sort
+)
+
+((${#archives[@]} > 0)) || fail "no archives in $DEST after the pull"
+
+for name in "${archives[@]}"; do
+  [[ "$name" =~ ^[0-9]{8}T[0-9]{6}Z(-[a-z0-9]+)?\.tar\.age$ ]] ||
+    fail "unexpected file in $DEST: $name"
+done
+
+newest="${archives[${#archives[@]} - 1]}"
+newest_epoch="$(archive_epoch "$newest")" || fail "cannot parse a timestamp from $newest"
+age_seconds=$(($(date -u +%s) - newest_epoch))
+
+if ((age_seconds > MAX_STALENESS_HOURS * 3600)); then
+  fail "newest archive $newest is $((age_seconds / 3600))h old (limit ${MAX_STALENESS_HOURS}h): VPS backups may have stopped"
+fi
+
+# ---------------------------------------------------------------------------
+# Verify every archive once; unchanged ciphertext is only re-hashed.
+# ---------------------------------------------------------------------------
+
+for name in "${archives[@]}"; do
+  verify_archive "$DEST/$name" || fail "$name failed verification"
+done
+
+# ---------------------------------------------------------------------------
+# Retention: 7 daily, then one per ISO week for 4 weeks, then one per calendar
+# month for 6 months. Archives outside all three windows are deleted.
+# ---------------------------------------------------------------------------
+
+now="$(date -u +%s)"
+pruned=0
+declare -A kept_week=()
+declare -A kept_month=()
+
+mapfile -t newest_first < <(
+  find "$DEST" -maxdepth 1 -type f -name '*.tar.age' -printf '%f\n' | sort -r
+)
+
+for name in "${newest_first[@]}"; do
+  epoch="$(archive_epoch "$name")" || continue
+  age_days=$(((now - epoch) / 86400))
+
+  if ((age_days < KEEP_DAILY_DAYS)); then
+    continue
+  fi
+
+  week="$(date -u -d "@$epoch" +%G-W%V)"
+  if ((age_days < KEEP_WEEKLY_WEEKS * 7)) && [[ -z "${kept_week[$week]:-}" ]]; then
+    kept_week[$week]=1
+    continue
+  fi
+
+  month="$(date -u -d "@$epoch" +%Y-%m)"
+  if ((age_days < KEEP_MONTHLY_MONTHS * 31)) && [[ -z "${kept_month[$month]:-}" ]]; then
+    kept_month[$month]=1
+    continue
+  fi
+
+  echo "backup-pull: pruning $name" >&2
+  rm -f -- "$DEST/$name" "$DEST/.verified/$name"
+  pruned=$((pruned + 1))
+done
+
+log_event pull.completed ",\"newest\":\"$newest\",\"archives\":$(( ${#archives[@]} - pruned )),\"verified\":$VERIFIED,\"pruned\":$pruned,\"duration_s\":$((SECONDS - START_SECONDS))"
+heartbeat ok

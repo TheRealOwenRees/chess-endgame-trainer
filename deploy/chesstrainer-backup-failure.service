@@ -1,0 +1,7 @@
+[Unit]
+Description=Report a failed Inner Square Chess database backup
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/deploy/README.md
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger --tag chesstrainer-backup --priority daemon.err --stderr backup.unit-failed: chesstrainer-backup.service failed, see journalctl -u chesstrainer-backup

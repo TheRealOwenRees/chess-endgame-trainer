@@ -1,0 +1,15 @@
+[Unit]
+Description=Pull encrypted Inner Square Chess backups from the VPS
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+OnFailure=chesstrainer-backup-alert@%N.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/chesstrainer-backup-pull
+WorkingDirectory=%h
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Nice=10
+TimeoutStartSec=15min
+SyslogIdentifier=chesstrainer-backup-pull

@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+#
+# Restore the newest (or a named) archive into a throwaway Postgres container
+# and prove that the dump, the roles and the row counts all came back.
+#
+#   backup-drill                      # newest archive in DEST
+#   backup-drill 20261111T031500Z.tar.age
+#
+# Runs on the workstation. The production database is never contacted: the
+# container is created and destroyed by this script. Results are appended to
+# $DRILL_LOG (default $DEST/drills.log).
+#
+# Configuration: same file as backup-pull,
+# ~/.config/chesstrainer/backup-pull.env.
+
+set -euo pipefail
+umask 077
+
+CONFIG="${PULL_ENV_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/chesstrainer/backup-pull.env}"
+if [[ -r "$CONFIG" ]]; then
+  # shellcheck disable=SC1090
+  source "$CONFIG"
+fi
+
+DEST="${DEST:-$HOME/chesstrainer-backups}"
+AGE_KEY="${AGE_KEY:-${XDG_CONFIG_HOME:-$HOME/.config}/chesstrainer/age.key}"
+EXPECTED_ROLES="${EXPECTED_ROLES:-chesstrainer chesstrainer_ro}"
+DRILL_IMAGE="${DRILL_IMAGE:-postgres:18.6}"
+DRILL_DB="${DRILL_DB:-chesstrainer_restore}"
+DRILL_LOG="${DRILL_LOG:-$DEST/drills.log}"
+DRILL_CONTAINER="${DRILL_CONTAINER:-chesstrainer-drill-$$}"
+
+START_SECONDS=$SECONDS
+FAILURE=""
+TMPDIR_DRILL=""
+
+log_event() {
+  local event="$1"
+  local extra="${2:-}"
+
+  printf '{"timestamp":"%s","event":"%s"%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$event" "$extra"
+}
+
+record() {
+  local line="$1"
+
+  printf '%s\n' "$line"
+  printf '%s\n' "$line" >>"$DRILL_LOG"
+}
+
+fail() {
+  FAILURE="$*"
+  exit 1
+}
+
+cleanup() {
+  local status=$?
+
+  docker rm -f "$DRILL_CONTAINER" >/dev/null 2>&1 || true
+
+  if [[ -n "$TMPDIR_DRILL" ]]; then
+    rm -rf "$TMPDIR_DRILL"
+  fi
+
+  if ((status != 0)); then
+    if [[ -d "$DEST" ]]; then
+      record "$(log_event drill.failed ",\"reason\":\"${FAILURE:-exit $status}\"")"
+    else
+      log_event drill.failed ",\"reason\":\"${FAILURE:-exit $status}\""
+    fi
+  fi
+
+  exit "$status"
+}
+
+trap cleanup EXIT
+trap 'exit 143' TERM INT
+
+[[ -d "$DEST" ]] || fail "archive directory does not exist: $DEST"
+[[ -r "$AGE_KEY" ]] || fail "age identity not readable: $AGE_KEY"
+
+for cmd in docker age tar sha256sum; do
+  command -v "$cmd" >/dev/null 2>&1 || fail "missing command: $cmd"
+done
+
+if [[ $# -gt 0 ]]; then
+  case "$1" in
+    /*) archive="$1" ;;
+    *) archive="$DEST/$1" ;;
+  esac
+else
+  archive="$(find "$DEST" -maxdepth 1 -type f -name '*.tar.age' -printf '%p\n' | sort | tail -n 1)"
+  [[ -n "$archive" ]] || fail "no archives in $DEST"
+fi
+
+[[ -f "$archive" ]] || fail "archive not found: $archive"
+
+name="${archive##*/}"
+[[ "$name" =~ ^[0-9]{8}T[0-9]{6}Z(-[a-z0-9]+)?\.tar\.age$ ]] ||
+  fail "unexpected archive name: $name"
+
+prefix="${name%%.*}"
+TMPDIR_DRILL="$(mktemp -d "${TMPDIR:-/tmp}/chesstrainer-drill.XXXXXX")"
+
+echo "backup-drill: decrypting $name" >&2
+age --decrypt --identity "$AGE_KEY" --output "$TMPDIR_DRILL/$prefix.tar" "$archive" ||
+  fail "could not decrypt $name"
+
+tar -xf "$TMPDIR_DRILL/$prefix.tar" -C "$TMPDIR_DRILL" ||
+  fail "archive does not contain a readable tar file"
+
+(
+  cd "$TMPDIR_DRILL"
+  sha256sum --check --strict --quiet "$prefix.sha256"
+) || fail "checksum verification failed for $name"
+
+echo "backup-drill: starting $DRILL_IMAGE" >&2
+docker image inspect "$DRILL_IMAGE" >/dev/null 2>&1 ||
+  docker pull "$DRILL_IMAGE" >/dev/null ||
+  fail "could not pull $DRILL_IMAGE"
+
+docker run --rm --detach \
+  --name "$DRILL_CONTAINER" \
+  --env POSTGRES_USER=chesstrainer \
+  --env POSTGRES_PASSWORD=drill \
+  --env POSTGRES_HOST_AUTH_METHOD=trust \
+  "$DRILL_IMAGE" >/dev/null || fail "could not start the drill container"
+
+ready=0
+for _ in $(seq 1 60); do
+  if docker exec "$DRILL_CONTAINER" pg_isready -U chesstrainer -d postgres >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+((ready == 1)) || fail "postgres did not become ready"
+
+# Recreating the cluster roles is half of disaster recovery. The scratch
+# cluster uses the same superuser name as production (`chesstrainer`), because
+# the globals dump ends with grants issued "GRANTED BY chesstrainer". The dump
+# always repeats the cluster's own superuser role, so "already exists" is
+# expected; anything else is a real failure.
+echo "backup-drill: applying globals" >&2
+docker exec -i "$DRILL_CONTAINER" psql -U chesstrainer -d postgres \
+  -q -v ON_ERROR_STOP=0 -f - \
+  <"$TMPDIR_DRILL/$prefix.globals.sql" >/dev/null 2>"$TMPDIR_DRILL/globals.err" ||
+  fail "applying the globals dump failed"
+
+globals_errors="$(grep -v 'already exists' "$TMPDIR_DRILL/globals.err" | sed '/^$/d' || true)"
+if [[ -n "$globals_errors" ]]; then
+  fail "globals restore reported errors: $(printf '%s' "$globals_errors" | head -n 1)"
+fi
+
+for role in $EXPECTED_ROLES; do
+  found="$(docker exec "$DRILL_CONTAINER" psql -U chesstrainer -d postgres -Atc \
+    "select 1 from pg_roles where rolname = '$role'")"
+  [[ "$found" == "1" ]] || fail "globals did not recreate role $role"
+done
+
+owner="${EXPECTED_ROLES%% *}"
+
+docker exec "$DRILL_CONTAINER" psql -U chesstrainer -d postgres \
+  -q -v ON_ERROR_STOP=1 -c "create database $DRILL_DB owner $owner" ||
+  fail "could not create $DRILL_DB"
+
+echo "backup-drill: restoring into $DRILL_DB" >&2
+docker exec -i "$DRILL_CONTAINER" pg_restore -U chesstrainer -d "$DRILL_DB" \
+  --single-transaction --exit-on-error <"$TMPDIR_DRILL/$prefix.dump" ||
+  fail "pg_restore failed"
+
+restored_counts=""
+for table in users endgames attempts; do
+  expected="$(awk -F= -v key="$table" '$1 == key { print $2 }' "$TMPDIR_DRILL/$prefix.counts")"
+  [[ "$expected" =~ ^[0-9]+$ ]] || fail "counts file has no value for $table"
+
+  actual="$(docker exec "$DRILL_CONTAINER" psql -U chesstrainer -d "$DRILL_DB" -Atc \
+    "select count(*) from $table")"
+  [[ "$actual" =~ ^[0-9]+$ ]] || fail "could not count $table"
+
+  if ((actual < expected)); then
+    fail "restored $table=$actual is below the recorded $expected"
+  fi
+
+  echo "backup-drill: $table restored=$actual recorded=$expected drift=$((actual - expected))" >&2
+  restored_counts+="${restored_counts:+,}$table=$actual"
+done
+
+record "$(log_event drill.completed ",\"archive\":\"$name\",\"result\":\"pass\",\"counts\":\"$restored_counts\",\"duration_s\":$((SECONDS - START_SECONDS))")"
