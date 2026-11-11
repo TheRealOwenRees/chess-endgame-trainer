@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily pull of encrypted Inner Square Chess backups
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/deploy/README.md
+
+[Timer]
+OnCalendar=*-*-* 12:00:00
+OnBootSec=10m
+RandomizedDelaySec=10m
+AccuracySec=1m
+Persistent=true
+Unit=chesstrainer-backup-pull.service
+
+[Install]
+WantedBy=timers.target

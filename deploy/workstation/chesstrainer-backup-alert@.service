@@ -1,0 +1,7 @@
+[Unit]
+Description=Report a failed Inner Square Chess backup unit
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/deploy/README.md
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/logger --tag chesstrainer-backup --priority user.err --stderr backup.unit-failed: %i failed, see journalctl --user -u %i

@@ -1,0 +1,13 @@
+[Unit]
+Description=Monthly restore drill for Inner Square Chess backups
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/deploy/README.md
+OnFailure=chesstrainer-backup-alert@%N.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/chesstrainer-backup-drill
+WorkingDirectory=%h
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Nice=10
+TimeoutStartSec=20min
+SyslogIdentifier=chesstrainer-backup-drill

@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+#
+# Dump, verify, encrypt, prune and report on the production database.
+#
+# Installed as /usr/local/sbin/chesstrainer-backup (root-owned 0755) and run by
+# chesstrainer-backup.timer. deploy/activate also calls it before migrations.
+# Do not run the copy under /opt/chesstrainer/src as root: that tree belongs to
+# the application user.
+#
+#   sudo systemctl start chesstrainer-backup     # daily run, as the timer does
+#   sudo BACKUP_TAG=manual chesstrainer-backup   # ad-hoc, pruned by age
+#
+# Configuration lives in /etc/chesstrainer/backup.env (root:root 0600). See
+# deploy/README.md §Backups. Every setting can also be passed as an environment
+# variable.
+#
+# Each run prints exactly one JSON line (backup.completed or backup.failed) so
+# journald, and #140's log shipping, can pick it up.
+
+set -euo pipefail
+umask 077
+
+ENV_FILE="${ENV_FILE:-/etc/chesstrainer/backup.env}"
+if [[ -r "$ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+fi
+
+DB_CONTAINER="${DB_CONTAINER:-chesstrainer-db}"
+PG_USER="${PG_USER:-chesstrainer}"
+PG_DB="${PG_DB:-chesstrainer_prod}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/chesstrainer}"
+EXPECTED_ROLES="${EXPECTED_ROLES:-chesstrainer chesstrainer_ro}"
+AGE_RECIPIENT="${AGE_RECIPIENT:-}"
+HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
+SKIP_HEARTBEAT="${SKIP_HEARTBEAT:-0}"
+MIN_FREE_MB="${MIN_FREE_MB:-2048}"
+LOCAL_PLAINTEXT_DAYS="${LOCAL_PLAINTEXT_DAYS:-3}"
+LOCAL_ENCRYPTED_DAYS="${LOCAL_ENCRYPTED_DAYS:-14}"
+PREDEPLOY_KEEP="${PREDEPLOY_KEEP:-5}"
+BACKUP_TAG="${BACKUP_TAG:-daily}"
+LOCK_WAIT="${LOCK_WAIT:-0}"
+
+START_SECONDS=$SECONDS
+FAILURE=""
+
+log_event() {
+  local event="$1"
+  local extra="${2:-}"
+
+  printf '{"timestamp":"%s","event":"%s","tag":"%s"%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$event" "$BACKUP_TAG" "$extra"
+}
+
+heartbeat() {
+  local outcome="$1"
+
+  [[ "$SKIP_HEARTBEAT" == "1" ]] && return 0
+  [[ -n "$HEALTHCHECK_URL" ]] || return 0
+
+  local url="${HEALTHCHECK_URL%/}"
+  [[ "$outcome" == "fail" ]] && url="$url/fail"
+
+  if ! curl --fail --silent --show-error \
+    --max-time 10 --retry 2 --retry-delay 2 \
+    --output /dev/null "$url"; then
+    echo "backup: heartbeat ping failed (run result is unaffected)" >&2
+  fi
+}
+
+fail() {
+  FAILURE="$*"
+  exit 1
+}
+
+on_exit() {
+  local status=$?
+
+  if ((status != 0)); then
+    find "$BACKUP_DIR" -maxdepth 1 -name '*.partial' -delete 2>/dev/null || true
+    log_event backup.failed ",\"reason\":\"${FAILURE:-exit $status}\""
+    heartbeat fail
+  fi
+
+  exit "$status"
+}
+
+trap on_exit EXIT
+trap 'exit 143' TERM INT
+
+if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+  fail "run as root"
+fi
+
+[[ "$BACKUP_TAG" =~ ^[a-z0-9]+$ ]] || fail "BACKUP_TAG may contain only lowercase letters and digits"
+[[ "$MIN_FREE_MB" =~ ^[0-9]+$ ]] || fail "MIN_FREE_MB must be an integer"
+[[ "$LOCAL_PLAINTEXT_DAYS" =~ ^[0-9]+$ ]] || fail "LOCAL_PLAINTEXT_DAYS must be an integer"
+[[ "$LOCAL_ENCRYPTED_DAYS" =~ ^[0-9]+$ ]] || fail "LOCAL_ENCRYPTED_DAYS must be an integer"
+[[ "$PREDEPLOY_KEEP" =~ ^[0-9]+$ ]] || fail "PREDEPLOY_KEEP must be an integer"
+[[ "$LOCK_WAIT" =~ ^[0-9]+$ ]] || fail "LOCK_WAIT must be an integer"
+
+[[ "$AGE_RECIPIENT" == age1* ]] || fail "AGE_RECIPIENT is not set to an age public key"
+
+if [[ "$SKIP_HEARTBEAT" != "1" && -z "$HEALTHCHECK_URL" ]]; then
+  fail "HEALTHCHECK_URL is not set (set SKIP_HEARTBEAT=1 to skip the ping)"
+fi
+
+for cmd in docker flock curl age tar sha256sum; do
+  command -v "$cmd" >/dev/null 2>&1 || fail "missing command: $cmd"
+done
+
+install -d -m 0711 -o root -g root "$BACKUP_DIR"
+install -d -m 0755 -o root -g root "$BACKUP_DIR/offsite"
+# 0711 on the vault lets the workstation user traverse to offsite/ without
+# being able to list the plaintext dumps.
+chmod 0711 "$BACKUP_DIR"
+chmod 0755 "$BACKUP_DIR/offsite"
+
+exec 9>/run/lock/chesstrainer-backup.lock
+if ! flock -w "$LOCK_WAIT" 9; then
+  if [[ "$LOCK_WAIT" == "0" ]]; then
+    # Overlapping timer/manual runs are not failures; the other run reports.
+    log_event backup.skipped ',"reason":"another backup is running"'
+    exit 0
+  fi
+
+  fail "another backup is still running"
+fi
+
+free_mb="$(df -Pm "$BACKUP_DIR" | awk 'NR == 2 { print $4 }')"
+[[ "$free_mb" =~ ^[0-9]+$ ]] || fail "cannot read free space for $BACKUP_DIR"
+if ((free_mb < MIN_FREE_MB)); then
+  fail "only ${free_mb}MB free on $BACKUP_DIR, need ${MIN_FREE_MB}MB"
+fi
+
+timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+if [[ "$BACKUP_TAG" == "daily" ]]; then
+  prefix="$timestamp"
+else
+  prefix="$timestamp-$BACKUP_TAG"
+fi
+
+dump="$BACKUP_DIR/$prefix.dump"
+globals="$BACKUP_DIR/$prefix.globals.sql"
+counts="$BACKUP_DIR/$prefix.counts"
+checksums="$BACKUP_DIR/$prefix.sha256"
+archive="$BACKUP_DIR/offsite/$prefix.tar.age"
+
+# Row counts first: writes between this query and the dump can only push the
+# restored counts up, so the drill treats this file as a lower bound.
+read -r -d '' counts_sql <<'SQL' || true
+select 'users=' || count(*) from users
+union all select 'endgames=' || count(*) from endgames
+union all select 'attempts=' || count(*) from attempts;
+SQL
+
+docker exec "$DB_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" \
+  -At -v ON_ERROR_STOP=1 -c "$counts_sql" >"$counts.partial" ||
+  fail "row count query failed"
+[[ -s "$counts.partial" ]] || fail "row count query returned nothing"
+
+docker exec "$DB_CONTAINER" pg_dump -U "$PG_USER" -d "$PG_DB" -Fc \
+  >"$dump.partial" || fail "pg_dump failed"
+[[ -s "$dump.partial" ]] || fail "pg_dump produced an empty file"
+
+# pg_restore -l reads the archive header and table of contents. It needs the
+# Postgres client matching the server, so run it inside the container.
+docker exec -i "$DB_CONTAINER" pg_restore -l \
+  <"$dump.partial" >/dev/null || fail "pg_restore -l rejected the dump"
+
+docker exec "$DB_CONTAINER" pg_dumpall -U "$PG_USER" --globals-only \
+  >"$globals.partial" || fail "pg_dumpall --globals-only failed"
+[[ -s "$globals.partial" ]] || fail "globals dump is empty"
+
+# shellcheck disable=SC2086 # EXPECTED_ROLES is a space-separated list
+for role in $EXPECTED_ROLES; do
+  grep -Eq "^CREATE ROLE \"?${role}\"?( |;)" "$globals.partial" ||
+    fail "globals dump is missing role $role"
+done
+
+# Promote only after every check passes, so a broken dump never looks finished.
+mv "$counts.partial" "$counts"
+mv "$dump.partial" "$dump"
+mv "$globals.partial" "$globals"
+
+(
+  cd "$BACKUP_DIR"
+  sha256sum "${dump##*/}" "${globals##*/}" "${counts##*/}" >"${checksums##*/}"
+)
+
+tar -C "$BACKUP_DIR" -cf - \
+  "${dump##*/}" "${globals##*/}" "${counts##*/}" "${checksums##*/}" |
+  age --recipient "$AGE_RECIPIENT" --output "$archive.partial" ||
+  fail "encrypting the dump failed"
+
+chmod 0644 "$archive.partial"
+mv "$archive.partial" "$archive"
+
+# ---------------------------------------------------------------------------
+# Retention
+# ---------------------------------------------------------------------------
+
+aged() {
+  [[ -n "$(find "$1" -maxdepth 0 -mtime +"$2" -print -quit 2>/dev/null)" ]]
+}
+
+remove_plaintext_set() {
+  local prefix="$1"
+
+  rm -f -- \
+    "$BACKUP_DIR/$prefix.dump" \
+    "$BACKUP_DIR/$prefix.globals.sql" \
+    "$BACKUP_DIR/$prefix.counts" \
+    "$BACKUP_DIR/$prefix.sha256"
+}
+
+prune_plaintext_by_age() {
+  local dump base prefix
+
+  while IFS= read -r dump; do
+    base="${dump##*/}"
+    prefix="${base%%.*}"
+    [[ "$base" == *-predeploy.dump ]] && continue
+
+    if aged "$dump" "$LOCAL_PLAINTEXT_DAYS"; then
+      echo "backup: pruning $prefix (plaintext older than ${LOCAL_PLAINTEXT_DAYS}d)" >&2
+      remove_plaintext_set "$prefix"
+    fi
+  done < <(find "$BACKUP_DIR" -maxdepth 1 -type f -name '*.dump')
+}
+
+prune_predeploy_plaintext() {
+  local -a dumps
+  local i prefix
+
+  mapfile -t dumps < <(
+    find "$BACKUP_DIR" -maxdepth 1 -type f -name '*-predeploy.dump' -printf '%f\n' | sort -r
+  )
+
+  for ((i = PREDEPLOY_KEEP; i < ${#dumps[@]}; i++)); do
+    prefix="${dumps[i]%%.*}"
+    echo "backup: pruning $prefix (keeping last ${PREDEPLOY_KEEP} pre-deploy dumps)" >&2
+    remove_plaintext_set "$prefix"
+  done
+}
+
+prune_encrypted() {
+  local archive
+
+  while IFS= read -r archive; do
+    echo "backup: pruning ${archive##*/} (encrypted older than ${LOCAL_ENCRYPTED_DAYS}d)" >&2
+    rm -f -- "$archive"
+  done < <(
+    find "$BACKUP_DIR/offsite" -maxdepth 1 -type f -name '*.tar.age' -mtime +"$LOCAL_ENCRYPTED_DAYS"
+  )
+}
+
+prune_plaintext_by_age
+prune_predeploy_plaintext
+prune_encrypted
+
+dump_bytes="$(stat -c %s "$dump")"
+archive_bytes="$(stat -c %s "$archive")"
+
+log_event backup.completed ",\"dump\":\"$prefix\",\"dump_bytes\":$dump_bytes,\"offsite_bytes\":$archive_bytes,\"duration_s\":$((SECONDS - START_SECONDS))"
+heartbeat ok

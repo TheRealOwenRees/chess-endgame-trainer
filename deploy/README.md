@@ -103,6 +103,9 @@ also `root:root` and `0600`.
 The app runs as the dedicated `chesstrainer` system user. It must own
 `/opt/chesstrainer` so it can write `priv/static/backups`.
 
+Database dumps live in `/var/backups/chesstrainer`, outside `/opt/chesstrainer`
+and `priv/static`. See §Backups.
+
 ## Copy the deploy artifacts
 
 Run these commands from a checkout of this repo on the VPS, or copy the
@@ -441,6 +444,8 @@ The unit includes `ConditionPathExists=/opt/chesstrainer/current/bin/server`, so
 it is safe to enable before the first release. systemd skips it until a release
 is in place.
 
+The backup unit and timer are installed separately; see §Backups.
+
 ## Caddy
 
 Add the site block from `deploy/Caddyfile` by hand. It imports
@@ -601,12 +606,13 @@ The script:
 
 1. Extracts into `/opt/chesstrainer/releases/<timestamp>`
 2. Fixes ownership
-3. Flips `/opt/chesstrainer/current`
-4. Restarts `chesstrainer.service`
-5. Migrations run via `ExecStartPre`
-6. Polls `/health`
-7. Rolls back to the previous release on failure
-8. Prunes old releases, keeping 5 by default
+3. Takes a verified pre-deploy database dump, aborting if it fails (see §Backups)
+4. Flips `/opt/chesstrainer/current`
+5. Restarts `chesstrainer.service`
+6. Migrations run via `ExecStartPre`
+7. Polls `/health`
+8. Rolls back to the previous release on failure
+9. Prunes old releases, keeping 5 by default
 
 Verify locally before touching Caddy:
 
@@ -640,6 +646,10 @@ HEALTH_URL=http://127.0.0.1:4100/health \
 KEEP_RELEASES=5 \
 sudo -E /opt/chesstrainer/src/deploy/activate /tmp/chesstrainer-release.tar.gz
 ```
+
+Every activation takes a verified pre-deploy dump before migrations run. If
+Postgres is intentionally unavailable and you accept the risk, add
+`SKIP_PRE_DEPLOY_BACKUP=1` to the override list; see §Backups.
 
 ## GitHub Actions CD
 
@@ -704,7 +714,8 @@ The workflow:
 1. Runs `mix precommit` against Postgres.
 2. Builds the release artifact on `ubuntu-24.04`.
 3. On `main` or `workflow_dispatch`, uploads the tarball, installs the SSH key,
-   runs `sudo -n .../activate`, and performs public smoke checks.
+   runs `sudo -n .../activate`, and performs public smoke checks. Activation
+   takes a pre-deploy dump first and fails if it cannot.
 4. A failed activation health check rolls back to the previous release.
 
 Manual dispatch is available from the Actions UI or:
@@ -726,6 +737,10 @@ sudo /opt/chesstrainer/src/deploy/rollback 20261109120000
 ```
 
 The script flips `current`, restarts the service, and checks `/health`.
+
+Rollback reverts the release, not the database: migrations are not reversed. If
+a migration changed data, restore the matching pre-deploy dump instead; see
+§Backups.
 
 ## Logs and health
 
@@ -856,52 +871,338 @@ That shell speaks Erlang syntax, so quote Elixir module atoms, e.g.
 
 ## Backups
 
-`docker exec` connects over the container's Unix socket, which the Postgres
-image trusts locally, so `pg_dump` needs no password. Run it as the owner
-(`chesstrainer`), not `chesstrainer_ro`: a full dump also needs sequence access
-and ownership information.
+Backups are produced on the VPS, encrypted there, and pulled to a workstation.
+Nothing leaves the VPS unencrypted, and the VPS never holds the key that could
+read the archives.
 
-Take a compressed logical backup (custom format, restorable with `pg_restore`):
+### What runs
+
+| Where | What | When | Retention |
+|---|---|---|---|
+| VPS | `chesstrainer-backup.timer` → `chesstrainer-backup.service` | daily 03:15 UTC, `Persistent=true`, 5 min jitter | 3 days plaintext, 14 days encrypted |
+| VPS | the same script, called by `deploy/activate` | before every migration | last 5 pre-deploy sets |
+| Workstation | `chesstrainer-backup-pull.timer` | daily 12:00 local, 10 min after boot | 7 daily, 4 weekly, 6 monthly |
+| Workstation | `chesstrainer-backup-drill.timer` | monthly on the 1st at 09:00 | `drills.log` is never pruned |
+
+Each run writes one JSON line (`backup.completed`, `backup.failed`,
+`backup.skipped`, `pull.completed`, `pull.failed`, `pull.skipped`,
+`drill.completed`, `drill.failed`) so #140's log shipping can alert on it. A
+`skipped` line means another run held the lock; it is not an alarm.
+
+### What a dump contains
+
+- `<ts>.dump` — `pg_dump -Fc` of `chesstrainer_prod`
+- `<ts>.globals.sql` — `pg_dumpall --globals-only`, enough to recreate
+  `chesstrainer` and `chesstrainer_ro` on a fresh cluster
+- `<ts>.counts` — row counts for `users`, `endgames`, `attempts`, used by the drill
+- `<ts>.sha256` — checksums for the three files above
+
+Not backed up, by design: tablebases and the tablebase cache (both are
+re-fetchable), anything under `priv/static`, and release tarballs. Dumps contain
+user emails and bcrypt hashes: they are `0600 root` while plaintext, encrypted
+before they leave the box, and pruned aggressively.
+
+### RPO and RTO
+
+RPO is 24 hours on the VPS and "the age of the newest pulled archive" off-box.
+The pull runs daily, so a laptop that is off for a day leaves the newest
+off-site copy around 48 hours old; the VPS keeps 14 days of encrypted archives,
+which bounds how far behind the pull can fall. RTO is under an hour: create the
+database, restore the newest dump, activate a release (see *Disaster recovery*).
+
+### One-time setup: VPS
+
+Install `age`. Encryption happens on the server; only the workstation can
+decrypt.
 
 ```sh
-sudo docker compose -f <UNIFIED_COMPOSE> exec -T chesstrainer-db \
-  pg_dump -U chesstrainer -d chesstrainer_prod -Fc \
-  > /var/backups/chesstrainer-$(date -u +%Y%m%d%H%M%S).dump
+sudo apt install age
 ```
 
-For a plain SQL file instead (human-readable, restorable with `psql`):
+Create the configuration file. Generate `AGE_RECIPIENT` on the workstation
+first (next section) and paste the public key.
 
 ```sh
-sudo docker compose -f <UNIFIED_COMPOSE> exec -T chesstrainer-db \
-  pg_dump -U chesstrainer -d chesstrainer_prod \
-  | gzip > /var/backups/chesstrainer-$(date -u +%Y%m%d%H%M%S).sql.gz
+sudo install -m 600 /dev/null /etc/chesstrainer/backup.env
+sudoedit /etc/chesstrainer/backup.env
 ```
 
-Check that a custom-format dump is readable before trusting it:
+Start from `deploy/backup.env.example`. The required values are `AGE_RECIPIENT`
+and `HEALTHCHECK_URL`.
+
+Create a healthchecks.io check with a period of 1 day and a grace time of 4
+hours, then paste its ping URL into `HEALTHCHECK_URL`. The script pings it after
+a good run and `<url>/fail` after a bad one, so silence means "no backup
+finished", even when the VPS itself is down.
+
+Install the script and units:
 
 ```sh
-sudo docker exec -i chesstrainer-db pg_restore -l \
-  < /var/backups/<timestamp>.dump > /dev/null
+sudo install -m 0755 /opt/chesstrainer/src/deploy/backup \
+  /usr/local/sbin/chesstrainer-backup
+sudo install -m 0644 \
+  /opt/chesstrainer/src/deploy/chesstrainer-backup.service \
+  /opt/chesstrainer/src/deploy/chesstrainer-backup.timer \
+  /opt/chesstrainer/src/deploy/chesstrainer-backup-failure.service \
+  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now chesstrainer-backup.timer
 ```
 
-Restore into a scratch database (do not restore over the live database without
-stopping `chesstrainer` first):
+The timer runs the installed `/usr/local/sbin/chesstrainer-backup`, not the
+copy under `/opt/chesstrainer/src`, because that tree is writable by the
+application user. When `deploy/backup` changes, copy it to both places so the
+timer and `deploy/activate` use the same script.
+
+Run it once and inspect the result:
 
 ```sh
-sudo docker compose -f <UNIFIED_COMPOSE> exec -T chesstrainer-db \
-  createdb -U chesstrainer chesstrainer_restore
-sudo docker exec -i chesstrainer-db pg_restore -U chesstrainer \
-  -d chesstrainer_restore < /var/backups/<timestamp>.dump
+sudo systemctl start chesstrainer-backup
+sudo journalctl -u chesstrainer-backup -n 20 --no-pager -o cat
+sudo ls -l /var/backups/chesstrainer /var/backups/chesstrainer/offsite
+systemctl list-timers chesstrainer-backup.timer
 ```
 
-Example nightly entry in root's crontab (`sudo crontab -e`):
+Expect a `.dump`, `.globals.sql`, `.counts` and `.sha256` at mode `0600`, and
+one `.tar.age` in `offsite/` at mode `0644`. `offsite/` is the only thing the
+workstation reads, which is why the pull needs no `sudo`. The vault directory is
+`0711`, so the workstation user can traverse into `offsite/` but cannot list the
+plaintext dumps.
 
-```cron
-15 3 * * * docker compose -f /home/<username>/docker-compose.yml exec -T chesstrainer-db pg_dump -U chesstrainer -d chesstrainer_prod -Fc > /var/backups/chesstrainer-$(date +\%Y\%m\%d).dump
+### One-time setup: workstation
+
+```sh
+sudo apt install age rsync
+mkdir -p ~/.config/chesstrainer
+chmod 700 ~/.config/chesstrainer
+age-keygen -o ~/.config/chesstrainer/age.key
+chmod 600 ~/.config/chesstrainer/age.key
+grep 'public key' ~/.config/chesstrainer/age.key
 ```
 
-Keep `/var/backups` outside `/opt/chesstrainer/releases` and copy backups off
-the VPS regularly. A backup that is only on the VPS is not a backup.
+Copy that public key into `AGE_RECIPIENT` on the VPS. **Back up the private
+key** (password manager, printed copy, offline disk): without it every archive
+is unreadable, and the VPS deliberately cannot decrypt them.
+
+Create the pull configuration:
+
+```sh
+install -m 600 /dev/null ~/.config/chesstrainer/backup-pull.env
+$EDITOR ~/.config/chesstrainer/backup-pull.env
+```
+
+Start from `deploy/workstation/backup-pull.env.example`. `DEST` should point at
+a real disk, for example `/mnt/Mint Data/chesstrainer-backups`. The script
+refuses to run when `DEST`'s parent is missing, so an unmounted disk cannot
+silently fill the root filesystem.
+
+Set `PULL_HEALTHCHECK_URL` to a second healthchecks.io check with a long period
+(for example 72 hours) if you want to hear about it when the workstation stops
+pulling. Leave it empty for journal-only reporting.
+
+Install the scripts and user units:
+
+```sh
+REPO=~/Desktop/chess-trainer   # wherever this repo is cloned
+
+install -d ~/.local/bin
+install -m 0755 "$REPO/deploy/workstation/backup-pull" ~/.local/bin/chesstrainer-backup-pull
+install -m 0755 "$REPO/deploy/workstation/backup-drill" ~/.local/bin/chesstrainer-backup-drill
+
+install -d ~/.config/systemd/user
+install -m 0644 \
+  "$REPO/deploy/workstation/chesstrainer-backup-pull.service" \
+  "$REPO/deploy/workstation/chesstrainer-backup-pull.timer" \
+  "$REPO/deploy/workstation/chesstrainer-backup-drill.service" \
+  "$REPO/deploy/workstation/chesstrainer-backup-drill.timer" \
+  "$REPO/deploy/workstation/chesstrainer-backup-alert@.service" \
+  ~/.config/systemd/user/
+
+systemctl --user daemon-reload
+systemctl --user enable --now chesstrainer-backup-pull.timer
+systemctl --user enable --now chesstrainer-backup-drill.timer
+sudo loginctl enable-linger "$USER"
+```
+
+`enable-linger` lets the user timers run while the laptop is on but you are not
+logged in. The pull also fires ten minutes after boot, and `Persistent=true`
+catches up after the machine was off. Verify lingering stuck:
+
+```sh
+loginctl show-user "$USER" -p Linger    # Linger=yes
+```
+
+Run the first pull and drill by hand:
+
+```sh
+~/.local/bin/chesstrainer-backup-pull
+ls -l "/mnt/Mint Data/chesstrainer-backups"
+~/.local/bin/chesstrainer-backup-drill
+cat "/mnt/Mint Data/chesstrainer-backups/drills.log"
+```
+
+A passing drill line looks like:
+
+```json
+{"timestamp":"2026-11-11T21:05:46Z","event":"drill.completed","archive":"20261111T120000Z.tar.age","result":"pass","counts":"users=3,endgames=42,attempts=900","duration_s":3}
+```
+
+The drill creates a throwaway `postgres:18.6` container, applies the globals
+dump, asserts that `chesstrainer` and `chesstrainer_ro` exist, restores into
+`chesstrainer_restore`, and compares the three row counts with the `.counts`
+file from dump time. Restored counts may be higher (the counts are taken moments
+before the dump); lower counts fail the drill.
+
+### Retention
+
+| Location | Plaintext | Encrypted | Notes |
+|---|---|---|---|
+| VPS `/var/backups/chesstrainer` | 3 days | 14 days | pre-deploy sets: last 5 |
+| Workstation `DEST` | never | 7 daily, 4 weekly, 6 monthly | monthly copies outlive the VPS copies |
+
+The VPS is a staging area for the workstation; weekly and monthly generations
+accumulate there. If the laptop is off for more than 14 days, the archives the
+VPS dropped in the meantime are gone — that is the documented off-site RPO
+trade-off. Moving to an always-on destination (a second host or object storage
+with restic) is tracked in #151.
+
+### Restore a dump
+
+Always restore into a scratch database first. From an archive on the
+workstation:
+
+```sh
+WORK=$(mktemp -d)
+age --decrypt -i ~/.config/chesstrainer/age.key \
+  -o "$WORK/dump.tar" \
+  "/mnt/Mint Data/chesstrainer-backups/<timestamp>.tar.age"
+tar -xf "$WORK/dump.tar" -C "$WORK"
+(cd "$WORK" && sha256sum --check --strict <timestamp>.sha256)
+```
+
+Then restore into a scratch container:
+
+```sh
+docker run --rm -d --name restore-check \
+  -e POSTGRES_PASSWORD=restore -e POSTGRES_HOST_AUTH_METHOD=trust postgres:18.6
+docker exec restore-check psql -U postgres -c 'create database chesstrainer_restore'
+docker exec -i restore-check pg_restore -U postgres -d chesstrainer_restore \
+  --single-transaction --exit-on-error < "$WORK/<timestamp>.dump"
+docker exec restore-check psql -U postgres -d chesstrainer_restore \
+  -c 'select count(*) from users; select count(*) from attempts;'
+docker rm -f restore-check
+rm -rf "$WORK"
+```
+
+### Disaster recovery
+
+1. Build a new VPS following this README through *First-time setup*, without
+   activating a release or switching Caddy.
+2. Decrypt and unpack the newest archive on the workstation (above).
+3. Copy the dump and globals to the new VPS:
+   `scp "$WORK/<timestamp>.dump" "$WORK/<timestamp>.globals.sql" <VPS_USER>@<VPS_HOST>:/tmp/`
+4. Recreate the cluster roles. Connect as `chesstrainer`: it is the container's
+   superuser (`POSTGRES_USER`), and the dump's final grants are issued
+   `GRANTED BY chesstrainer`, which another role cannot replay. The line that
+   recreates `chesstrainer` itself reports "already exists" and is harmless:
+   `sudo docker exec -i chesstrainer-db psql -U chesstrainer < /tmp/<timestamp>.globals.sql`
+5. Create the database and restore it:
+   `sudo docker exec chesstrainer-db createdb -U chesstrainer chesstrainer_prod`
+   `sudo docker exec -i chesstrainer-db pg_restore -U chesstrainer -d chesstrainer_prod --single-transaction --exit-on-error < /tmp/<timestamp>.dump`
+6. Verify the row counts, activate a release, then restore the Caddy block.
+7. Take a fresh backup (`sudo systemctl start chesstrainer-backup`) and pull so
+   the new VPS is covered immediately.
+
+`pg_dump` and `pg_restore` must come from the container's Postgres 18, not the
+host.
+
+### Pre-deploy dump
+
+`deploy/activate` calls `chesstrainer-backup` with `BACKUP_TAG=predeploy` after
+extracting the release and before flipping `current`, so the state before
+`bin/migrate` runs in `ExecStartPre` is always recoverable. A failed dump aborts
+the activation. The escape hatch is deliberate and should be rare:
+
+```sh
+sudo SKIP_PRE_DEPLOY_BACKUP=1 /opt/chesstrainer/src/deploy/activate /tmp/chesstrainer-release.tar.gz
+```
+
+If the installed script is missing, `activate` uses the `backup` next to it; if
+neither exists it refuses to activate rather than migrate without a dump. The
+GitHub Actions deploy job inherits the same behaviour.
+
+### Run it by hand
+
+Every timer can be triggered directly. On the VPS:
+
+```sh
+# exactly what the timer runs
+sudo systemctl start chesstrainer-backup
+sudo journalctl -u chesstrainer-backup -n 20 -o cat
+
+# an ad-hoc dump with its own tag
+sudo BACKUP_TAG=manual /usr/local/sbin/chesstrainer-backup
+
+# schedule, last result and last exit
+systemctl list-timers chesstrainer-backup.timer
+systemctl show chesstrainer-backup.service -p Result -p ExecMainExitTimestamp
+```
+
+On the workstation:
+
+```sh
+# pull now, or through the unit (same PATH and OnFailure handling)
+~/.local/bin/chesstrainer-backup-pull
+systemctl --user start chesstrainer-backup-pull.service
+
+# drill the newest archive, or a named one
+~/.local/bin/chesstrainer-backup-drill
+~/.local/bin/chesstrainer-backup-drill 20261111T213734Z.tar.age
+
+# results and schedule
+cat "/mnt/Mint Data/chesstrainer-backups/drills.log"
+systemctl --user list-timers 'chesstrainer-backup-*'
+```
+
+A `backup.skipped` or `pull.skipped` line means another run held the lock; that
+run reports the outcome. After fixing a failure, clear the unit with
+`systemctl --user reset-failed chesstrainer-backup-pull.service` (or
+`sudo systemctl reset-failed chesstrainer-backup.service`).
+
+Enabling the pull timer fires it once straight away: its `OnBootSec=10m` is
+measured from boot, so enabling it hours after boot triggers immediately. That
+is expected and harmless.
+
+### Monitoring
+
+```sh
+systemctl list-timers chesstrainer-backup.timer
+sudo journalctl -u chesstrainer-backup --since "2 days ago" -o cat
+sudo systemctl --failed
+systemctl --user list-timers chesstrainer-backup-pull.timer chesstrainer-backup-drill.timer
+journalctl --user -u chesstrainer-backup-pull --since "2 days ago" -o cat
+```
+
+A failed run produces both `backup.failed` (from the script) and
+`backup.unit-failed` (from the `OnFailure` unit). The healthchecks.io check is
+the backstop: if the VPS dies, the ping stops and you are emailed. The pull
+fails when the newest archive is more than 48 hours old, which catches a stopped
+VPS timer the next time the workstation pulls.
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| `backup.failed: missing command: age` | `sudo apt install age` |
+| `backup.failed: only N MB free` | disk full on the VPS; prune old releases or grow the disk |
+| `backup.failed: pg_dump failed` | `chesstrainer-db` is down or restarting — check `docker ps` |
+| `backup.failed: globals dump is missing role …` | the role was renamed; update `EXPECTED_ROLES` |
+| `pull.failed: rsync … failed` | SSH key, host key, or the VPS is unreachable |
+| `pull.failed: newest archive … is Nh old` | the VPS backup timer stopped; check it before touching the workstation |
+| `drill.failed: pg_restore failed` | archive is corrupt; keep it for diagnosis and restore an earlier one |
+
+Never put dumps anywhere under `priv/static` or the release directory, and never
+restore over `chesstrainer_prod` while the application is running.
 
 ## New VPS checklist
 
@@ -916,6 +1217,11 @@ the VPS regularly. A backup that is only on the VPS is not a backup.
 8. Caddy block, `cloudflare-ranges.caddy`, and the CIDR refresh timer added;
    validated and reloaded.
 9. Public `/`, `/privacy`, `/terms-conditions`, and `/health` verified.
-10. Read-only role created, tunnel verified, backups scheduled and tested.
-11. Remote shell attaches and exits cleanly:
+10. Read-only role created and tunnel verified.
+11. `age` installed, `/etc/chesstrainer/backup.env` written, backup script and
+    units installed, timer enabled, and one manual run produces a dump plus a
+    globals file.
+12. Workstation age key and pull configuration installed, user timers and linger
+    enabled, first pull verified, first drill passes.
+13. Remote shell attaches and exits cleanly:
     `sudo /opt/chesstrainer/current/bin/chesstrainer remote` (Ctrl-C twice).

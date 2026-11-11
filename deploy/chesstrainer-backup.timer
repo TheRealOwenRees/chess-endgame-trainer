@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily Inner Square Chess database backup
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/deploy/README.md
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+RandomizedDelaySec=5m
+AccuracySec=1m
+Persistent=true
+Unit=chesstrainer-backup.service
+
+[Install]
+WantedBy=timers.target
