@@ -187,6 +187,7 @@ defmodule ChesstrainerWeb.Layouts do
         <a href="/privacy">Privacy Policy</a>
         <a href="/terms-conditions">Terms & Conditions</a>
         <a href="/mentions-legales">Mentions légales</a>
+        <a href="/sitemap.xml">Sitemap</a>
       </nav>
 
       <small>© {@year} {Branding.name()}</small>
