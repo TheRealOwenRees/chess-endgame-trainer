@@ -497,7 +497,9 @@ receive `403 Access Denied`.
 Do not let a deploy overwrite the shared Caddyfile.
 
 See `docs/security.md` for the application throttle, real-IP setup and the
-Cloudflare edge rate limiting rules.
+Cloudflare edge controls. Production currently has Bot Fight Mode enabled and
+the free-plan login flood rule: 10 POSTs per 10 seconds per IP, blocked for 10
+seconds.
 
 ## Building a release
 

@@ -5,6 +5,19 @@ primary control; Cloudflare is the edge backstop for volume. There is no
 origin-level fail2ban for HTTP logins, because it would require storing raw IP
 addresses and would ban Cloudflare edge addresses on this deployment.
 
+## Current production configuration
+
+- Caddy accepts only Cloudflare's published ranges and forwards
+  `CF-Connecting-IP` as `X-Forwarded-For`.
+- `TRUST_FORWARDED_FOR=true`, so the app throttles by the real visitor address.
+- Cloudflare Bot Fight Mode is enabled.
+- The free-plan login flood rule allows 10 login POSTs per 10 seconds per IP and
+  blocks for 10 seconds.
+
+The short Cloudflare block is rate smoothing, not a credential lockout. The
+application's 5-per-login and 10-per-address failures in a 15-minute window are
+the real control.
+
 ## 1. Application login throttle
 
 `ChesstrainerWeb.LoginThrottle` counts failures in two buckets:
@@ -84,7 +97,7 @@ defence-in-depth addition.
 This is for connection and request floods, not credential guessing. The
 application already stops password attempts cheaply.
 
-In the Cloudflare dashboard, add a rate limiting rule for login POSTs:
+The production rule is the free-plan version:
 
 | Setting | Value |
 |---|---|
@@ -94,25 +107,19 @@ In the Cloudflare dashboard, add a rate limiting rule for login POSTs:
 | Period | 10 seconds |
 | Requests | 10 |
 | Action | Block |
-| Duration | 10 minutes |
+| Duration | 10 seconds |
 
-If the plan only offers a 10-second period, that is fine. This rule is an
-anti-flood control; the application's 5-per-login and 10-per-address limits in a
-15-minute window remain the real credential controls. A slow attacker staying
-under 10 requests per 10 seconds still hits the application throttle.
+Because the free plan only offers a 10-second period and a 10-second block, this
+is a burst limiter rather than a lasting ban. An attacker can retry after ten
+seconds, but the application still stops that login after five failures and that
+address after ten failures within fifteen minutes. A slow attacker staying under
+10 requests per 10 seconds never gets to make useful guesses because of the app
+throttle.
 
-Tune the threshold upward if legitimate users behind shared NAT are affected.
-
-Also consider:
-
-- a broader site-wide rule such as 100 requests per 10 seconds per IP with a
-  managed challenge (adjust for page assets and LiveView traffic);
-- Cloudflare Bot Fight Mode and the managed WAF ruleset;
-- Under Attack Mode during an active incident.
-
-Availability and rule counts depend on the Cloudflare plan. If rate limiting
-rules are not available, use Bot Fight Mode, managed challenges and Under
-Attack Mode instead.
+Bot Fight Mode is enabled as the plan-level bot control. If the plan later gains
+longer rate-limit windows or managed WAF rules, raise the block duration and
+consider a broader site-wide rule, such as 100 requests per 10 seconds per IP
+with a managed challenge. Use Under Attack Mode during an active incident.
 
 ### Registration cannot be limited this way
 
