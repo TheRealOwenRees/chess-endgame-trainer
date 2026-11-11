@@ -694,6 +694,75 @@ Set `Storage=persistent` and a `SystemMaxUse=` value in
 rate-limits bursts; if a crash storm drops lines, raise `RateLimitBurst` or
 `RateLimitIntervalSec` there.
 
+## Interactive shell and user management
+
+Attach an IEx shell to the **running** release. This does not restart the
+service and does not require direct database access:
+
+```sh
+sudo /opt/chesstrainer/current/bin/chesstrainer remote
+```
+
+You should get a prompt like `iex(chesstrainer@<host>)1>`. Exit with **Ctrl-C
+twice**. Never call `System.halt/0`, `:init.stop/0`, or
+`Application.stop(:chesstrainer)` from this shell — those stop production.
+
+Use it for account and role management. Go through the application contexts
+(not SQL) so changesets, bcrypt hashing, timestamps, and token bookkeeping stay
+consistent:
+
+```elixir
+# Look up by email or username
+u = Chesstrainer.Accounts.get_user_by_login("owen")
+
+# Promote or demote
+{:ok, u} = Chesstrainer.Accounts.update_user_role(u, :super_admin)
+
+# Confirm an account without sending email
+{:ok, u} = Chesstrainer.Repo.update(Chesstrainer.Accounts.User.confirm_changeset(u))
+
+# Create an account, generating its password server-side
+pw = :crypto.strong_rand_bytes(18) |> Base.url_encode64(padding: false)
+
+{:ok, u} =
+  Chesstrainer.Accounts.register_user(%{
+    email: "you@example.com",
+    username: "owen",
+    password: pw
+  })
+
+{:ok, u} = Chesstrainer.Repo.update(Chesstrainer.Accounts.User.confirm_changeset(u))
+pw
+```
+
+Notes:
+
+- `register_user/1` hashes the password with bcrypt; `password` is virtual and
+  is never written to the database.
+- Do not type passwords into the shell if you can avoid it — IEx may keep a
+  history file — and never paste a password from shell history. Generate one as
+  above and change it later at `/users/profile/settings`.
+- `mix accounts.promote` still works when a compiled source checkout is present
+  on the host, but the release shell is the supported production path.
+- There is no guard against demoting the last `super_admin` outside the future
+  admin UI, so check the result before demoting.
+
+If `remote` fails while booting its client VM (for example
+`Kernel pid terminated (logger)` with `code_server`/`persistent_term` in the
+trace), the deployed release is stale, mixed, or missing IEx: rebuild and
+redeploy it. To attach in the meantime, use the release's own ERTS:
+
+```sh
+sudo bash -c '
+  COOKIE=$(cat /opt/chesstrainer/current/releases/COOKIE)
+  exec /opt/chesstrainer/current/erts-*/bin/erl \
+    -sname debug -setcookie "$COOKIE" -remsh chesstrainer
+'
+```
+
+That shell speaks Erlang syntax, so quote Elixir module atoms, e.g.
+`'Elixir.Chesstrainer.Accounts':register_user(...)`.
+
 ## Backups
 
 `docker exec` connects over the container's Unix socket, which the Postgres
@@ -756,3 +825,5 @@ the VPS regularly. A backup that is only on the VPS is not a backup.
 8. Caddy block added, validated, reloaded.
 9. Public `/`, `/privacy`, `/terms-conditions`, and `/health` verified.
 10. Read-only role created, tunnel verified, backups scheduled and tested.
+11. Remote shell attaches and exits cleanly:
+    `sudo /opt/chesstrainer/current/bin/chesstrainer remote` (Ctrl-C twice).
