@@ -39,6 +39,16 @@ config :chesstrainer,
   ecto_repos: [Chesstrainer.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+# Password-login throttle. Failures are counted in fixed windows for each
+# client address and each normalised login. The address bucket is deliberately
+# wider so one account stays protected from distributed guessing while one
+# address cannot spray many accounts.
+config :chesstrainer, ChesstrainerWeb.LoginThrottle,
+  window_ms: :timer.minutes(15),
+  max_per_login: 5,
+  max_per_ip: 10,
+  confirmation_cooldown_ms: :timer.minutes(15)
+
 # Glicko rating system.
 #
 # `system_constant` is the volatility constraint passed through to the Glicko

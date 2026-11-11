@@ -1,6 +1,8 @@
 defmodule ChesstrainerWeb.UserLive.LoginTest do
   use ChesstrainerWeb.ConnCase, async: true
 
+  @moduletag :capture_log
+
   import Phoenix.LiveViewTest
   import Chesstrainer.AccountsFixtures
 

@@ -20,6 +20,8 @@ defmodule Chesstrainer.Accounts.User do
     timestamps(type: :utc_datetime)
   end
 
+  @type t :: %__MODULE__{}
+
   @doc """
   A user changeset for registration.
 
@@ -51,6 +53,32 @@ defmodule Chesstrainer.Accounts.User do
     user
     |> cast(attrs, [:role])
     |> validate_required([:role])
+  end
+
+  @doc """
+  A user changeset for an admin-created invitation.
+
+  The account is created without a password and marked confirmed, so the
+  recipient can choose a password from the emailed invitation link and log in
+  immediately afterwards. Role and plan are applied separately by
+  `admin_changeset/2` after the caller has checked the policy.
+  """
+  def invite_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:email, :username])
+    |> validate_email([])
+    |> validate_username([])
+    |> put_change(:confirmed_at, DateTime.utc_now(:second))
+  end
+
+  @doc """
+  A user changeset for the fields an administrator may edit.
+
+  These values are programmatic, so this changeset is only used by the scoped
+  admin functions in `Chesstrainer.Accounts`.
+  """
+  def admin_changeset(user, attrs) do
+    cast(user, attrs, [:role, :plan])
   end
 
   @doc """

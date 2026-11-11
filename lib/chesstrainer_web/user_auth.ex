@@ -218,7 +218,12 @@ defmodule ChesstrainerWeb.UserAuth do
     ChesstrainerWeb.UserLive.Profile,
     ChesstrainerWeb.EndgameLive.Index,
     ChesstrainerWeb.EndgameLive.Form,
-    ChesstrainerWeb.EndgameLive.Show
+    ChesstrainerWeb.EndgameLive.Show,
+    ChesstrainerWeb.Admin.ThemeLive.Index,
+    ChesstrainerWeb.Admin.ThemeLive.Form,
+    ChesstrainerWeb.Admin.UserLive.Index,
+    ChesstrainerWeb.Admin.UserLive.New,
+    ChesstrainerWeb.Admin.UserLive.Show
   ]
 
   def on_mount(:enforce_prelaunch, _params, _session, socket) do

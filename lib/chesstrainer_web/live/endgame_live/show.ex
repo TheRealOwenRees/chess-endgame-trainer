@@ -26,6 +26,8 @@ defmodule ChesstrainerWeb.EndgameLive.Show do
 
     ~H"""
     <Layouts.app flash={@flash} wide>
+      <Layouts.admin_nav current_scope={@current_scope} />
+
       <.header>
         Endgame {@endgame.id}
         <:subtitle>This is a endgame record from your database.</:subtitle>

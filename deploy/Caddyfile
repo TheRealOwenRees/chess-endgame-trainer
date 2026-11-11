@@ -3,13 +3,36 @@
 # This file is not installed automatically. On the shared VPS, add this block
 # to the existing Caddy config by hand, then validate and reload Caddy.
 #
-# The app listens on loopback only; Caddy is the public entry point.
+# Cloudflare sits in front of Caddy. Two things matter here:
+#
+# 1. Only accept requests from Cloudflare's published edge ranges.
+# 2. Replace X-Forwarded-For with Cloudflare's single-value CF-Connecting-IP
+#    header, so the app's TRUST_FORWARDED_FOR=true path sees the visitor, not a
+#    Cloudflare edge address.
+#
+# The ranges live in cloudflare-ranges.caddy next to this file. A systemd
+# timer refreshes them from https://www.cloudflare.com/ips-v4 and /ips-v6;
+# see deploy/update-cloudflare-ranges.sh and deploy/README.md.
 
 innersquare.app {
-    encode zstd gzip
-    reverse_proxy 127.0.0.1:4100
+	encode zstd gzip
+
+	@cloudflare {
+		import cloudflare-ranges.caddy
+	}
+
+	handle @cloudflare {
+		reverse_proxy 127.0.0.1:4100 {
+			header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+		}
+	}
+
+	# Direct-to-origin requests cannot spoof Cloudflare's client-IP header.
+	handle {
+		respond "Access Denied" 403
+	}
 }
 
 www.innersquare.app {
-    redir https://innersquare.app{uri} permanent
+	redir https://innersquare.app{uri} permanent
 }

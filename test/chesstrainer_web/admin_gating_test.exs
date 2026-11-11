@@ -37,6 +37,22 @@ defmodule ChesstrainerWeb.AdminGatingTest do
     assert redirected_to(conn) == ~p"/"
   end
 
+  test "members and moderators are redirected from themes and users", _context do
+    for role <- [:member, :moderator] do
+      {:ok, user} = Accounts.update_user_role(user_fixture(), role)
+      conn = log_in_user(build_conn(), user)
+
+      for path <- [
+            ~p"/admin/themes",
+            ~p"/admin/themes/new",
+            ~p"/admin/users",
+            ~p"/admin/users/new"
+          ] do
+        assert redirected_to(get(conn, path)) == ~p"/"
+      end
+    end
+  end
+
   test "admins are admitted", %{conn: conn} do
     {:ok, user} = Accounts.update_user_role(user_fixture(), :admin)
 
