@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Cloudflare CIDRs for Caddy
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/docs/security.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/chesstrainer-update-cloudflare-ranges
+TimeoutStartSec=2min
+Nice=10

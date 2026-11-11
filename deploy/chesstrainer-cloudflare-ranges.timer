@@ -1,0 +1,11 @@
+[Unit]
+Description=Hourly refresh of Cloudflare CIDRs for Caddy
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=10m
+Persistent=true
+Unit=chesstrainer-cloudflare-ranges.service
+
+[Install]
+WantedBy=timers.target
