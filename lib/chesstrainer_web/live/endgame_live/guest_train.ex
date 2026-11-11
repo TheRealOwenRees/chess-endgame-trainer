@@ -14,6 +14,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
 
   alias Chesstrainer.Endgames
   alias Chesstrainer.GuestLimits
+  alias ChesstrainerWeb.ClientAddress
   alias ChesstrainerWeb.EndgameLive.PlayCore
   alias ChesstrainerWeb.PlayComponents
 
@@ -112,7 +113,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
         {:ok, redirect(socket, to: ~p"/train")}
 
       connected?(socket) ->
-        take_puzzle(socket, client_address(socket))
+        take_puzzle(socket, ClientAddress.from_socket(socket))
 
       true ->
         {:ok,
@@ -219,46 +220,6 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
     case Endgames.random_endgame() do
       nil -> assign(socket, :endgame, nil)
       endgame -> PlayCore.init(socket, endgame, page_title: "Train")
-    end
-  end
-
-  defp client_address(socket) do
-    if GuestLimits.trust_forwarded_for?() do
-      forwarded_address(socket) || peer_address(socket)
-    else
-      peer_address(socket)
-    end
-  end
-
-  defp peer_address(socket) do
-    case get_connect_info(socket, :peer_data) do
-      %{address: address} -> address
-      _ -> nil
-    end
-  end
-
-  defp forwarded_address(socket) do
-    with headers when is_list(headers) <- get_connect_info(socket, :x_headers),
-         {_, value} <- List.keyfind(headers, "x-forwarded-for", 0),
-         address when address != nil <- parse_address(value) do
-      address
-    else
-      _ -> nil
-    end
-  end
-
-  # The rightmost entry is the one our own proxy appended.
-  defp parse_address(value) do
-    value
-    |> String.split(",")
-    |> List.last()
-    |> to_string()
-    |> String.trim()
-    |> String.to_charlist()
-    |> :inet.parse_address()
-    |> case do
-      {:ok, address} -> address
-      {:error, _} -> nil
     end
   end
 

@@ -1,10 +1,16 @@
 defmodule ChesstrainerWeb.UserSessionControllerTest do
-  use ChesstrainerWeb.ConnCase, async: true
+  use ChesstrainerWeb.ConnCase, async: false
+
+  @moduletag :capture_log
 
   import Chesstrainer.AccountsFixtures
+  import ExUnit.CaptureLog
   import Swoosh.TestAssertions
 
+  alias ChesstrainerWeb.LoginThrottle
+
   setup do
+    LoginThrottle.reset()
     %{user: user_fixture()}
   end
 
@@ -77,7 +83,7 @@ defmodule ChesstrainerWeb.UserSessionControllerTest do
       assert redirected_to(conn) == ~p"/users/log-in"
     end
 
-    test "does not log in an unconfirmed user and resends confirmation instructions", %{
+    test "does not log in an unconfirmed user and resends confirmation instructions once", %{
       conn: conn
     } do
       user = unconfirmed_user_fixture()
@@ -94,6 +100,146 @@ defmodule ChesstrainerWeb.UserSessionControllerTest do
 
       assert redirected_to(conn) == ~p"/users/log-in"
       assert_email_sent(subject: "Confirmation instructions")
+
+      second =
+        post(build_conn(), ~p"/users/log-in", %{
+          "user" => %{"email" => user.email, "password" => valid_user_password()}
+        })
+
+      refute get_session(second, :user_token)
+      refute_email_sent()
+    end
+
+    test "blocks further attempts after the login limit is reached", %{
+      conn: conn,
+      user: user
+    } do
+      for _ <- 1..LoginThrottle.max_per_login() do
+        blocked =
+          post(conn, ~p"/users/log-in", %{
+            "user" => %{"email" => user.email, "password" => "wrong password"}
+          })
+
+        assert Phoenix.Flash.get(blocked.assigns.flash, :error) ==
+                 "Invalid email, username or password"
+      end
+
+      conn =
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"email" => user.email, "password" => valid_user_password()}
+        })
+
+      refute get_session(conn, :user_token)
+
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
+               "Too many attempts. Try again in 15 minutes."
+
+      assert redirected_to(conn) == ~p"/users/log-in"
+    end
+
+    test "the address bucket blocks spraying many logins", %{conn: conn, user: user} do
+      for index <- 1..LoginThrottle.max_per_ip() do
+        blocked =
+          post(conn, ~p"/users/log-in", %{
+            "user" => %{
+              "email" => "unknown#{index}@example.com",
+              "password" => "wrong password"
+            }
+          })
+
+        assert Phoenix.Flash.get(blocked.assigns.flash, :error) ==
+                 "Invalid email, username or password"
+      end
+
+      conn =
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"email" => user.email, "password" => valid_user_password()}
+        })
+
+      refute get_session(conn, :user_token)
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Too many attempts."
+    end
+
+    test "a successful login clears the login bucket", %{conn: conn, user: user} do
+      for _ <- 1..(LoginThrottle.max_per_login() - 1) do
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"email" => user.email, "password" => "wrong password"}
+        })
+      end
+
+      conn =
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"email" => user.email, "password" => valid_user_password()}
+        })
+
+      assert get_session(conn, :user_token)
+
+      post(build_conn(), ~p"/users/log-in", %{
+        "user" => %{"email" => user.email, "password" => "wrong password"}
+      })
+
+      conn =
+        post(build_conn(), ~p"/users/log-in", %{
+          "user" => %{"email" => user.email, "password" => valid_user_password()}
+        })
+
+      assert get_session(conn, :user_token)
+    end
+
+    test "the admin login uses the same throttle", %{conn: conn, user: user} do
+      for _ <- 1..LoginThrottle.max_per_login() do
+        post(conn, ~p"/admin/log-in", %{
+          "user" => %{"email" => user.email, "password" => "wrong password"}
+        })
+      end
+
+      conn =
+        post(conn, ~p"/admin/log-in", %{
+          "user" => %{"email" => user.email, "password" => valid_user_password()}
+        })
+
+      refute get_session(conn, :user_token)
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Too many attempts."
+    end
+
+    test "log events contain no raw address or password", %{conn: conn, user: user} do
+      log =
+        capture_log(
+          [format: "$message $metadata\n", metadata: [:ip, :reason]],
+          fn ->
+            post(conn, ~p"/users/log-in", %{
+              "user" => %{"email" => user.email, "password" => "secret-wrong-password"}
+            })
+          end
+        )
+
+      assert log =~ "auth.login.failed"
+      assert log =~ "invalid_credentials"
+      refute log =~ "127.0.0.1"
+      refute log =~ "secret-wrong-password"
+      refute log =~ user.email
+    end
+
+    test "a throttled request logs auth.login.throttled", %{conn: conn, user: user} do
+      for _ <- 1..LoginThrottle.max_per_login() do
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"email" => user.email, "password" => "wrong password"}
+        })
+      end
+
+      log =
+        capture_log(
+          [format: "$message $metadata\n", metadata: [:ip, :reason]],
+          fn ->
+            post(conn, ~p"/users/log-in", %{
+              "user" => %{"email" => user.email, "password" => valid_user_password()}
+            })
+          end
+        )
+
+      assert log =~ "auth.login.throttled"
+      assert log =~ "login"
+      refute log =~ "127.0.0.1"
     end
   end
 

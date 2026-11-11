@@ -115,6 +115,21 @@ Prefer identifiers such as `user_id` or `table` over emails, and never log
 params or request bodies. The formatter is a safety net, not a licence to log
 PII.
 
+## Authentication events
+
+`ChesstrainerWeb.UserSessionController` emits warning lines consumed by
+host-level tooling such as fail2ban:
+
+| Message | Metadata | Meaning |
+|---|---|---|
+| `auth.login.failed` | `reason` (`invalid_credentials` / `unconfirmed`), `ip` | A password login failed. |
+| `auth.login.throttled` | `reason` (`ip` / `login`), `ip` | The address or login bucket blocked the attempt before bcrypt. |
+
+`ip` is a boot-scoped HMAC of the client address, not the address itself. The
+raw login identifier and password are never included. The login throttle is
+configured in `config/config.exs` and defaults to five failures per login and
+ten per address in a fifteen-minute window.
+
 ## Querying logs
 
 `journalctl` prints the raw line only with `-o cat`; the default output wraps it
