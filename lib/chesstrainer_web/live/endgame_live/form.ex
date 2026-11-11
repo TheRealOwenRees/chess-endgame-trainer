@@ -13,6 +13,8 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
+      <Layouts.admin_nav current_scope={@current_scope} />
+
       <.header>
         {@page_title}
         <:subtitle>Use this form to manage endgame records in your database.</:subtitle>
@@ -48,7 +50,7 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
             placeholder="Search or create a theme…"
           />
 
-          <ul class="mt-2 w-full rounded-md border border-base-300 bg-base-100 p-1 shadow-sm">
+          <ul>
             <li :for={theme <- @theme_results}>
               <button
                 type="button"
