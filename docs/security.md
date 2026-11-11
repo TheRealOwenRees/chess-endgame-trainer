@@ -87,7 +87,8 @@ The script is run hourly by `chesstrainer-cloudflare-ranges.timer`. It:
 - validates the candidate Caddyfile,
 - reloads Caddy only when the ranges changed.
 
-If the download or validation fails, the previous ranges stay in place.
+If the download, validation or Caddy reload fails, the previous ranges stay in
+place.
 
 Install and run it:
 
@@ -103,6 +104,18 @@ sudo install -m 0644 /opt/chesstrainer/src/deploy/chesstrainer-cloudflare-ranges
 sudo systemctl daemon-reload
 sudo systemctl enable --now chesstrainer-cloudflare-ranges.timer
 sudo systemctl start chesstrainer-cloudflare-ranges.service
+```
+
+If `/opt/chesstrainer/src/deploy` is not present on the VPS, create the same
+four files directly with `sudo tee` from the canonical contents in `deploy/`.
+The timer only uses the installed copies.
+
+Check the timer and last run:
+
+```sh
+systemctl list-timers chesstrainer-cloudflare-ranges.timer
+systemctl status chesstrainer-cloudflare-ranges.service
+journalctl -u chesstrainer-cloudflare-ranges.service --since "24 hours ago"
 ```
 
 Apply the site block by hand on the shared Caddy host, then validate and

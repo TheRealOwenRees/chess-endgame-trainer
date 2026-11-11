@@ -485,21 +485,54 @@ sudo install -m 0644 /opt/chesstrainer/src/deploy/chesstrainer-cloudflare-ranges
   /etc/systemd/system/chesstrainer-cloudflare-ranges.service
 sudo install -m 0644 /opt/chesstrainer/src/deploy/chesstrainer-cloudflare-ranges.timer \
   /etc/systemd/system/chesstrainer-cloudflare-ranges.timer
-sudo systemctl daemon-reload
-sudo systemctl enable --now chesstrainer-cloudflare-ranges.timer
 ```
 
-Run it once manually:
+The installed pieces are:
+
+| Path | Mode | Purpose |
+|---|---|---|
+| `/usr/local/sbin/chesstrainer-update-cloudflare-ranges` | `0755` | fetch/validate/reload script |
+| `/etc/caddy/cloudflare-ranges.caddy` | `0644` | generated `remote_ip` list |
+| `/etc/systemd/system/chesstrainer-cloudflare-ranges.service` | `0644` | oneshot service |
+| `/etc/systemd/system/chesstrainer-cloudflare-ranges.timer` | `0644` | hourly timer |
+
+If `/opt/chesstrainer/src/deploy` is not present on the VPS, create the same
+four files directly with `sudo tee` from the canonical contents in `deploy/`.
+The timer only depends on the installed copies; it does not read the repo.
+
+Run it once manually and enable the timer:
 
 ```sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now chesstrainer-cloudflare-ranges.timer
 sudo systemctl start chesstrainer-cloudflare-ranges.service
 sudo journalctl -u chesstrainer-cloudflare-ranges.service -n 50 --no-pager
 ```
 
 The script fetches <https://www.cloudflare.com/ips-v4> and
 <https://www.cloudflare.com/ips-v6>, validates the result, and reloads Caddy
-only when the ranges actually changed. If the download or Caddy validation
-fails, it keeps the previous file.
+only when the ranges actually changed. If the download, Caddy validation or
+reload fails, it keeps or restores the previous file.
+
+Check the timer and last run:
+
+```sh
+systemctl list-timers chesstrainer-cloudflare-ranges.timer
+systemctl status chesstrainer-cloudflare-ranges.service
+journalctl -u chesstrainer-cloudflare-ranges.service --since "24 hours ago"
+```
+
+Do not edit `/etc/caddy/cloudflare-ranges.caddy` by hand; the next timer run
+overwrites it.
+
+To update the refresher itself, replace the installed script or unit files from
+the deploy directory, then:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl restart chesstrainer-cloudflare-ranges.timer
+sudo systemctl start chesstrainer-cloudflare-ranges.service
+```
 
 Without this, `TRUST_FORWARDED_FOR=true` records a Cloudflare edge address
 instead of the visitor, and the login throttle and guest puzzle limit bucket
