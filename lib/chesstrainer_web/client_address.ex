@@ -7,6 +7,11 @@ defmodule ChesstrainerWeb.ClientAddress do
   `Chesstrainer.GuestLimits.trust_forwarded_for?/0` is enabled. In that case the
   rightmost entry is used, because that is the value our own proxy appended.
   Invalid or missing headers fall back to the peer address.
+
+  Production is Cloudflare -> Caddy -> Phoenix. `deploy/Caddyfile` makes Caddy
+  overwrite `X-Forwarded-For` with Cloudflare's `CF-Connecting-IP` and rejects
+  direct-to-origin requests, so the rightmost value is the real visitor rather
+  than a Cloudflare edge address.
   """
 
   alias Chesstrainer.GuestLimits

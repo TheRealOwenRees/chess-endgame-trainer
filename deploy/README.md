@@ -4,9 +4,10 @@ Phoenix release on the shared Ubuntu VPS, behind Caddy, with Postgres in Docker.
 
 ```text
 Internet
-  └─ Caddy :443
-       └─ Phoenix release 127.0.0.1:4100
-            └─ Postgres 127.0.0.1:5432
+  └─ Cloudflare (TLS, WAF, edge rate limiting)
+       └─ Caddy :443 (cloudflare ranges only)
+            └─ Phoenix release 127.0.0.1:4100
+                 └─ Postgres 127.0.0.1:5432
 ```
 
 ## Pinned versions
@@ -443,18 +444,40 @@ is in place.
 ## Caddy
 
 On the current VPS the Caddyfile is a single file with no imports. Add the block
-from `deploy/Caddyfile` by hand:
+from `deploy/Caddyfile` by hand.
+
+Caddy must only accept Cloudflare traffic and must replace `X-Forwarded-For`
+with Cloudflare's `CF-Connecting-IP` value:
 
 ```caddy
 innersquare.app {
     encode zstd gzip
-    reverse_proxy 127.0.0.1:4100
+
+    @cloudflare {
+        remote_ip <Cloudflare ranges from deploy/Caddyfile>
+    }
+
+    handle @cloudflare {
+        reverse_proxy 127.0.0.1:4100 {
+            header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+        }
+    }
+
+    handle {
+        respond "Access Denied" 403
+    }
 }
 
 www.innersquare.app {
     redir https://innersquare.app{uri} permanent
 }
 ```
+
+Without this, `TRUST_FORWARDED_FOR=true` records a Cloudflare edge address
+instead of the visitor, and the login throttle and guest puzzle limit bucket
+whole Cloudflare POPs together. Refresh the ranges from
+<https://www.cloudflare.com/ips-v4> and <https://www.cloudflare.com/ips-v6>
+when Cloudflare publishes changes.
 
 If a new VPS uses imports, put the block in its own site file instead.
 
@@ -468,7 +491,13 @@ sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
+A direct request to the origin with a forged `CF-Connecting-IP` header should
+receive `403 Access Denied`.
+
 Do not let a deploy overwrite the shared Caddyfile.
+
+See `docs/security.md` for the application throttle, real-IP setup and the
+Cloudflare edge rate limiting rules.
 
 ## Building a release
 
