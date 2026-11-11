@@ -22,6 +22,43 @@ defmodule Chesstrainer.Themes do
   end
 
   @doc """
+  Lists themes for the admin index with their endgame usage count.
+
+  Options:
+
+    * `:search` - case-insensitive match on the theme name
+    * `:category` - one of `:endgame`, `:opening`, `:tactic`, or blank for all
+
+  Returns `{theme, usage_count}` tuples sorted by name.
+  """
+  def list_themes_for_admin(opts \\ []) do
+    search = opts |> Keyword.get(:search, "") |> to_string() |> String.trim()
+    category = normalize_category(Keyword.get(opts, :category, ""))
+
+    query = from(t in Theme, order_by: [asc: t.name])
+
+    query =
+      if search == "" do
+        query
+      else
+        where(query, [t], ilike(t.name, ^"%#{search}%"))
+      end
+
+    query =
+      if category do
+        where(query, [t], t.category == ^category)
+      else
+        query
+      end
+
+    query
+    |> join(:left, [t], j in "endgames_themes", on: j.theme_id == t.id)
+    |> group_by([t], t.id)
+    |> select([t, j], {t, count(j.endgame_id)})
+    |> Repo.all()
+  end
+
+  @doc """
   Gets a single theme.
 
   Raises `Ecto.NoResultsError` if the Theme does not exist.
@@ -153,4 +190,13 @@ defmodule Chesstrainer.Themes do
   def names(themes) when is_list(themes) do
     themes |> Enum.map(& &1.name) |> Enum.sort()
   end
+
+  defp normalize_category(category) when category in [:endgame, :opening, :tactic],
+    do: category
+
+  defp normalize_category(category) when is_binary(category) do
+    Enum.find([:endgame, :opening, :tactic], &(Atom.to_string(&1) == category))
+  end
+
+  defp normalize_category(_category), do: nil
 end

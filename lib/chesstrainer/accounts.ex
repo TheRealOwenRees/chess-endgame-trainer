@@ -4,10 +4,13 @@ defmodule Chesstrainer.Accounts do
   """
 
   import Ecto.Query, warn: false
+  require Logger
   alias Chesstrainer.Repo
 
-  alias Chesstrainer.Accounts.{User, UserToken, UserNotifier}
+  alias Chesstrainer.Accounts.{Policy, Role, Scope, User, UserToken, UserNotifier}
   alias Chesstrainer.MailingList
+
+  @admin_users_per_page 25
 
   ## Database getters
 
@@ -164,6 +167,308 @@ defmodule Chesstrainer.Accounts do
     |> User.role_changeset(%{role: role})
     |> Repo.update()
   end
+
+  ## Admin user management
+
+  @doc """
+  Returns a page of users the scope may administer, newest first.
+
+  Options:
+
+    * `:search` - case-insensitive match on email or username
+    * `:page` - 1-based page number (defaults to 1)
+    * `:per_page` - page size (defaults to 25, capped at 100)
+
+  Admins only see members and moderators; super admins see every role.
+  Returns `{:error, :unauthorized}` when the scope lacks user management.
+  """
+  def list_users_for_admin(scope, opts \\ []) do
+    with :ok <- ensure_manage_users(scope) do
+      page = normalize_page(Keyword.get(opts, :page, 1))
+      per_page = normalize_per_page(Keyword.get(opts, :per_page, @admin_users_per_page))
+      offset = (page - 1) * per_page
+
+      users =
+        scope
+        |> admin_users_query(opts)
+        |> order_by([u], desc: u.inserted_at, desc: u.id)
+        |> limit(^per_page)
+        |> offset(^offset)
+        |> Repo.all()
+
+      {:ok, users}
+    end
+  end
+
+  @doc """
+  Counts the users visible to the scope, using the same filters as
+  `list_users_for_admin/2`.
+  """
+  def count_users_for_admin(scope, opts \\ []) do
+    with :ok <- ensure_manage_users(scope) do
+      count =
+        scope
+        |> admin_users_query(opts)
+        |> select([u], count(u.id))
+        |> Repo.one()
+
+      {:ok, count}
+    end
+  end
+
+  @doc """
+  Fetches a user for the admin detail page.
+
+  Returns `{:error, :unauthorized}` when the scope may not view the target and
+  `{:error, :not_found}` for an unknown id.
+  """
+  def get_user_for_admin(scope, id) do
+    with :ok <- ensure_manage_users(scope) do
+      case fetch_user(id) do
+        nil ->
+          {:error, :not_found}
+
+        %User{} = user ->
+          if Policy.can_view_user?(scope, user) do
+            {:ok, user}
+          else
+            {:error, :unauthorized}
+          end
+      end
+    end
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for the admin-editable fields (role and plan).
+  """
+  def change_user_as_admin(%User{} = user, attrs \\ %{}) do
+    User.admin_changeset(user, attrs)
+  end
+
+  @doc """
+  Updates a user's role and plan after enforcing the admin capability matrix.
+
+  The last-super-admin check runs inside the update transaction with a row lock,
+  so concurrent demotions cannot remove the final super admin.
+
+  Returns `{:error, :unauthorized}`, `{:error, :own_role}`,
+  `{:error, :last_super_admin}` or `{:error, %Ecto.Changeset{}}` instead of
+  raising.
+  """
+  def update_user_as_admin(scope, %User{} = user, attrs) do
+    changeset = User.admin_changeset(user, attrs)
+    role_change = Ecto.Changeset.get_change(changeset, :role)
+
+    with :ok <- ensure_manage_users(scope),
+         :ok <- ensure_not_own_role_change(scope, user, role_change),
+         :ok <- ensure_can_manage_user(scope, user),
+         :ok <- ensure_can_assign_role(scope, role_change),
+         {:ok, updated} <- persist_user_changes(user, changeset) do
+      log_user_update(scope, user, changeset)
+      {:ok, updated}
+    end
+  end
+
+  @doc """
+  Creates an invitation and emails the recipient a link to choose a password.
+
+  The account is confirmed but has no password until the invitee follows the
+  link. `invite_url_fun` receives the encoded token and must return a URL.
+  """
+  def invite_user_as_admin(scope, attrs, invite_url_fun)
+      when is_function(invite_url_fun, 1) do
+    role = normalize_role(role_param(attrs) || :member)
+
+    with :ok <- ensure_manage_users(scope),
+         :ok <- ensure_can_assign_role(scope, role) do
+      changeset =
+        %User{}
+        |> User.invite_changeset(attrs)
+        |> User.admin_changeset(attrs)
+
+      case Repo.insert(changeset) do
+        {:ok, user} ->
+          Logger.info("admin.user.invited",
+            actor_id: scope.user.id,
+            target_id: user.id,
+            fields: [:invite]
+          )
+
+          case deliver_invite_instructions(user, invite_url_fun) do
+            {:ok, _email} -> {:ok, user}
+            {:error, reason} -> {:error, reason}
+          end
+
+        {:error, changeset} ->
+          {:error, changeset}
+      end
+    end
+  end
+
+  @doc """
+  Sends a password-reset email on behalf of an administrator.
+
+  Uses the same policy as the editable user screen: an admin cannot trigger a
+  reset for another admin or a super admin.
+  """
+  def send_user_reset_password_instructions_as_admin(scope, %User{} = user, reset_url_fun)
+      when is_function(reset_url_fun, 1) do
+    with :ok <- ensure_manage_users(scope),
+         :ok <- ensure_can_manage_user(scope, user) do
+      case deliver_user_reset_password_instructions(user, reset_url_fun) do
+        {:ok, email} ->
+          Logger.info("admin.user.password_reset_sent",
+            actor_id: scope.user.id,
+            target_id: user.id
+          )
+
+          {:ok, email}
+
+        error ->
+          error
+      end
+    end
+  end
+
+  @doc """
+  Resends the account-confirmation email on behalf of an administrator.
+  """
+  def resend_user_confirmation_instructions_as_admin(scope, %User{} = user, confirmation_url_fun)
+      when is_function(confirmation_url_fun, 1) do
+    with :ok <- ensure_manage_users(scope),
+         :ok <- ensure_can_manage_user(scope, user) do
+      case deliver_user_confirmation_instructions(user, confirmation_url_fun) do
+        {:ok, email} ->
+          Logger.info("admin.user.confirmation_resent",
+            actor_id: scope.user.id,
+            target_id: user.id
+          )
+
+          {:ok, email}
+
+        error ->
+          error
+      end
+    end
+  end
+
+  defp admin_users_query(scope, opts) do
+    roles = Policy.visible_roles(scope)
+    search = opts |> Keyword.get(:search, "") |> to_string() |> String.trim()
+
+    query = from(u in User, where: u.role in ^roles)
+
+    if search == "" do
+      query
+    else
+      pattern = "%#{search}%"
+
+      where(
+        query,
+        [u],
+        ilike(u.email, ^pattern) or ilike(u.username, ^pattern)
+      )
+    end
+  end
+
+  defp persist_user_changes(user, changeset) do
+    Repo.transact(fn ->
+      with :ok <- ensure_not_last_super_admin(user, changeset),
+           {:ok, updated} <- Repo.update(changeset) do
+        {:ok, updated}
+      end
+    end)
+  end
+
+  defp ensure_not_last_super_admin(%User{role: :super_admin}, changeset) do
+    case Ecto.Changeset.get_change(changeset, :role) do
+      role when role in [nil, :super_admin] ->
+        :ok
+
+      _role ->
+        super_admins =
+          Repo.all(from(u in User, where: u.role == :super_admin, lock: "FOR UPDATE"))
+
+        if length(super_admins) <= 1 do
+          {:error, :last_super_admin}
+        else
+          :ok
+        end
+    end
+  end
+
+  defp ensure_not_last_super_admin(_user, _changeset), do: :ok
+
+  defp log_user_update(scope, user, changeset) do
+    fields = changeset.changes |> Map.keys() |> Enum.sort()
+
+    if fields != [] do
+      Logger.info("admin.user.updated",
+        actor_id: scope.user.id,
+        target_id: user.id,
+        fields: fields
+      )
+    end
+  end
+
+  defp deliver_invite_instructions(user, invite_url_fun) do
+    {encoded_token, user_token} = UserToken.build_email_token(user, "reset_password")
+    Repo.insert!(user_token)
+    UserNotifier.deliver_invite_instructions(user, invite_url_fun.(encoded_token))
+  end
+
+  defp ensure_manage_users(scope) do
+    if Policy.can?(scope, :manage_users), do: :ok, else: {:error, :unauthorized}
+  end
+
+  defp ensure_can_manage_user(scope, user) do
+    if Policy.can_manage_user?(scope, user), do: :ok, else: {:error, :unauthorized}
+  end
+
+  defp ensure_can_assign_role(_scope, nil), do: :ok
+
+  defp ensure_can_assign_role(scope, role) do
+    if Policy.can_assign_role?(scope, role), do: :ok, else: {:error, :unauthorized}
+  end
+
+  defp ensure_not_own_role_change(%Scope{user: %User{id: id}}, %User{id: id}, role)
+       when not is_nil(role),
+       do: {:error, :own_role}
+
+  defp ensure_not_own_role_change(_scope, _user, _role), do: :ok
+
+  defp fetch_user(id) do
+    Repo.get(User, id)
+  rescue
+    Ecto.Query.CastError -> nil
+  end
+
+  defp role_param(attrs), do: Map.get(attrs, "role") || Map.get(attrs, :role)
+
+  defp normalize_role(role) do
+    cond do
+      role in Role.values() -> role
+      is_binary(role) -> Enum.find(Role.values(), &(Atom.to_string(&1) == role))
+      true -> nil
+    end
+  end
+
+  defp normalize_page(page) when is_integer(page) and page > 0, do: page
+
+  defp normalize_page(page) when is_binary(page) do
+    case Integer.parse(page) do
+      {number, ""} when number > 0 -> number
+      _ -> 1
+    end
+  end
+
+  defp normalize_page(_page), do: 1
+
+  defp normalize_per_page(per_page) when is_integer(per_page) and per_page > 0 do
+    min(per_page, 100)
+  end
+
+  defp normalize_per_page(_per_page), do: @admin_users_per_page
 
   ## Settings
 

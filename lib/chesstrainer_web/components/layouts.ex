@@ -5,6 +5,7 @@ defmodule ChesstrainerWeb.Layouts do
   """
   use ChesstrainerWeb, :html
 
+  alias Chesstrainer.Accounts.Policy
   alias Chesstrainer.Accounts.Role
   alias Chesstrainer.Accounts.Scope
 
@@ -130,6 +131,42 @@ defmodule ChesstrainerWeb.Layouts do
         </div>
       </nav>
     </header>
+    """
+  end
+
+  @doc """
+  Renders the shared sub-navigation for admin pages.
+
+  Items are filtered by capability, so the same component is safe to render on
+  every admin screen.
+  """
+  attr :current_scope, :map, default: nil
+
+  def admin_nav(assigns) do
+    links =
+      for {capability, label, href} <- [
+            {:manage_endgames, "Endgames", ~p"/admin/endgames"},
+            {:manage_themes, "Themes", ~p"/admin/themes"},
+            {:manage_users, "Users", ~p"/admin/users"}
+          ],
+          Policy.can?(assigns.current_scope, capability),
+          do: %{label: label, href: href}
+
+    assigns = assign(assigns, :links, links)
+
+    ~H"""
+    <nav
+      aria-label="Admin"
+      class="mb-6 flex flex-wrap items-center gap-1 border-b border-base-200 pb-3 text-sm font-semibold"
+    >
+      <.link
+        :for={link <- @links}
+        navigate={link.href}
+        class="rounded-md px-3 py-1.5 text-base-content/70 hover:bg-base-200 hover:text-base-content"
+      >
+        {link.label}
+      </.link>
+    </nav>
     """
   end
 

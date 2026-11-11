@@ -39,6 +39,31 @@ defmodule Chesstrainer.Accounts.UserNotifier do
   end
 
   @doc """
+  Deliver an invitation to choose a password.
+
+  Admins create the account without a password; the invitation link uses the
+  same reset-password token flow so the recipient can set one.
+  """
+  def deliver_invite_instructions(user, url) do
+    deliver(user.email, "You're invited to #{Branding.name()}", """
+
+    ==============================
+
+    Hi #{user.username},
+
+    An administrator has created an account for you on #{Branding.name()}.
+
+    Choose your password by visiting the URL below:
+
+    #{url}
+
+    If you weren't expecting this invitation, please ignore this email.
+
+    ==============================
+    """)
+  end
+
+  @doc """
   Deliver instructions to reset a user password.
   """
   def deliver_reset_password_instructions(user, url) do

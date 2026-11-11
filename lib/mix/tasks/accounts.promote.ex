@@ -11,7 +11,8 @@ defmodule Mix.Tasks.Accounts.Promote do
   Roles, from least to most authority: `member`, `moderator`, `admin`,
   `super_admin`.
 
-  Role changes are deliberately CLI-only for now; there is no admin UI.
+  This task remains the CLI fallback for bootstrapping a role. Once an admin
+  exists, roles and plans can also be managed at `/admin/users`.
   """
 
   @impl Mix.Task

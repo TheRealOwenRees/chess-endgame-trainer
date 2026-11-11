@@ -6,6 +6,8 @@ defmodule Chesstrainer.Accounts.Role do
   should ask for the minimum tier they need via `at_least?/2`.
   """
 
+  @type value :: :member | :moderator | :admin | :super_admin
+
   @values [:member, :moderator, :admin, :super_admin]
 
   @ranks %{

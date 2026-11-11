@@ -43,7 +43,7 @@ defmodule ChesstrainerWeb.Router do
   scope "/admin", ChesstrainerWeb do
     pipe_through [:browser, :noindex, :require_admin_user]
 
-    live_session :endgames,
+    live_session :admin,
       on_mount: [
         {ChesstrainerWeb.UserAuth, :enforce_prelaunch},
         {ChesstrainerWeb.UserAuth, :require_admin}
@@ -52,6 +52,14 @@ defmodule ChesstrainerWeb.Router do
       live "/endgames/new", EndgameLive.Form, :new
       live "/endgames/:id", EndgameLive.Show, :show
       live "/endgames/:id/edit", EndgameLive.Form, :edit
+
+      live "/themes", Admin.ThemeLive.Index, :index
+      live "/themes/new", Admin.ThemeLive.Form, :new
+      live "/themes/:id/edit", Admin.ThemeLive.Form, :edit
+
+      live "/users", Admin.UserLive.Index, :index
+      live "/users/new", Admin.UserLive.New, :new
+      live "/users/:id", Admin.UserLive.Show, :show
     end
   end
 
