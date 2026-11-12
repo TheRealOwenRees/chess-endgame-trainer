@@ -219,6 +219,7 @@ defmodule ChesstrainerWeb.UserAuth do
     ChesstrainerWeb.EndgameLive.Index,
     ChesstrainerWeb.EndgameLive.Form,
     ChesstrainerWeb.EndgameLive.Show,
+    ChesstrainerWeb.EndgameLive.Import,
     ChesstrainerWeb.Admin.ThemeLive.Index,
     ChesstrainerWeb.Admin.ThemeLive.Form,
     ChesstrainerWeb.Admin.UserLive.Index,

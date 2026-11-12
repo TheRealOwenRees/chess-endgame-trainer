@@ -62,6 +62,18 @@ defmodule ChesstrainerWeb.Plugs.PrelaunchTest do
     assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
   end
 
+  test "allows the admin bulk import page", %{conn: conn} do
+    admin =
+      user_fixture()
+      |> Ecto.Changeset.change(role: :admin)
+      |> Repo.update!()
+
+    conn = log_in_user(conn, admin)
+
+    assert {:ok, _view, html} = live(conn, ~p"/admin/endgames/import")
+    assert html =~ "Import endgames"
+  end
+
   test "redirects registration and unknown pages", %{conn: conn} do
     assert conn |> get(~p"/users/register") |> redirected_to() == "/"
     assert conn |> get("/definitely-not-a-page") |> redirected_to() == "/"
