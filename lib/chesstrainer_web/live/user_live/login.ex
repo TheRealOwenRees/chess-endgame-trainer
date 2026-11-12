@@ -7,18 +7,20 @@ defmodule ChesstrainerWeb.UserLive.Login do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div class="mx-auto max-w-sm space-y-4">
         <div class="text-center">
-          <h1 class="settings-header">Log in</h1>
-          <%= if @current_scope do %>
-            You need to reauthenticate to perform sensitive actions on your account.
-          <% else %>
-            <p :if={!@prelaunch} class="settings-subtitle my-4">
-              Don't have an account? <.link
-                navigate={~p"/users/register"}
-                class="font-semibold text-primary-text hover:underline"
-                phx-no-format
-              >Sign up</.link> for an account now.
-            </p>
-          <% end %>
+          <.header>
+            Log in
+            <:subtitle :if={@current_scope || !@prelaunch}>
+              <%= if @current_scope do %>
+                You need to reauthenticate to perform sensitive actions on your account.
+              <% else %>
+                Don't have an account? <.link
+                  navigate={~p"/users/register"}
+                  class="font-semibold text-primary-text hover:underline"
+                  phx-no-format
+                >Sign up</.link> for an account now.
+              <% end %>
+            </:subtitle>
+          </.header>
         </div>
 
         <.form

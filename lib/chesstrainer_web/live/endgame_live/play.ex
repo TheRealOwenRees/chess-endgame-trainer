@@ -63,6 +63,8 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         move_input_error={@move_input_error}
         last_check={@last_check}
         last_checkmate={@last_checkmate}
+        rating={@user_rating}
+        rating_delta={@last_rating_delta}
       />
 
       <div :if={@user_rating} class="mb-4">

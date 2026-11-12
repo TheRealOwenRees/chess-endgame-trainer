@@ -149,6 +149,11 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert assigns.last_rating_delta > 0
       assert assigns.user_rating > 1500.0
       assert assigns.user_deviation < 350.0
+
+      assert has_element?(view, "#session-rating")
+      assert has_element?(view, "#session-rating-change")
+      assert has_element?(view, "#rating-change")
+      assert render(view) =~ "Your rating is now"
     end
 
     test "loads a different puzzle on next", %{conn: conn} do
@@ -205,6 +210,7 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert last.count == 1
       assert is_float(last.gain)
       assert last.gain > 0
+      assert last.rating > 1500.0
       assert last.duration_ms >= 0
     end
 

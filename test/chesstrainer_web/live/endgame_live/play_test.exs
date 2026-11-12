@@ -495,6 +495,9 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       })
 
       assert render(view) =~ "Solved!"
+      assert render(view) =~ "Your rating is now"
+      assert has_element?(view, "#your-rating")
+      assert has_element?(view, "#rating-change")
       assert [attempt] = Repo.all(Attempt)
       assert attempt.user_id == user.id
       assert attempt.endgame_id == endgame.id

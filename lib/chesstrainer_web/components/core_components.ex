@@ -65,7 +65,7 @@ defmodule ChesstrainerWeb.CoreComponents do
   attr :id, :string, doc: "the optional id of flash container"
   attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
   attr :title, :string, default: nil
-  attr :kind, :atom, values: [:info, :error], doc: "used for styling and flash lookup"
+  attr :kind, :atom, values: [:info, :success, :error], doc: "used for styling and flash lookup"
   attr :rest, :global, doc: "the arbitrary HTML attributes to add to the flash container"
 
   slot :inner_block, doc: "the optional inner block that renders the flash message"
@@ -86,9 +86,11 @@ defmodule ChesstrainerWeb.CoreComponents do
       <div class={[
         "flex w-full items-start gap-3 rounded-lg border px-4 py-3 text-sm text-wrap shadow-lg",
         @kind == :info && "border-info bg-info text-info-content",
+        @kind == :success && "border-accent bg-accent text-accent-content",
         @kind == :error && "border-error bg-error text-error-content"
       ]}>
         <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
+        <.icon :if={@kind == :success} name="hero-check-circle" class="size-5 shrink-0" />
         <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
         <div>
           <p :if={@title} class="font-semibold">{@title}</p>
@@ -356,10 +358,10 @@ defmodule ChesstrainerWeb.CoreComponents do
     ~H"""
     <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
       <div>
-        <h1 class="text-lg font-semibold leading-8">
+        <h1 class="settings-header">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70 mt-4">
+        <p :if={@subtitle != []} class="settings-subtitle">
           {render_slot(@subtitle)}
         </p>
       </div>

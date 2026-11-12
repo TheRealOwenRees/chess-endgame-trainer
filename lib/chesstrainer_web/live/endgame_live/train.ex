@@ -65,17 +65,14 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
             <span class="text-muted">Avg/puzzle</span>
             <span class="font-mono">{format_duration(avg_ms(@session))}</span>
           </span>
-          <span>
+          <span class="flex items-center gap-2">
             <span class="text-muted">Rating</span>
-            <span class={["font-mono", gain_class(net_gain(@session, @user_rating))]}>
-              {format_delta(net_gain(@session, @user_rating))}
-            </span>
-          </span>
-          <span :if={@last_rating_delta}>
-            <span class="text-muted">Last</span>
-            <span class={["font-mono", gain_class(@last_rating_delta)]}>
-              {format_delta(@last_rating_delta)}
-            </span>
+            <span id="session-rating" class="font-mono font-semibold">{round(@user_rating)}</span>
+            <.rating_change
+              :if={@session.count > 0}
+              id="session-rating-change"
+              delta={net_gain(@session, @user_rating)}
+            />
           </span>
         </div>
 
@@ -99,6 +96,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
           move_input_error={@move_input_error}
           last_check={@last_check}
           last_checkmate={@last_checkmate}
+          rating={@user_rating}
+          rating_delta={@last_rating_delta}
         />
       <% else %>
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -126,11 +125,13 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
                   <span class="text-muted">Avg/puzzle</span>
                   <span class="font-mono">{format_duration(@last_session.avg_ms)}</span>
                 </span>
-                <span>
+                <span class="flex items-center gap-2">
                   <span class="text-muted">Rating</span>
-                  <span class={["font-mono", gain_class(@last_session.gain)]}>
-                    {format_delta(@last_session.gain)}
-                  </span>
+                  <span class="font-mono font-semibold">{round(@last_session.rating)}</span>
+                  <.rating_change
+                    :if={@last_session.count > 0}
+                    delta={@last_session.gain}
+                  />
                 </span>
               </div>
             </div>
@@ -333,7 +334,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
       duration_ms: elapsed_ms(session),
       count: session.count,
       avg_ms: avg_ms(session),
-      gain: net_gain(session, rating)
+      gain: net_gain(session, rating),
+      rating: rating
     }
   end
 
@@ -373,19 +375,4 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
     seconds = String.pad_leading(Integer.to_string(rem(total, 60)), 2, "0")
     "#{minutes}:#{seconds}"
   end
-
-  defp format_delta(nil), do: "—"
-
-  defp format_delta(delta) when is_number(delta) do
-    rounded = round(delta)
-
-    cond do
-      rounded > 0 -> "+#{rounded}"
-      true -> Integer.to_string(rounded)
-    end
-  end
-
-  defp gain_class(delta) when is_number(delta) and delta > 0, do: "text-success-text"
-  defp gain_class(delta) when is_number(delta) and delta < 0, do: "text-error-text"
-  defp gain_class(_delta), do: "text-muted"
 end

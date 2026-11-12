@@ -19,6 +19,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Ratings
+  alias ChesstrainerWeb.RatingComponents
 
   @uci_pattern ~r/^[a-h][1-8][a-h][1-8][qrbn]?$/
 
@@ -517,6 +518,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
             |> assign(:user_rating, user.rating)
             |> assign(:user_deviation, user.rating_deviation)
             |> assign(:last_rating_delta, delta)
+            |> put_rating_flash(outcome, user.rating, delta)
 
           {:skipped, _attempt} ->
             socket
@@ -530,6 +532,24 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
       _ ->
         assign(socket, :last_rating_delta, nil)
     end
+  end
+
+  # A finished rating change is shown as a flash so the player sees it
+  # immediately, whether they are in a session or playing a single endgame.
+  defp put_rating_flash(socket, outcome, rating, delta) do
+    kind = if outcome == :solved, do: :success, else: :error
+    put_flash(socket, kind, rating_change_message(socket, outcome, rating, delta))
+  end
+
+  defp rating_change_message(socket, :solved, rating, delta) do
+    result = if socket.assigns.endgame.result == :draw, do: "Draw held", else: "Solved"
+
+    "#{result}! Your rating is now #{round(rating)} " <>
+      "(#{RatingComponents.format_delta(delta)})."
+  end
+
+  defp rating_change_message(_socket, :failed, rating, delta) do
+    "Failed. Your rating is now #{round(rating)} (#{RatingComponents.format_delta(delta)})."
   end
 
   defp user_rating(%{user: %{rating: rating}}), do: rating
