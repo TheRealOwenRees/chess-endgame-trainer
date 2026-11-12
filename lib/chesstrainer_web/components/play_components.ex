@@ -30,6 +30,8 @@ defmodule ChesstrainerWeb.PlayComponents do
   attr :move_input_error, :string, default: nil
   attr :last_check, :boolean, default: false
   attr :last_checkmate, :boolean, default: false
+  attr :rating, :any, default: nil
+  attr :rating_delta, :any, default: nil
 
   def play_surface(assigns) do
     assigns =
@@ -250,9 +252,17 @@ defmodule ChesstrainerWeb.PlayComponents do
                   <p class="text-muted font-bold">Make a move.</p>
                   <p class="text-muted">You play {colour_name(@endgame.color)}</p>
               <% end %>
-              <p :if={@status in [:solved, :failed]} class="mt-1 text-xs text-muted">
-                Puzzle rating: {round(@endgame.rating)}
-              </p>
+              <div
+                :if={@status in [:solved, :failed]}
+                class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+              >
+                <span class="text-muted">Puzzle rating: {round(@endgame.rating)}</span>
+                <span :if={@rating} id="your-rating" class="flex items-center gap-1.5 text-muted">
+                  Your rating
+                  <span class="font-mono font-semibold text-base-content">{round(@rating)}</span>
+                  <.rating_change :if={@rating_delta} id="rating-change" delta={@rating_delta} />
+                </span>
+              </div>
             </div>
 
             <div

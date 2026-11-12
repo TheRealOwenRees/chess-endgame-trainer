@@ -10,6 +10,8 @@ defmodule ChesstrainerWeb.RatingComponents do
 
   use Phoenix.Component
 
+  import ChesstrainerWeb.CoreComponents, only: [icon: 1]
+
   # Glicko ratings are conventionally shown on a 0–3000 scale. The default
   # rating is 1500 and the deviation is capped at 350, so 500–3000 keeps the
   # useful range readable without letting a stray value push the marker off.
@@ -77,6 +79,56 @@ defmodule ChesstrainerWeb.RatingComponents do
     </section>
     """
   end
+
+  @doc """
+  Renders a signed rating change as a compact, colour-coded pill.
+
+  A gain is green with an upward trend, a loss is red with a downward trend,
+  and no change is neutral.
+  """
+  attr :delta, :any, required: true
+  attr :id, :string, default: nil
+  attr :class, :any, default: nil
+
+  def rating_change(assigns) do
+    ~H"""
+    <span
+      id={@id}
+      class={[
+        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-mono text-xs font-semibold",
+        change_class(@delta),
+        @class
+      ]}
+    >
+      <.icon name={change_icon(@delta)} class="size-3.5" />
+      {format_delta(@delta)}
+    </span>
+    """
+  end
+
+  @doc "Formats a rating change with an explicit sign, e.g. `+12`, `-8` or `0`."
+  def format_delta(nil), do: "—"
+
+  def format_delta(delta) when is_number(delta) do
+    rounded = round(delta)
+
+    cond do
+      rounded > 0 -> "+#{rounded}"
+      true -> Integer.to_string(rounded)
+    end
+  end
+
+  defp change_class(delta) when is_number(delta) and delta > 0,
+    do: "bg-success/15 text-success-text"
+
+  defp change_class(delta) when is_number(delta) and delta < 0,
+    do: "bg-error/15 text-error-text"
+
+  defp change_class(_delta), do: "bg-base-200 text-muted"
+
+  defp change_icon(delta) when is_number(delta) and delta > 0, do: "hero-arrow-trending-up"
+  defp change_icon(delta) when is_number(delta) and delta < 0, do: "hero-arrow-trending-down"
+  defp change_icon(_delta), do: "hero-minus"
 
   # Position on the gauge as a percentage, clamped to the drawn scale.
   defp pct(value) do
