@@ -21,13 +21,6 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
         <:subtitle>Use this form to manage endgame records in your database.</:subtitle>
       </.header>
 
-      <.theme_picker
-        selected_themes={@selected_themes}
-        theme_query={@theme_query}
-        theme_results={@theme_results}
-        can_create={@can_create}
-      />
-
       <.form for={@form} id="endgame-form" phx-change="validate" phx-submit="save">
         <div class="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div class="min-w-0 flex-1">
@@ -38,6 +31,13 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
               type="number"
               value={rating_display(@form[:rating])}
               label="Rating"
+            />
+
+            <.theme_picker
+              selected_themes={@selected_themes}
+              theme_query={@theme_query}
+              theme_results={@theme_results}
+              can_create={@can_create}
             />
 
             <.input field={@form[:message]} type="textarea" label="Message" />
