@@ -8,6 +8,7 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
   alias Chesstrainer.Endgames.Endgame
 
   import ChesstrainerWeb.Board.BoardComponent
+  import ChesstrainerWeb.ThemePicker
 
   @impl true
   def render(assigns) do
@@ -20,62 +21,6 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
         <:subtitle>Use this form to manage endgame records in your database.</:subtitle>
       </.header>
 
-      <div class="mb-6">
-        <span class="mb-1 block text-sm font-medium text-base-content">Themes</span>
-
-        <div class="flex flex-wrap gap-2 mb-2">
-          <.badge :for={theme <- @selected_themes} color="primary">
-            {theme.name}
-            <button
-              type="button"
-              phx-click="remove_theme"
-              phx-value-id={theme.id}
-              aria-label={"Remove #{theme.name}"}
-            >
-              ×
-            </button>
-          </.badge>
-        </div>
-
-        <form
-          id="theme-form"
-          phx-change="search_themes"
-          phx-submit="create_theme_from_search"
-        >
-          <.input
-            name="theme_search"
-            value={@theme_query}
-            phx-debounce="200"
-            autocomplete="off"
-            placeholder="Search or create a theme…"
-          />
-
-          <ul>
-            <li :for={theme <- @theme_results}>
-              <button
-                type="button"
-                phx-click="add_theme"
-                phx-value-id={theme.id}
-                class="block w-full rounded px-3 py-2 text-left text-sm hover:bg-base-200"
-              >
-                {theme.name}
-              </button>
-            </li>
-
-            <li :if={@can_create}>
-              <button
-                type="button"
-                phx-click="create_theme"
-                phx-value-name={@theme_query}
-                class="block w-full rounded px-3 py-2 text-left text-sm hover:bg-base-200"
-              >
-                Create theme "{String.trim(@theme_query)}"
-              </button>
-            </li>
-          </ul>
-        </form>
-      </div>
-
       <.form for={@form} id="endgame-form" phx-change="validate" phx-submit="save">
         <div class="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div class="min-w-0 flex-1">
@@ -87,6 +32,14 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
               value={rating_display(@form[:rating])}
               label="Rating"
             />
+
+            <.theme_picker
+              selected_themes={@selected_themes}
+              theme_query={@theme_query}
+              theme_results={@theme_results}
+              can_create={@can_create}
+            />
+
             <.input field={@form[:message]} type="textarea" label="Message" />
             <.input field={@form[:notes]} type="textarea" label="Notes" />
             <.input
@@ -228,46 +181,6 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset))}
-    end
-  end
-
-  defp assign_search(socket, query) do
-    trimmed = String.trim(query)
-    results = Themes.search(query, "endgame")
-
-    can_create =
-      trimmed != "" and
-        not Enum.any?(results, &(String.downcase(&1.name) == String.downcase(trimmed)))
-
-    socket
-    |> assign(:theme_query, query)
-    |> assign(:theme_results, results)
-    |> assign(:can_create, can_create)
-  end
-
-  defp create_theme(socket, name) do
-    if String.trim(name) == "" do
-      socket
-    else
-      case Themes.get_or_create(name, "endgame") do
-        {:ok, theme} -> socket |> add_selected_theme(theme) |> clear_search()
-        {:error, _reason} -> put_flash(socket, :error, "Could not create that theme.")
-      end
-    end
-  end
-
-  defp clear_search(socket) do
-    socket
-    |> assign(:theme_query, "")
-    |> assign(:theme_results, [])
-    |> assign(:can_create, false)
-  end
-
-  defp add_selected_theme(socket, theme) do
-    if Enum.any?(socket.assigns.selected_themes, &(&1.id == theme.id)) do
-      socket
-    else
-      assign(socket, :selected_themes, socket.assigns.selected_themes ++ [theme])
     end
   end
 
