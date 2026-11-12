@@ -2,6 +2,8 @@ defmodule Chesstrainer.Themes.Theme do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{}
+
   schema "themes" do
     field :name, :string
     field :category, Ecto.Enum, values: [endgame: "endgame", opening: "opening", tactic: "tactic"]

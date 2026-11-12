@@ -90,10 +90,15 @@ defmodule Chesstrainer.Endgames.Endgame do
 
   defp normalize_attrs(attrs), do: attrs
 
-  # Strict structural validation. Mirrors chess.js rules so the FEN survives
-  # both the server-side parser (Chex, permissive) and the client-side parser
-  # (chess.js, strict).
-  defp fen_issues(fen) do
+  @doc """
+  Returns the structural problems with a FEN, or `[]` when it is well formed.
+
+  Strict structural validation. Mirrors chess.js rules so the FEN survives
+  both the server-side parser (Chex, permissive) and the client-side parser
+  (chess.js, strict). Used by the admin bulk importer to explain why a line
+  was rejected.
+  """
+  def fen_issues(fen) do
     case String.split(fen, " ") do
       [board, active, _castling, _en_passant, halfmove, fullmove] ->
         board_valid? = valid_board?(board)

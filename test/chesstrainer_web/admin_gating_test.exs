@@ -46,7 +46,8 @@ defmodule ChesstrainerWeb.AdminGatingTest do
             ~p"/admin/themes",
             ~p"/admin/themes/new",
             ~p"/admin/users",
-            ~p"/admin/users/new"
+            ~p"/admin/users/new",
+            ~p"/admin/endgames/import"
           ] do
         assert redirected_to(get(conn, path)) == ~p"/"
       end

@@ -18,6 +18,7 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.Fathom do
   alias Chesstrainer.Endgames.Tablebase.Local
   alias Chesstrainer.Endgames.Tablebase.Move
   alias Chesstrainer.Endgames.Tablebase.San
+  alias Chesstrainer.FEN
 
   @impl true
   def probe(fen) do
@@ -29,6 +30,53 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.Fathom do
       end
     else
       _ -> fallback(fen)
+    end
+  end
+
+  @doc """
+  Probes the local tablebase without the remote fallback and returns only the
+  position's result.
+
+  Used by the admin bulk importer, which must never import a result from
+  Lichess. The result is from the side-to-move's perspective, matching the
+  `category` on `Chesstrainer.Endgames.Tablebase`.
+
+  Returns `{:error, :terminal}` for checkmate, stalemate, and positions with no
+  legal moves, because they cannot be played as puzzles.
+  """
+  @spec probe_result_local(String.t()) ::
+          {:ok, Tablebase.result()}
+          | {:error, :not_configured | :illegal | :terminal | :unsupported}
+  def probe_result_local(fen) do
+    with {:ok, largest} <- Local.check(),
+         pieces when is_integer(pieces) <- FEN.piece_count(fen),
+         true <- pieces <= largest || {:error, :unsupported},
+         {:ok, {root, moves}} <- Nif.probe(fen) do
+      case root do
+        :failed ->
+          {:error, :illegal}
+
+        :checkmate ->
+          {:error, :terminal}
+
+        :stalemate ->
+          {:error, :terminal}
+
+        {wdl, _from, _to, _promotes, _ep, _dtz} ->
+          if moves == [] do
+            {:error, :terminal}
+          else
+            case Tablebase.normalize_wdl(wdl) do
+              :unknown -> {:error, :unsupported}
+              category -> {:ok, category}
+            end
+          end
+      end
+    else
+      {:error, :not_configured} = error -> error
+      {:error, :unsupported} = error -> error
+      {:error, _reason} -> {:error, :unsupported}
+      nil -> {:error, :unsupported}
     end
   end
 

@@ -21,6 +21,13 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
         <:subtitle>Use this form to manage endgame records in your database.</:subtitle>
       </.header>
 
+      <.theme_picker
+        selected_themes={@selected_themes}
+        theme_query={@theme_query}
+        theme_results={@theme_results}
+        can_create={@can_create}
+      />
+
       <.form for={@form} id="endgame-form" phx-change="validate" phx-submit="save">
         <div class="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div class="min-w-0 flex-1">
@@ -31,13 +38,6 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
               type="number"
               value={rating_display(@form[:rating])}
               label="Rating"
-            />
-
-            <.theme_picker
-              selected_themes={@selected_themes}
-              theme_query={@theme_query}
-              theme_results={@theme_results}
-              can_create={@can_create}
             />
 
             <.input field={@form[:message]} type="textarea" label="Message" />
@@ -193,13 +193,8 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
   # Shows the position as the admin types a FEN; hidden while the FEN is invalid or blank.
   # Parses directly rather than through Game.game_from_fen/2 so keystrokes never probe a tablebase.
   defp preview_game(fen) when is_binary(fen) do
-    case Chex.Parser.FEN.parse(fen) do
-      {:ok, game} ->
-        %{board: game.board, orientation: game.active_color, move_from_square: nil}
-
-      _ ->
-        nil
-    end
+    {:ok, game} = Chex.Parser.FEN.parse(fen)
+    %{board: game.board, orientation: game.active_color, move_from_square: nil}
   rescue
     MatchError -> nil
   end
