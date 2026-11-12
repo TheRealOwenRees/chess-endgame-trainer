@@ -50,6 +50,7 @@ defmodule ChesstrainerWeb.Router do
       ] do
       live "/endgames", EndgameLive.Index, :index
       live "/endgames/new", EndgameLive.Form, :new
+      live "/endgames/import", EndgameLive.Import, :new
       live "/endgames/:id", EndgameLive.Show, :show
       live "/endgames/:id/edit", EndgameLive.Form, :edit
 

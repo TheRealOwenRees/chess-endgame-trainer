@@ -12,6 +12,7 @@ defmodule Chesstrainer.Endgames.Tablebase do
   """
 
   alias Chesstrainer.Endgames.Tablebase
+  alias Chesstrainer.Endgames.Tablebase.Backend.Fathom, as: FathomBackend
   alias Chesstrainer.FEN
 
   @type result :: :win | :draw | :loss | :unknown
@@ -66,6 +67,19 @@ defmodule Chesstrainer.Endgames.Tablebase do
   def flip(:loss), do: :win
   def flip(:draw), do: :draw
   def flip(_outcome), do: :unknown
+
+  @doc """
+  Probes a FEN using only the local Syzygy tablebase and returns the result
+  from the side-to-move's perspective.
+
+  Unlike `new/1` this never falls back to the remote backend and never reads or
+  writes the cache. It is the primitive behind the admin bulk importer, so an
+  imported result always comes from our own tablebases.
+  """
+  @spec probe_local_result(String.t()) ::
+          {:ok, result()}
+          | {:error, :not_configured | :illegal | :terminal | :unsupported}
+  def probe_local_result(fen), do: FathomBackend.probe_result_local(fen)
 
   @spec new(String.t()) ::
           {:ok, t()}

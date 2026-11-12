@@ -14,6 +14,9 @@ defmodule ChesstrainerWeb.EndgameLive.Index do
       <.header>
         Listing Endgames
         <:actions>
+          <.button navigate={~p"/admin/endgames/import"}>
+            <.icon name="hero-arrow-up-tray" /> Bulk import
+          </.button>
           <.button variant="primary" navigate={~p"/admin/endgames/new"}>
             <.icon name="hero-plus" /> New Endgame
           </.button>
