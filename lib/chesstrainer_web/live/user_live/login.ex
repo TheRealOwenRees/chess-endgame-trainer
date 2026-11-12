@@ -9,7 +9,7 @@ defmodule ChesstrainerWeb.UserLive.Login do
         <div class="text-center">
           <.header>
             Log in
-            <:subtitle>
+            <:subtitle :if={@current_scope || !@prelaunch}>
               <%= if @current_scope do %>
                 You need to reauthenticate to perform sensitive actions on your account.
               <% else %>
