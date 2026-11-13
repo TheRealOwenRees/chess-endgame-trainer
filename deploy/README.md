@@ -566,9 +566,9 @@ receive `403 Access Denied`.
 Do not let a deploy overwrite the shared Caddyfile.
 
 See `docs/security.md` for the application throttle, real-IP setup and the
-Cloudflare edge controls. Production currently has Bot Fight Mode enabled and
-the free-plan login flood rule: 10 POSTs per 10 seconds per IP, blocked for 10
-seconds.
+Cloudflare edge controls. Production currently has Bot Fight Mode off (see
+#153) and the free-plan login flood rule: 10 POSTs per 10 seconds per IP,
+blocked for 10 seconds.
 
 ## Building a release
 
@@ -887,6 +887,11 @@ sudo install -m 0644 \
 sudo systemctl daemon-reload
 sudo systemctl enable --now chesstrainer-probe.timer
 ```
+
+The timer runs the installed `/usr/local/sbin/chesstrainer-probe`, not the copy
+under `/opt/chesstrainer/src`, because that tree belongs to the application
+user. When `deploy/probe` changes, install it to both places so the timer and
+the repo agree.
 
 Verify:
 

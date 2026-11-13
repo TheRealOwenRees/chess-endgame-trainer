@@ -11,7 +11,8 @@ addresses and would ban Cloudflare edge addresses on this deployment.
   `CF-Connecting-IP` as `X-Forwarded-For`. The ranges are refreshed hourly by
   `chesstrainer-cloudflare-ranges.timer`.
 - `TRUST_FORWARDED_FOR=true`, so the app throttles by the real visitor address.
-- Cloudflare Bot Fight Mode is enabled.
+- Cloudflare Bot Fight Mode is off. The Caddy origin allowlist above stays in
+  force; re-enabling is tracked in #153.
 - The free-plan login flood rule allows 10 login POSTs per 10 seconds per IP and
   blocks for 10 seconds.
 
@@ -155,10 +156,13 @@ address after ten failures within fifteen minutes. A slow attacker staying under
 10 requests per 10 seconds never gets to make useful guesses because of the app
 throttle.
 
-Bot Fight Mode is enabled as the plan-level bot control. If the plan later gains
-longer rate-limit windows or managed WAF rules, raise the block duration and
-consider a broader site-wide rule, such as 100 requests per 10 seconds per IP
-with a managed challenge. Use Under Attack Mode during an active incident.
+Bot Fight Mode is off. On the free plan it cannot be skipped for CI or for the
+on-box health probe, so a datacenter `curl` gets a 403 while the site itself is
+healthy; #153 covers the gate and probe changes needed before it goes back on.
+If the plan later gains longer rate-limit windows or managed WAF rules, raise
+the block duration and consider a broader site-wide rule, such as 100 requests
+per 10 seconds per IP with a managed challenge. Use Under Attack Mode during an
+active incident.
 
 ### Registration cannot be limited this way
 
