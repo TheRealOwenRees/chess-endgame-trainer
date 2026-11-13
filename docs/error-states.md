@@ -16,7 +16,8 @@ Verdicts:
 status body, a stacktrace, or a raw FEN appearing in rendered HTML.
 
 **Status:** #163 implements T1–T6, S1–S3 and S5. The rows below describe the
-state before that change; #164 records what was verified afterwards.
+state before that change. #164 walked this checklist on a local prod build:
+see [error-states-verification.md](error-states-verification.md).
 
 ## Play and tablebase
 
@@ -84,7 +85,7 @@ state before that change; #164 records what was verified afterwards.
 
 | ID | State | Trigger | What the user sees today | Verdict | Action |
 |---|---|---|---|---|---|
-| X1 | Unknown public play code | `/endgames/:code/play` with a code that does not exist (`play.ex:79`) | `get_endgame_by_public_code!/1` raises → the 500 page | improve | Fetch without the bang and render the 404 page (or redirect to `/endgames` with a flash). A stale link is not a server error. |
+| X1 | Unknown public play code | `/endgames/:code/play` with a code that does not exist (`play.ex:79`) | The styled 404 page: `Ecto.NoResultsError` maps to 404 through `Plug.Exception` | keep | Verified by #164; no change. |
 | X2 | Bulk import lookup crash | `handle_async` exits (`import.ex:271`) | Flash **"Could not look up the FENs: #{inspect(reason)}"** | improve | Generic copy plus a logged reason. Admin-only, but still an internal leak. |
 | X3 | Bulk import tablebase load failure | `Local.check/0` returns an unexpected error (`import.ex:287`) | **"Local tablebase failed to load: #{inspect(reason)}"** | improve | Generic copy plus a logged reason. Admin-only, but still an internal leak. |
 
@@ -146,7 +147,6 @@ Separate changes, each independently testable:
 - **D1** — rescue export errors into a flash on the data tab.
 - **D2** — styled 404 for unknown export formats.
 - **H1** — empty-database call to action.
-- **X1** — 404 instead of 500 for an unknown public code.
 - **X2/X3** — generic admin import copy; log the details.
 
 No code changes are part of this audit.
