@@ -17,7 +17,11 @@ defmodule ChesstrainerWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images favicon.ico)
+  def static_paths do
+    ~w(assets fonts images favicon.ico favicon.svg favicon-16x16.png favicon-32x32.png
+       apple-touch-icon.png android-chrome-192x192.png android-chrome-512x512.png
+       site.webmanifest)
+  end
 
   @doc "Whether the app is gated behind the prelaunch page."
   def prelaunch?, do: Application.get_env(:chesstrainer, :prelaunch, false)

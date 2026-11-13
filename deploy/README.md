@@ -100,6 +100,10 @@ DNS:
 `/etc/chesstrainer/postgres.env` holds the Postgres container credentials,
 also `root:root` and `0600`.
 
+`/etc/chesstrainer/probe.env` holds the public probe's URL and its
+healthchecks.io ping URL, also `root:root` and `0600`. See §Monitoring and
+alerting.
+
 The app runs as the dedicated `chesstrainer` system user. It must own
 `/opt/chesstrainer` so it can write `priv/static/backups`.
 
@@ -752,7 +756,9 @@ curl -i http://127.0.0.1:4100/health
 
 `/health` returns JSON with `status`, `db`, `tablebase`, and `process`.
 It returns 200 for `ok`/`degraded` and 503 for `down`. A missing local tablebase
-reports `degraded` but still 200 because Lichess fallback is available.
+reports `degraded` but still 200 because Lichess fallback is available. See
+§Monitoring and alerting for the public probe that watches it, and for what a
+green check does and does not prove.
 
 ### Reading production logs
 
@@ -799,6 +805,183 @@ Set `Storage=persistent` and a `SystemMaxUse=` value in
 `/etc/systemd/journald.conf` if the distribution does not already. journald
 rate-limits bursts; if a crash storm drops lines, raise `RateLimitBurst` or
 `RateLimitIntervalSec` there.
+
+## Monitoring and alerting
+
+Three checks watch production at three different layers:
+
+| Where | What | Notices | Alerts |
+|---|---|---|---|
+| VPS | `chesstrainer-probe.timer` → `chesstrainer-probe.service` | the user-facing HTTP path: DNS, Cloudflare, Caddy, Phoenix, Postgres | healthchecks.io |
+| VPS | Beszel hub + agent | host liveness, CPU, memory, disk, container restarts and OOM kills | Beszel notifications |
+| VPS | `chesstrainer-backup.timer` heartbeat | whether the nightly dump finished | healthchecks.io (its own check) |
+
+The backup heartbeat is documented in §Backups. The probe and the Beszel gap
+are below.
+
+### On-box prober, off-box alerting
+
+The probe runs on the VPS and curls the **public** hostname, so it crosses the
+same path a visitor does: Cloudflare's DNS and edge, the proxy back to Caddy,
+Caddy's Cloudflare allowlist, the Phoenix router, and one database query.
+
+That is deliberately not `127.0.0.1:4100`. A loopback probe stays green through
+every failure that makes the site unusable: a bad `cloudflare-ranges.caddy`
+reload, a stopped Caddy (`521`), an expired origin certificate (`526`), a
+deleted proxied DNS record, a WAF rule blocking `/health`, or a Cloudflare
+incident. Beszel is green through all of those too, because the host and the
+container are fine.
+
+The trade-off is that the prober shares a host with the app. It cannot report
+that its own host is down, and it cannot prove the view from another network.
+Host death is caught by **silence**: the timer stops, no ping arrives, and
+healthchecks.io — which is off-box — alerts after the grace period. That is the
+whole reason the check-in URL points at a SaaS rather than at another box here.
+Do not describe this as external uptime monitoring.
+
+### The healthchecks.io check
+
+Create the check at healthchecks.io:
+
+- Name `innersquare.app /health`, period **2 minutes**, grace **2 minutes**
+- Integrations: email and Discord (webhook). Use each integration's test
+  notification once, and keep recovery notifications enabled so a resolved
+  incident is visible.
+- Copy the ping URL. It is a secret: anyone who has it can mark the check
+  green. It belongs only in the root-owned env file.
+
+Every check-in carries evidence:
+
+- A healthy run posts the raw `/health` JSON.
+- A tablebase mismatch still posts a **success**, because a Lichess fallback is
+  not an outage. The body carries the expected and actual values, so the
+  mismatch is visible in the check history without alerting anyone.
+- A non-200, a malformed body, a `db` that is not `ok`, or a network/TLS
+  failure posts to `<ping-url>/fail` with a JSON body containing the reason,
+  the HTTP status, the curl exit code, the response body, and a loopback
+  `origin_status`/`origin_body` for comparison. The origin fields are evidence
+  only; the verdict comes from the public request.
+
+A ping that cannot be delivered is a journal warning, not a second verdict:
+the next timer run reports the state again.
+
+### Install the probe
+
+Write the env file, root-owned and `0600`:
+
+```sh
+sudo install -m 600 /dev/null /etc/chesstrainer/probe.env
+sudoedit /etc/chesstrainer/probe.env
+```
+
+Start from `deploy/probe.env.example`. `PROBE_URL` and `HEALTHCHECK_URL` are the
+only required values. Then install the script, the units, and the timer:
+
+```sh
+sudo install -m 0755 /opt/chesstrainer/src/deploy/probe \
+  /usr/local/sbin/chesstrainer-probe
+sudo install -m 0644 \
+  /opt/chesstrainer/src/deploy/chesstrainer-probe.service \
+  /opt/chesstrainer/src/deploy/chesstrainer-probe.timer \
+  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now chesstrainer-probe.timer
+```
+
+Verify:
+
+```sh
+systemctl list-timers chesstrainer-probe.timer
+sudo journalctl -u chesstrainer-probe -n 5 -o cat
+```
+
+Expect a `probe.ok` line every two minutes and a green check within one period.
+Each run prints exactly one JSON line (`probe.ok`, `probe.degraded` or
+`probe.failed`), like the backup script, so #140's log shipping can pick it up.
+
+### What `/health` does and does not mean
+
+`/health` returns `status`, `db`, `tablebase` and `process`. It returns 200 for
+`ok` and `degraded`, and 503 for `down`.
+
+- `db` is one `SELECT 1` through the connection pool. It proves the pool can
+  reach Postgres. It does not prove migrations are current or that writes work.
+- `tablebase` reflects the local Syzygy directory. `fallback` means lookups go
+  to Lichess. `degraded` is 200 because the fallback is usable.
+- `process` is always `"ok"`. It is not independent evidence of liveness.
+
+A green probe therefore means: DNS resolved, Cloudflare served the request,
+Caddy routed it under the Cloudflare allowlist, Phoenix answered, and Postgres
+answered one query. It does not mean background jobs are running, SES accepts
+mail, writes succeed, tablebase lookups are fast, or the site is fast under
+load. Beszel covers resource exhaustion and container restarts; the release
+health check and the logs cover deploy mistakes.
+
+### Beszel's blind spot
+
+Beszel watches the host: agent connection, CPU, memory, disk, container
+restarts, OOM kills. Its hub runs on the same VPS as the agent, so a VPS
+outage or network loss silences it as well — that case is covered by the probe
+check going quiet. More importantly, Beszel never calls `/health`. A Phoenix
+release returning 500s on a healthy host, or Postgres refusing connections
+inside a running container, reads green in Beszel and red in the probe. The two
+are complementary, not redundant.
+
+### Drills
+
+Nothing below touches production data, and the app keeps serving throughout.
+
+`--dry-run` needs no network and no env file. It evaluates the success,
+degraded, fail, non-JSON and unreachable fixtures and sends no check-ins:
+
+```sh
+sudo /usr/local/sbin/chesstrainer-probe --dry-run
+```
+
+A degraded check-in, recorded but never alerting. A value passed on the command
+line wins over the env file:
+
+```sh
+sudo EXPECT_TABLEBASE=not_configured /usr/local/sbin/chesstrainer-probe
+```
+
+Expect exit 0, a green check, and a body showing `tablebase: local` against
+`expected_tablebase: not_configured`. No email and no Discord message.
+
+The one fail ping, and the full alert path. Stop the timer first so the next
+scheduled run cannot mask the result:
+
+```sh
+sudo systemctl stop chesstrainer-probe.timer
+sudo PROBE_URL=https://innersquare.app/health-does-not-exist \
+  /usr/local/sbin/chesstrainer-probe
+```
+
+Expect exit 1, one `probe.failed` line with `http_status: 404`, one fail ping
+whose body shows `origin_status: 200`, one alert in Discord/email, and no
+second fail ping. Then send a real check-in and re-arm:
+
+```sh
+sudo /usr/local/sbin/chesstrainer-probe
+sudo systemctl start chesstrainer-probe.timer
+```
+
+The real run posts a success, and healthchecks.io notifies that the check is
+back up. For the unreachable branch, point the probe at a closed port instead;
+the origin evidence should still show `200`:
+
+```sh
+sudo PROBE_URL=https://127.0.0.1:9/health /usr/local/sbin/chesstrainer-probe
+```
+
+Planned maintenance: stopping the timer is reported as a down check after
+period plus grace, so about four minutes. Pause the check in the healthchecks.io
+UI for the duration, or accept the alert.
+
+The probe reaches the edge as a plain `curl`. If a bot policy or WAF rule ever
+starts rejecting it, the fail body's `origin_status` shows the app itself is
+healthy; that is an edge-policy change, not an application outage. Re-enabling
+Bot Fight Mode is tracked in #153.
 
 ## Interactive shell and user management
 
@@ -1223,5 +1406,7 @@ restore over `chesstrainer_prod` while the application is running.
     globals file.
 12. Workstation age key and pull configuration installed, user timers and linger
     enabled, first pull verified, first drill passes.
-13. Remote shell attaches and exits cleanly:
+13. `/etc/chesstrainer/probe.env` written, probe script and units installed,
+    timer enabled, and the healthchecks.io check green within one period.
+14. Remote shell attaches and exits cleanly:
     `sudo /opt/chesstrainer/current/bin/chesstrainer remote` (Ctrl-C twice).

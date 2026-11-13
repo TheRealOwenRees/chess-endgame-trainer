@@ -84,7 +84,10 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
 
     assert html =~ "max-w-2xl"
 
-    view |> form("#theme-form", %{theme_search: "Luc"}) |> render_change()
+    view
+    |> element("#theme-picker input[name='theme_search']")
+    |> render_change(%{theme_search: "Luc"})
+
     view |> element("button", "Lucena") |> render_click()
 
     view
@@ -109,10 +112,16 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
 
     {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
 
-    view |> form("#theme-form", %{theme_search: "Luc"}) |> render_change()
+    view
+    |> element("#theme-picker input[name='theme_search']")
+    |> render_change(%{theme_search: "Luc"})
+
     view |> element("button", "Lucena") |> render_click()
 
-    view |> form("#theme-form", %{theme_search: "Phil"}) |> render_change()
+    view
+    |> element("#theme-picker input[name='theme_search']")
+    |> render_change(%{theme_search: "Phil"})
+
     view |> element("button", "Philidor") |> render_click()
 
     html = render(view)
@@ -123,7 +132,11 @@ defmodule ChesstrainerWeb.EndgameLive.FormTest do
   test "creates and attaches a new theme inline", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/admin/endgames/new")
 
-    view |> form("#theme-form", %{theme_search: "Lucerne"}) |> render_submit()
+    view
+    |> element("#theme-picker input[name='theme_search']")
+    |> render_change(%{theme_search: "Lucerne"})
+
+    view |> element("button", ~s(Create theme "Lucerne")) |> render_click()
 
     assert render(view) =~ "Lucerne"
     assert [%{name: "Lucerne"}] = Themes.search("Lucerne", "endgame")
