@@ -70,12 +70,12 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
       </section>
 
       <PlayComponents.play_surface
-        :if={@endgame}
+        :if={@endgame && @empty != :exhausted}
         session={is_nil(@limit_reached)}
         endgame={@endgame}
         fen={@fen}
         status={@status}
-        blocked_reason={@blocked_reason}
+        blocked={@blocked}
         best_move={@best_move}
         plies={@plies}
         line={@line}
@@ -94,12 +94,41 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
 
       <p :if={@loading} class="text-base-content/70">Picking a random puzzle…</p>
 
-      <p
-        :if={not @loading and is_nil(@endgame) and is_nil(@limit_reached)}
-        class="text-base-content/70"
+      <section
+        :if={@empty == :exhausted}
+        id="guest-pool-exhausted"
+        class="rounded-xl border border-hairline bg-canvas-raised p-6"
       >
-        No endgames are available yet. Please check back soon.
-      </p>
+        <h2 class="text-lg font-semibold">No more puzzles are available right now</h2>
+        <p class="mt-1 text-sm text-muted">
+          Try again in a moment, or create a free account to train at your level.
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <.button id="retry-pool" phx-click="retry_pool" variant="primary">
+            <.icon name="hero-arrow-path" /> Retry
+          </.button>
+          <.button navigate={~p"/users/register"}>Sign up free</.button>
+          <.button navigate={~p"/users/log-in"}>Log in</.button>
+        </div>
+      </section>
+
+      <section
+        :if={not @loading and is_nil(@endgame) and is_nil(@limit_reached)}
+        id="guest-pool-empty"
+        class="rounded-xl border border-hairline bg-canvas-raised p-6"
+      >
+        <h2 class="text-lg font-semibold">No endgames are available yet</h2>
+        <p class="mt-1 text-sm text-muted">
+          Please check back soon, or create a free account to be ready when they land.
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <.button id="retry-pool" phx-click="retry_pool" variant="primary">
+            <.icon name="hero-arrow-path" /> Retry
+          </.button>
+          <.button navigate={~p"/users/register"}>Sign up free</.button>
+          <.button navigate={~p"/users/log-in"}>Log in</.button>
+        </div>
+      </section>
     </Layouts.app>
     """
   end
@@ -120,6 +149,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
          socket
          |> assign(:loading, true)
          |> assign(:endgame, nil)
+         |> assign(:empty, nil)
          |> assign(:guest_remaining, nil)
          |> assign(:limit_reached, nil)
          |> assign(:guest_address, nil)}
@@ -127,29 +157,14 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
   end
 
   @impl true
-  def handle_event("next_puzzle", _params, socket) do
-    case GuestLimits.take(socket.assigns.guest_address) do
-      {:ok, remaining} ->
-        endgame =
-          Endgames.random_endgame(exclude_ids: [socket.assigns.endgame.id]) ||
-            Endgames.random_endgame()
+  def handle_event("next_puzzle", _params, socket), do: {:noreply, next_puzzle(socket)}
 
-        case endgame do
-          nil ->
-            {:noreply, put_flash(socket, :info, "No more puzzles are available right now.")}
-
-          endgame ->
-            {:noreply,
-             socket
-             |> assign(:guest_remaining, remaining)
-             |> PlayCore.init(endgame, page_title: "Train")}
-        end
-
-      {:limit_reached, retry_ms} ->
-        {:noreply,
-         socket
-         |> assign(:guest_remaining, nil)
-         |> assign(:limit_reached, retry_ms)}
+  def handle_event("retry_pool", _params, socket) do
+    if socket.assigns.empty == :exhausted do
+      {:noreply, next_puzzle(socket)}
+    else
+      {:ok, socket} = take_puzzle(socket, socket.assigns.guest_address)
+      {:noreply, socket}
     end
   end
 
@@ -193,34 +208,73 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
 
   def handle_event("back_to_game", _params, socket), do: PlayCore.back_to_game(socket)
 
-  defp take_puzzle(socket, address) do
-    case GuestLimits.take(address) do
-      {:ok, remaining} ->
-        socket =
-          socket
-          |> assign(:loading, false)
-          |> assign(:guest_address, address)
-          |> assign(:guest_remaining, remaining)
-          |> assign(:limit_reached, nil)
-
-        {:ok, load_random_endgame(socket)}
-
+  defp next_puzzle(socket) do
+    case GuestLimits.remaining(socket.assigns.guest_address) do
       {:limit_reached, retry_ms} ->
-        {:ok,
-         socket
-         |> assign(:loading, false)
-         |> assign(:guest_address, address)
-         |> assign(:guest_remaining, nil)
-         |> assign(:limit_reached, retry_ms)
-         |> assign(:endgame, nil)}
+        socket
+        |> assign(:guest_remaining, nil)
+        |> assign(:empty, nil)
+        |> assign(:limit_reached, retry_ms)
+
+      {:ok, _remaining} ->
+        endgame =
+          Endgames.random_endgame(exclude_ids: [socket.assigns.endgame.id]) ||
+            Endgames.random_endgame()
+
+        case endgame do
+          nil -> assign(socket, :empty, :exhausted)
+          endgame -> start_guest_puzzle(socket, socket.assigns.guest_address, endgame)
+        end
     end
   end
 
-  defp load_random_endgame(socket) do
-    case Endgames.random_endgame() do
-      nil -> assign(socket, :endgame, nil)
-      endgame -> PlayCore.init(socket, endgame, page_title: "Train")
+  defp take_puzzle(socket, address) do
+    case GuestLimits.remaining(address) do
+      {:limit_reached, retry_ms} ->
+        {:ok, limit_wall(socket, address, retry_ms)}
+
+      {:ok, _remaining} ->
+        case Endgames.random_endgame() do
+          nil -> {:ok, empty_pool(socket, address)}
+          endgame -> {:ok, start_guest_puzzle(socket, address, endgame)}
+        end
     end
+  end
+
+  defp start_guest_puzzle(socket, address, endgame) do
+    case GuestLimits.take(address) do
+      {:ok, remaining} ->
+        socket
+        |> assign(:loading, false)
+        |> assign(:guest_address, address)
+        |> assign(:guest_remaining, remaining)
+        |> assign(:limit_reached, nil)
+        |> assign(:empty, nil)
+        |> PlayCore.init(endgame, page_title: "Train")
+
+      {:limit_reached, retry_ms} ->
+        limit_wall(socket, address, retry_ms)
+    end
+  end
+
+  defp empty_pool(socket, address) do
+    socket
+    |> assign(:loading, false)
+    |> assign(:guest_address, address)
+    |> assign(:endgame, nil)
+    |> assign(:empty, nil)
+    |> assign(:guest_remaining, nil)
+    |> assign(:limit_reached, nil)
+  end
+
+  defp limit_wall(socket, address, retry_ms) do
+    socket
+    |> assign(:loading, false)
+    |> assign(:guest_address, address)
+    |> assign(:guest_remaining, nil)
+    |> assign(:limit_reached, retry_ms)
+    |> assign(:endgame, nil)
+    |> assign(:empty, nil)
   end
 
   defp signed_in?(socket) do

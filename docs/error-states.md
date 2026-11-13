@@ -15,6 +15,9 @@ Verdicts:
 "Internal detail" means an exception term, an `inspect/1` result, a raw HTTP
 status body, a stacktrace, or a raw FEN appearing in rendered HTML.
 
+**Status:** #163 implements T1–T6, S1–S3 and S5. The rows below describe the
+state before that change; #164 records what was verified afterwards.
+
 ## Play and tablebase
 
 | ID | State | Trigger | What the user sees today | Verdict | Action |

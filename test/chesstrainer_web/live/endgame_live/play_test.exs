@@ -12,6 +12,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   alias Chesstrainer.FEN
   alias Chesstrainer.Ratelimiters
   alias Chesstrainer.Repo
+  alias ChesstrainerWeb.EndgameLive.PlayCore
 
   defp assert_init_board(view, expected_fen, expected_orientation, expected_player_color) do
     %{proxy: {ref, _topic, _}} = view
@@ -266,10 +267,22 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
       {:ok, view, html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
-      assert html =~ "Tablebase unavailable"
+      assert html =~ "Tablebase cooling down"
+      refute html =~ "inspect("
+      refute html =~ "too_many_requests"
 
       play_move(view, endgame, "d1", "d7", "Qd7+")
       assert render(view) =~ "cannot be graded"
+
+      # Retry re-fetches: with the cache seeded and the cooldown cleared, the
+      # same puzzle becomes playable in one click.
+      seed_tablebase(endgame.fen)
+      Ratelimiters.lichess_reset_cooldown()
+
+      view |> element("#retry-blocked") |> render_click()
+
+      assert :sys.get_state(view.pid).socket.assigns.status == :playing
+      refute render(view) =~ "Tablebase cooling down"
     end
 
     test "blocks an out-of-range endgame as not covered", %{conn: conn} do
@@ -278,8 +291,37 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       html = render(view)
-      assert html =~ "Tablebase unavailable"
-      assert html =~ "not covered by the tablebase"
+      assert html =~ "Position not covered"
+      assert html =~ "can&#39;t be graded"
+      refute has_element?(view, "#retry-blocked")
+      refute html =~ "not_covered"
+      refute html =~ "inspect("
+    end
+
+    @tag capture_log: true
+    test "classifies every failure class without exposing the reason" do
+      cases = [
+        {{:cooldown, 30_000}, :cooldown, true},
+        {{:error, {:too_many_requests, 429, "upstream body"}}, :rate_limited, true},
+        {{:error, {:client_error, 404, "upstream body"}}, :not_covered, false},
+        {{:error, :not_covered}, :not_covered, false},
+        {{:error, :invalid_endgame}, :not_covered, false},
+        {{:error, {:server_error, 500, "upstream body"}}, :unavailable, true},
+        {{:error, :econnrefused}, :unavailable, true}
+      ]
+
+      for {input, kind, retry?} <- cases do
+        blocked = PlayCore.blocked(input)
+
+        assert blocked.kind == kind
+        assert blocked.retry == retry?
+        refute blocked.message =~ "inspect"
+        refute blocked.message =~ "server_error"
+        refute blocked.message =~ "econnrefused"
+        refute blocked.message =~ "upstream"
+        refute blocked.message =~ "500"
+        refute blocked.message =~ "429"
+      end
     end
   end
 
