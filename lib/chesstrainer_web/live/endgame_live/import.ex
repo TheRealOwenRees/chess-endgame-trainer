@@ -8,6 +8,8 @@ defmodule ChesstrainerWeb.EndgameLive.Import do
 
   use ChesstrainerWeb, :live_view
 
+  require Logger
+
   alias Chesstrainer.Endgames.BulkImport
   alias Chesstrainer.Endgames.Tablebase.Local
 
@@ -268,7 +270,14 @@ defmodule ChesstrainerWeb.EndgameLive.Import do
   end
 
   def handle_async(:lookup, {:exit, reason}, socket) do
-    {:noreply, put_flash(socket, :error, "Could not look up the FENs: #{inspect(reason)}")}
+    Logger.error("bulk_import.lookup_failed", reason: inspect(reason))
+
+    {:noreply,
+     put_flash(
+       socket,
+       :error,
+       "The lookup failed. Try again; if it keeps happening, check the server log."
+     )}
   end
 
   defp tablebase_status do
@@ -284,7 +293,8 @@ defmodule ChesstrainerWeb.EndgameLive.Import do
         {:error, "Local tablebase is not configured. Set TABLEBASE_PATH to enable imports."}
 
       {:error, reason} ->
-        {:error, "Local tablebase failed to load: #{inspect(reason)}"}
+        Logger.warning("bulk_import.tablebase_unavailable", reason: inspect(reason))
+        {:error, "The local tablebase failed to load. Check TABLEBASE_PATH and the server log."}
     end
   end
 

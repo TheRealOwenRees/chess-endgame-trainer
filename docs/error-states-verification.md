@@ -1,7 +1,9 @@
 # Error-state verification
 
 The #162 checklist, walked on 2026-11-13 against a local production-like build.
-Failures are filed as #171; this page is linked from the audit.
+Failures were filed as #171 and fixed in the follow-up for that issue; this page
+records the verification run, not the current state. It is linked from the
+audit.
 
 ## Method
 

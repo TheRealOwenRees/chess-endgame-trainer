@@ -15,8 +15,11 @@ defmodule ChesstrainerWeb.UserConfirmationController do
 
       :error ->
         conn
-        |> put_flash(:error, "User not found or token is invalid.")
-        |> redirect(to: ~p"/users/register")
+        |> put_flash(
+          :error,
+          "That confirmation link is invalid or has expired. Log in to request a new one."
+        )
+        |> redirect(to: ~p"/users/log-in")
     end
   end
 end

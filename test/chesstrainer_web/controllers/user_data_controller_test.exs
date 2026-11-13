@@ -21,6 +21,15 @@ defmodule ChesstrainerWeb.UserDataControllerTest do
     assert redirected_to(conn) == ~p"/users/log-in"
   end
 
+  test "returns the styled 404 page for an unknown format", %{conn: conn} do
+    conn = get(conn, ~p"/users/profile/export/xml")
+
+    html = html_response(conn, 404)
+    assert html =~ "This page isn&#39;t on the board"
+    assert html =~ "Back to home"
+    assert get_resp_header(conn, "content-type") == ["text/html; charset=utf-8"]
+  end
+
   test "downloads the user details and attempts as CSV", %{
     conn: conn,
     user: user,
