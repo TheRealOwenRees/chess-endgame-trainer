@@ -1,0 +1,359 @@
+#!/usr/bin/env bash
+#
+# Probe the public Inner Square Chess app and report the verdict to
+# healthchecks.io.
+#
+# Installed as /usr/local/sbin/chesstrainer-probe (root-owned 0755) and run by
+# chesstrainer-probe.timer every two minutes. The probe deliberately goes
+# through the public hostname, not loopback: DNS, Cloudflare, Caddy and the
+# origin allowlist are part of what a visitor depends on. A loopback health
+# URL is still consulted on failure, as evidence only.
+#
+#   sudo /usr/local/sbin/chesstrainer-probe
+#   sudo /usr/local/sbin/chesstrainer-probe --dry-run   # no network, no config
+#
+# Configuration lives in /etc/chesstrainer/probe.env (root:root 0600). See
+# deploy/README.md §Monitoring and alerting. Individual settings can be passed
+# as environment variables to a manual run, which is how the drills vary the
+# URL and the expected tablebase.
+#
+# Each run prints exactly one JSON line (probe.ok, probe.degraded or
+# probe.failed) so journald, and #140's log shipping, can pick it up.
+
+set -euo pipefail
+umask 077
+
+ENV_FILE="${ENV_FILE:-/etc/chesstrainer/probe.env}"
+
+START_SECONDS=$SECONDS
+DRY_RUN=0
+TMPDIR_PROBE=""
+HTTP_BODY_FILE=""
+HTTP_HEADER_FILE=""
+HTTP_ERROR_FILE=""
+
+usage() {
+  cat <<'EOF'
+Usage: chesstrainer-probe [--dry-run]
+
+  --dry-run   print the verdict for the success, degraded, fail, non-JSON and
+              unreachable fixtures without reading the env file or making a
+              network request
+EOF
+}
+
+while (($# > 0)); do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      echo "probe: unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+log_event() {
+  local event="$1"
+  local extra="${2:-}"
+
+  printf '{"timestamp":"%s","event":"%s"%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$event" "$extra"
+}
+
+fail() {
+  echo "probe: $*" >&2
+  exit 1
+}
+
+json_escape() {
+  local text="$1"
+
+  text="${text//\\/\\\\}"
+  text="${text//\"/\\\"}"
+  text="${text//$'\n'/\\n}"
+  text="${text//$'\r'/\\r}"
+  text="${text//$'\t'/\\t}"
+  text="$(printf '%s' "$text" | LC_ALL=C tr -d '[:cntrl:]')"
+
+  printf '%s' "$text"
+}
+
+body_snippet() {
+  local file="$1"
+
+  if [[ -s "$file" ]]; then
+    head -c "$MAX_BODY_BYTES" "$file"
+  fi
+}
+
+json_field() {
+  local key="$1"
+  local json="$2"
+
+  if [[ "$json" =~ \"$key\"[[:space:]]*:[[:space:]]*\"([^\"]*)\" ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+  fi
+}
+
+http_get() {
+  local url="$1"
+  local prefix="$2"
+  local proto="$3"
+  local status=""
+  local exit_code=0
+
+  HTTP_BODY_FILE="$prefix.body"
+  HTTP_HEADER_FILE="$prefix.headers"
+  HTTP_ERROR_FILE="$prefix.error"
+  : >"$HTTP_BODY_FILE"
+  : >"$HTTP_HEADER_FILE"
+  : >"$HTTP_ERROR_FILE"
+
+  if status="$(curl --silent --show-error --location \
+    --proto "$proto" \
+    --connect-timeout 5 \
+    --max-time "$PROBE_TIMEOUT_SECONDS" \
+    --output "$HTTP_BODY_FILE" \
+    --dump-header "$HTTP_HEADER_FILE" \
+    --write-out '%{http_code}' \
+    "$url")"; then
+    exit_code=0
+  else
+    exit_code=$?
+  fi
+
+  HTTP_STATUS="${status:-000}"
+  CURL_EXIT="$exit_code"
+}
+
+# Sets VERDICT (ok, degraded, failed), REASON, DB and TABLEBASE. The database is
+# the only hard dependency; a missing local tablebase still serves users from
+# Lichess, so it is reported as a green but degraded check-in.
+evaluate() {
+  local status="$1"
+  local exit_code="$2"
+  local body="$3"
+  local trimmed=""
+
+  VERDICT="failed"
+  REASON=""
+  DB=""
+  TABLEBASE=""
+
+  if ((exit_code != 0)); then
+    REASON="unreachable: curl exit $exit_code"
+    return
+  fi
+
+  if [[ "$status" != "200" ]]; then
+    REASON="http $status"
+    return
+  fi
+
+  trimmed="${body#"${body%%[![:space:]]*}"}"
+  trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"
+  if [[ "${trimmed:0:1}" != "{" || "${trimmed: -1}" != "}" ]]; then
+    REASON="non-JSON response"
+    return
+  fi
+
+  DB="$(json_field db "$body")"
+  TABLEBASE="$(json_field tablebase "$body")"
+
+  if [[ -z "$DB" ]]; then
+    REASON="response has no db field"
+    return
+  fi
+
+  if [[ "$DB" != "ok" ]]; then
+    REASON="db is $DB"
+    return
+  fi
+
+  if [[ "$EXPECT_TABLEBASE" != "any" && "$TABLEBASE" != "$EXPECT_TABLEBASE" ]]; then
+    VERDICT="degraded"
+    REASON="tablebase is ${TABLEBASE:-unknown}, expected $EXPECT_TABLEBASE"
+    return
+  fi
+
+  VERDICT="ok"
+}
+
+# Exactly one call site per run, and one call site per outcome, so a forced
+# failure can only ever produce one fail ping.
+ping_check() {
+  local outcome="$1"
+  local body="$2"
+  local url=""
+  local body_file=""
+
+  if [[ -z "$HEALTHCHECK_URL" ]]; then
+    echo "probe: HEALTHCHECK_URL is not set, not reporting" >&2
+    return 0
+  fi
+
+  url="${HEALTHCHECK_URL%/}"
+  if [[ "$outcome" == "fail" ]]; then
+    url="$url/fail"
+  fi
+
+  body_file="$(mktemp)"
+  printf '%s' "$body" >"$body_file"
+
+  if ! curl --silent --show-error --fail \
+    --max-time 10 --retry 2 --retry-delay 2 \
+    --header 'Content-Type: application/json' \
+    --data-binary "@$body_file" \
+    --output /dev/null "$url"; then
+    echo "probe: check-in ping failed (run result is unaffected)" >&2
+  fi
+
+  rm -f "$body_file"
+}
+
+origin_evidence() {
+  local prefix="$1"
+
+  http_get "$ORIGIN_URL" "$prefix" '=https,http'
+  ORIGIN_STATUS="$HTTP_STATUS"
+  ORIGIN_EXIT="$CURL_EXIT"
+  ORIGIN_BODY="$(body_snippet "$HTTP_BODY_FILE")"
+  ORIGIN_ERROR="$(body_snippet "$HTTP_ERROR_FILE")"
+}
+
+fail_evidence() {
+  local evidence=""
+
+  evidence="$(printf '{"probe":"failed","reason":"%s","url":"%s","http_status":"%s","curl_exit":%s' \
+    "$(json_escape "$REASON")" "$(json_escape "$PROBE_URL")" "$PUBLIC_STATUS" "$PUBLIC_EXIT")"
+
+  if [[ -n "$ERROR_TEXT" ]]; then
+    evidence+="$(printf ',"error":"%s"' "$(json_escape "$ERROR_TEXT")")"
+  fi
+
+  if [[ -n "$BODY" ]]; then
+    evidence+="$(printf ',"body":"%s"' "$(json_escape "$BODY")")"
+  fi
+
+  evidence+="$(printf ',"origin_url":"%s","origin_status":"%s","origin_curl_exit":%s' \
+    "$(json_escape "$ORIGIN_URL")" "$ORIGIN_STATUS" "$ORIGIN_EXIT")"
+
+  if [[ -n "$ORIGIN_BODY" ]]; then
+    evidence+="$(printf ',"origin_body":"%s"' "$(json_escape "$ORIGIN_BODY")")"
+  fi
+
+  if [[ -n "$ORIGIN_ERROR" ]]; then
+    evidence+="$(printf ',"origin_error":"%s"' "$(json_escape "$ORIGIN_ERROR")")"
+  fi
+
+  printf '%s}' "$evidence"
+}
+
+dry_run() {
+  local -a scenarios=(
+    'HTTP 200, healthy|200|0|{"process":"ok","status":"ok","db":"ok","tablebase":"local"}'
+    'HTTP 200, tablebase fallback|200|0|{"process":"ok","status":"degraded","db":"ok","tablebase":"fallback"}'
+    'HTTP 503, db down|503|0|{"process":"ok","status":"down","db":"down","tablebase":"local"}'
+    'HTTP 200, non-JSON|200|0|<html><body>502 Bad Gateway</body></html>'
+    'timeout, no response|000|28|'
+  )
+  local row name status exit_code body action
+
+  printf 'probe: dry run, no network calls and no configuration read\n'
+  printf 'probe: every fixture is evaluated with EXPECT_TABLEBASE=local\n\n'
+  printf '%-28s %-9s %-46s %s\n' "scenario" "verdict" "reason" "would ping"
+
+  for row in "${scenarios[@]}"; do
+    IFS='|' read -r name status exit_code body <<<"$row"
+    EXPECT_TABLEBASE="local"
+    evaluate "$status" "$exit_code" "$body"
+
+    case "$VERDICT" in
+      ok) action="success, raw /health JSON" ;;
+      degraded) action="success, mismatch evidence" ;;
+      *) action="fail, evidence JSON" ;;
+    esac
+
+    printf '%-28s %-9s %-46s %s\n' "$name" "$VERDICT" "${REASON:--}" "$action"
+  done
+
+  printf '\nprobe: dry run complete, no check-ins sent\n'
+}
+
+if ((DRY_RUN)); then
+  dry_run
+  exit 0
+fi
+
+# Overrides passed on the command line survive the env file, so the drills can
+# vary the URL or the expected tablebase without editing a root-only file.
+_OVERRIDE_PROBE_URL="${PROBE_URL:-}"
+_OVERRIDE_EXPECT_TABLEBASE="${EXPECT_TABLEBASE:-}"
+_OVERRIDE_PROBE_TIMEOUT_SECONDS="${PROBE_TIMEOUT_SECONDS:-}"
+
+if [[ -r "$ENV_FILE" ]]; then
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+else
+  fail "cannot read $ENV_FILE (set ENV_FILE to override)"
+fi
+
+PROBE_URL="${_OVERRIDE_PROBE_URL:-${PROBE_URL:-}}"
+EXPECT_TABLEBASE="${_OVERRIDE_EXPECT_TABLEBASE:-${EXPECT_TABLEBASE:-local}}"
+PROBE_TIMEOUT_SECONDS="${_OVERRIDE_PROBE_TIMEOUT_SECONDS:-${PROBE_TIMEOUT_SECONDS:-10}}"
+
+HEALTHCHECK_URL="${HEALTHCHECK_URL:-}"
+ORIGIN_URL="${ORIGIN_URL:-http://127.0.0.1:4100/health}"
+MAX_BODY_BYTES="${MAX_BODY_BYTES:-2000}"
+
+[[ "$PROBE_URL" == https://* ]] || fail "PROBE_URL must be an https URL"
+[[ -n "$HEALTHCHECK_URL" ]] || fail "HEALTHCHECK_URL is not set"
+[[ "$EXPECT_TABLEBASE" =~ ^(local|fallback|not_configured|any)$ ]] ||
+  fail "EXPECT_TABLEBASE must be local, fallback, not_configured or any"
+[[ "$PROBE_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || fail "PROBE_TIMEOUT_SECONDS must be an integer"
+command -v curl >/dev/null 2>&1 || fail "missing command: curl"
+
+TMPDIR_PROBE="$(mktemp -d)"
+
+cleanup() {
+  if [[ -n "$TMPDIR_PROBE" && -d "$TMPDIR_PROBE" ]]; then
+    rm -rf "$TMPDIR_PROBE"
+  fi
+}
+
+trap cleanup EXIT
+trap 'exit 143' TERM INT
+
+http_get "$PROBE_URL" "$TMPDIR_PROBE/public" '=https'
+PUBLIC_STATUS="$HTTP_STATUS"
+PUBLIC_EXIT="$CURL_EXIT"
+BODY="$(body_snippet "$HTTP_BODY_FILE")"
+ERROR_TEXT="$(body_snippet "$HTTP_ERROR_FILE")"
+
+evaluate "$PUBLIC_STATUS" "$PUBLIC_EXIT" "$BODY"
+
+case "$VERDICT" in
+  ok)
+    log_event probe.ok ",\"status\":\"$PUBLIC_STATUS\",\"tablebase\":\"$(json_escape "$TABLEBASE")\",\"duration_s\":$((SECONDS - START_SECONDS))"
+    ping_check ok "$BODY"
+    ;;
+  degraded)
+    evidence="$(printf '{"expected_tablebase":"%s","health":%s}' \
+      "$(json_escape "$EXPECT_TABLEBASE")" "$BODY")"
+    log_event probe.degraded ",\"reason\":\"$(json_escape "$REASON")\",\"tablebase\":\"$(json_escape "$TABLEBASE")\",\"duration_s\":$((SECONDS - START_SECONDS))"
+    ping_check ok "$evidence"
+    ;;
+  *)
+    origin_evidence "$TMPDIR_PROBE/origin"
+    evidence="$(fail_evidence)"
+    log_event probe.failed ",\"reason\":\"$(json_escape "$REASON")\",\"http_status\":\"$PUBLIC_STATUS\",\"curl_exit\":$PUBLIC_EXIT,\"duration_s\":$((SECONDS - START_SECONDS))"
+    ping_check fail "$evidence"
+    exit 1
+    ;;
+esac

@@ -1,0 +1,12 @@
+[Unit]
+Description=Probe the public Inner Square Chess app every two minutes
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/deploy/README.md
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=2min
+AccuracySec=5s
+Unit=chesstrainer-probe.service
+
+[Install]
+WantedBy=timers.target

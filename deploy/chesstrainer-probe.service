@@ -1,0 +1,13 @@
+[Unit]
+Description=Probe the public Inner Square Chess app and report to healthchecks.io
+Documentation=https://github.com/TheRealOwenRees/chess-endgame-trainer/blob/main/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/chesstrainer-probe
+TimeoutStartSec=90s
+SyslogIdentifier=chesstrainer-probe
