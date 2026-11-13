@@ -888,6 +888,11 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now chesstrainer-probe.timer
 ```
 
+The timer runs the installed `/usr/local/sbin/chesstrainer-probe`, not the copy
+under `/opt/chesstrainer/src`, because that tree belongs to the application
+user. When `deploy/probe` changes, install it to both places so the timer and
+the repo agree.
+
 Verify:
 
 ```sh
