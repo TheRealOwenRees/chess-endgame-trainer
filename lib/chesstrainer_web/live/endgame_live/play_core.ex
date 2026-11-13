@@ -197,12 +197,10 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
   end
 
   def fen_invalid(socket, %{"fen" => fen, "message" => message}) do
+    Logger.warning("board.fen_invalid", fen: fen, message: message)
+
     {:noreply,
-     put_flash(
-       socket,
-       :error,
-       "Endgame FEN is invalid and the board cannot be loaded: #{message} (#{fen})"
-     )}
+     put_flash(socket, :error, "The board couldn't load this position. Reset to try again.")}
   end
 
   def reset(socket) do

@@ -88,6 +88,8 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert has_element?(view, "#difficulty-hard")
       assert has_element?(view, "#close-difficulty[href='/']")
       assert has_element?(view, "a", "Return Home")
+      assert has_element?(view, "#connection-actions")
+      assert render(view) =~ ">Reload<"
       refute has_element?(view, "#puzzle-search")
       assert has_element?(view, "#rating-guide")
       assert render(view) =~ "Choose a difficulty"

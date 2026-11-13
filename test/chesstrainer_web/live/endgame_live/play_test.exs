@@ -326,6 +326,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   end
 
   describe "chess_fen_invalid" do
+    @tag capture_log: true
     test "shows a flash when the chessground hook reports an unparseable FEN", %{conn: conn} do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen)
@@ -339,8 +340,9 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       })
 
       html = render(view)
-      assert html =~ "Endgame FEN is invalid"
-      assert html =~ "move number must be a positive integer"
+      assert html =~ "The board couldn&#39;t load this position. Reset to try again."
+      refute html =~ "Endgame FEN is invalid"
+      refute html =~ "move number must be a positive integer"
     end
   end
 

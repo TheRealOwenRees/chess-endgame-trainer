@@ -61,7 +61,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ "menu-button"
     assert html =~ ~s(class="site-footer")
     assert html =~ "© #{DateTime.utc_now().year} #{Branding.name()}"
-    assert html =~ ~p"/endgames"
+    assert html =~ ~p"/guest-train"
     assert html =~ "/assets/js/marketing.js"
     refute html =~ "/assets/js/app.js"
 
@@ -318,6 +318,9 @@ defmodule ChesstrainerWeb.PageControllerTest do
   end
 
   test "renders without endgames", %{conn: conn} do
+    previous = Application.get_env(:chesstrainer, :curated_endgame_codes)
+    on_exit(fn -> Application.put_env(:chesstrainer, :curated_endgame_codes, previous) end)
+
     Application.put_env(:chesstrainer, :curated_endgame_codes, [])
 
     html = conn |> get(~p"/") |> html_response(200)
@@ -327,8 +330,10 @@ defmodule ChesstrainerWeb.PageControllerTest do
     refute html =~ "puzzle-card"
 
     assert LazyHTML.attribute(LazyHTML.query(document, ".hero-actions a"), "href") == [
-             "/endgames"
+             "/guest-train"
            ]
+
+    assert html =~ "Start training"
   end
 
   test "unknown routes render the branded 404 page", %{conn: conn} do

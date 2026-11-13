@@ -31,9 +31,9 @@ defmodule ChesstrainerWeb.UserConfirmationControllerTest do
       conn = get(conn, ~p"/users/confirm/oops")
 
       assert Phoenix.Flash.get(conn.assigns.flash, :error) ==
-               "User not found or token is invalid."
+               "That confirmation link is invalid or has expired. Log in to request a new one."
 
-      assert redirected_to(conn) == ~p"/users/register"
+      assert redirected_to(conn) == ~p"/users/log-in"
     end
 
     test "confirms a linked mailing-list opt-in", %{conn: conn, user: user} do

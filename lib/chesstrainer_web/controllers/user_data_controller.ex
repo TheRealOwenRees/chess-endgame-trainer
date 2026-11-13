@@ -1,7 +1,10 @@
 defmodule ChesstrainerWeb.UserDataController do
   use ChesstrainerWeb, :controller
 
+  require Logger
+
   alias Chesstrainer.Attempts
+  alias Chesstrainer.Branding
 
   @user_columns ~w(user_username user_email user_rating user_rating_deviation user_plan user_joined_at)
   @attempt_columns ~w(played_at puzzle public_code color result outcome rated_at)
@@ -9,16 +12,41 @@ defmodule ChesstrainerWeb.UserDataController do
 
   def export(conn, %{"format" => format}) when format in ["csv", "json"] do
     user = conn.assigns.current_scope.user
-    attempts = Attempts.list_attempts_for_user(user.id)
-    filename = "lucid-chess-data-#{Date.utc_today()}.#{format}"
 
-    conn
-    |> put_resp_content_type(content_type(format))
-    |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
-    |> send_resp(200, body(format, user, attempts))
+    try do
+      attempts = Attempts.list_attempts_for_user(user.id)
+      filename = "lucid-chess-data-#{Date.utc_today()}.#{format}"
+
+      conn
+      |> put_resp_content_type(content_type(format))
+      |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
+      |> send_resp(200, body(format, user, attempts))
+    rescue
+      exception ->
+        export_failed(conn, Exception.message(exception))
+    catch
+      :exit, reason ->
+        export_failed(conn, inspect(reason))
+    end
   end
 
-  def export(conn, _params), do: send_resp(conn, 404, "Unknown export format")
+  def export(conn, _params) do
+    conn
+    |> put_status(:not_found)
+    |> put_view(ChesstrainerWeb.ErrorHTML)
+    |> render("404.html")
+  end
+
+  defp export_failed(conn, reason) do
+    Logger.error("profile.export_failed", reason: reason)
+
+    conn
+    |> put_flash(
+      :error,
+      "We couldn't build your export. Try again; if it keeps failing, email #{Branding.support_email()}."
+    )
+    |> redirect(to: ~p"/users/profile/data")
+  end
 
   defp body("csv", user, attempts), do: to_csv(user, attempts)
 

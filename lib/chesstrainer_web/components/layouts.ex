@@ -282,6 +282,17 @@ defmodule ChesstrainerWeb.Layouts do
         {gettext("Attempting to reconnect")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
+
+      <div
+        id="connection-actions"
+        hidden
+        phx-disconnected={show("#connection-actions")}
+        phx-connected={hide("#connection-actions")}
+        class="pointer-events-auto flex items-center gap-3 rounded-lg border border-base-300 bg-base-100 px-4 py-2 text-sm shadow-lg"
+      >
+        <a href="" class="font-semibold text-primary-text hover:underline">Reload</a>
+        <.link href={~p"/"} class="text-muted hover:underline">Home</.link>
+      </div>
     </div>
     """
   end
