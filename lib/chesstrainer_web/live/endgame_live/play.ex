@@ -48,7 +48,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         endgame={@endgame}
         fen={@fen}
         status={@status}
-        blocked_reason={@blocked_reason}
+        blocked={@blocked}
         best_move={@best_move}
         plies={@plies}
         line={@line}

@@ -37,9 +37,21 @@ defmodule Chesstrainer.GuestLimitsTest do
     assert {:ok, 4} = GuestLimits.take(@other, @today)
   end
 
+  test "remaining reports the budget without consuming it" do
+    assert {:ok, 5} = GuestLimits.remaining(@address, @today)
+    assert {:ok, 5} = GuestLimits.remaining(@address, @today)
+
+    assert {:ok, 4} = GuestLimits.take(@address, @today)
+    assert {:ok, 4} = GuestLimits.remaining(@address, @today)
+
+    for _ <- 1..4, do: assert({:ok, _} = GuestLimits.take(@address, @today))
+    assert {:limit_reached, _} = GuestLimits.remaining(@address, @today)
+  end
+
   test "does not limit a missing address" do
     assert {:ok, nil} = GuestLimits.take(nil, @today)
     assert {:ok, nil} = GuestLimits.take(nil, @today)
+    assert {:ok, nil} = GuestLimits.remaining(nil, @today)
   end
 
   test "reset clears spent budgets" do

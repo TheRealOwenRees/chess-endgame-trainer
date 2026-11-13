@@ -80,11 +80,21 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrainTest do
   end
 
   describe "without puzzles" do
-    test "shows an empty state", %{conn: conn} do
+    test "shows an empty state with a retry that does not spend a puzzle", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/guest-train")
 
-      assert render(view) =~ "No endgames are available yet"
+      assert has_element?(view, "#guest-pool-empty")
+      assert has_element?(view, "#retry-pool")
       refute has_element?(view, "#endgame-board")
+      assert {:ok, 5} = GuestLimits.remaining(@guest_address)
+
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen, moves: grading_moves())
+
+      view |> element("#retry-pool") |> render_click()
+
+      assert has_element?(view, "#endgame-board")
+      assert :sys.get_state(view.pid).socket.assigns.guest_remaining == 4
     end
   end
 
@@ -132,6 +142,31 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrainTest do
       view |> element("button", "Try again") |> render_click()
 
       assert :sys.get_state(view.pid).socket.assigns.guest_remaining == 4
+    end
+
+    test "shows an in-page state when no puzzles are left, and retry loads one", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen, moves: grading_moves())
+
+      {:ok, view, _html} = live(conn, ~p"/guest-train")
+      solve_current(view)
+
+      Repo.delete!(endgame)
+
+      view |> element("#next-puzzle-button") |> render_click()
+
+      assert has_element?(view, "#guest-pool-exhausted")
+      assert has_element?(view, "#retry-pool")
+      refute has_element?(view, "#endgame-board")
+      assert :sys.get_state(view.pid).socket.assigns.guest_remaining == 4
+
+      new_endgame = endgame_fixture()
+      seed_tablebase(new_endgame.fen, moves: grading_moves())
+
+      view |> element("#retry-pool") |> render_click()
+
+      assert :sys.get_state(view.pid).socket.assigns.endgame.id == new_endgame.id
+      assert :sys.get_state(view.pid).socket.assigns.guest_remaining == 3
     end
   end
 

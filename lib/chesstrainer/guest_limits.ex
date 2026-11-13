@@ -40,6 +40,18 @@ defmodule Chesstrainer.GuestLimits do
   @doc "Clears every budget. Intended for tests."
   def reset, do: GenServer.call(__MODULE__, :reset)
 
+  @doc """
+  Returns the puzzles left today without consuming one.
+
+  Mirrors `take/2`'s result shape so a caller can show the wall before doing
+  work that would otherwise spend a puzzle.
+  """
+  @spec remaining(address, Date.t()) ::
+          {:ok, non_neg_integer | nil} | {:limit_reached, non_neg_integer}
+  def remaining(address, today \\ Date.utc_today()) do
+    GenServer.call(__MODULE__, {:remaining, address, today})
+  end
+
   @doc "The daily puzzle allowance for a guest."
   def limit, do: config() |> Keyword.get(:limit, @default_limit)
 
@@ -66,6 +78,21 @@ defmodule Chesstrainer.GuestLimits do
 
   @impl true
   def handle_call({:take, nil, _today}, _from, state), do: {:reply, {:ok, nil}, state}
+
+  def handle_call({:remaining, nil, _today}, _from, state), do: {:reply, {:ok, nil}, state}
+
+  def handle_call({:remaining, address, today}, _from, state) do
+    day = Date.to_gregorian_days(today)
+    key = key(state.secret, day, address)
+
+    case count(key, day) do
+      used when used >= state.limit ->
+        {:reply, {:limit_reached, ms_until_utc_midnight()}, state}
+
+      used ->
+        {:reply, {:ok, state.limit - used}, state}
+    end
+  end
 
   def handle_call({:take, address, today}, _from, state) do
     day = Date.to_gregorian_days(today)

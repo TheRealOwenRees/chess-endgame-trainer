@@ -225,6 +225,63 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
     end
   end
 
+  describe "empty pools" do
+    setup :register_and_log_in_user
+
+    test "shows an in-page state when a difficulty has no puzzles", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/train")
+
+      view |> element("#difficulty-medium") |> render_click()
+
+      assert has_element?(view, "#pool-empty")
+      assert has_element?(view, "#retry-pool")
+      assert has_element?(view, "#difficulty-picker")
+      refute has_element?(view, "#session-bar")
+
+      endgame = endgame_fixture(rating: 1500)
+      seed_tablebase(endgame.fen)
+
+      view |> element("#retry-pool") |> render_click()
+
+      assert has_element?(view, "#session-bar")
+      refute has_element?(view, "#pool-empty")
+    end
+
+    test "shows an in-page end-of-run state when the difficulty is exhausted", %{conn: conn} do
+      {view, [_endgame]} = start_medium_session(conn, 1)
+      solve_current(view)
+
+      view |> element("#next-puzzle-button") |> render_click()
+
+      assert has_element?(view, "#pool-exhausted")
+      assert has_element?(view, "#retry-pool")
+      assert has_element?(view, "#change-difficulty")
+      refute has_element?(view, "#endgame-board")
+
+      view |> element("#change-difficulty") |> render_click()
+
+      assert has_element?(view, "#difficulty-picker")
+      assert :sys.get_state(view.pid).socket.assigns.session == nil
+    end
+
+    test "retry loads a puzzle once the pool grows", %{conn: conn} do
+      {view, [_endgame]} = start_medium_session(conn, 1)
+      solve_current(view)
+
+      view |> element("#next-puzzle-button") |> render_click()
+      assert has_element?(view, "#pool-exhausted")
+
+      rating = :sys.get_state(view.pid).socket.assigns.user_rating
+      new_endgame = endgame_fixture(fen: "4k3/8/8/8/8/8/8/4K3 w - - 0 1", rating: round(rating))
+      seed_tablebase(new_endgame.fen)
+
+      view |> element("#retry-pool") |> render_click()
+
+      assert :sys.get_state(view.pid).socket.assigns.endgame.id == new_endgame.id
+      refute has_element?(view, "#pool-exhausted")
+    end
+  end
+
   defp elapsed_id(view) do
     :sys.get_state(view.pid).socket.assigns.session.started_at_ms
   end

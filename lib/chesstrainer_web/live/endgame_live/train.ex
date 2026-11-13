@@ -77,11 +77,12 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
         </div>
 
         <PlayComponents.play_surface
+          :if={is_nil(@pool)}
           session={true}
           endgame={@endgame}
           fen={@fen}
           status={@status}
-          blocked_reason={@blocked_reason}
+          blocked={@blocked}
           best_move={@best_move}
           plies={@plies}
           line={@line}
@@ -99,6 +100,26 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
           rating={@user_rating}
           rating_delta={@last_rating_delta}
         />
+
+        <section
+          :if={@pool}
+          id="pool-exhausted"
+          class="rounded-xl border border-hairline bg-canvas-raised p-6"
+        >
+          <h2 class="text-lg font-semibold">You've finished every puzzle at this difficulty</h2>
+          <p class="mt-1 text-sm text-muted">
+            There are no more {difficulty_label(@session.difficulty)} puzzles right now.
+            Try again, or pick another difficulty.
+          </p>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <.button id="retry-pool" phx-click="retry_pool" variant="primary">
+              <.icon name="hero-arrow-path" /> Retry
+            </.button>
+            <.button id="change-difficulty" phx-click="stop_session">
+              Change difficulty
+            </.button>
+          </div>
+        </section>
       <% else %>
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div id="difficulty-picker" class="w-full max-w-md rounded-xl bg-base-100 p-6 shadow-xl">
@@ -155,6 +176,19 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
             <div class="mt-4">
               <.rating_guide rating={@user_rating} deviation={@user_deviation} />
             </div>
+            <div
+              :if={@pool}
+              id="pool-empty"
+              class="mt-4 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm"
+            >
+              <p class="font-semibold">No puzzles available right now</p>
+              <p class="mt-1 text-muted">
+                There are no {difficulty_label(@pool.difficulty)} puzzles yet. Try again, or choose another difficulty.
+              </p>
+              <.button id="retry-pool" phx-click="retry_pool" class="mt-3">
+                <.icon name="hero-arrow-path" /> Retry
+              </.button>
+            </div>
             <div class="mt-4 grid gap-2">
               <%= for {difficulty, label, description} <- difficulty_options(@user_rating) do %>
                 <.button
@@ -188,62 +222,32 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
      |> assign(:last_session, nil)
      |> assign(:puzzle_started_mono, nil)
      |> assign(:puzzle_counted, false)
+     |> assign(:pool, nil)
      |> assign(:user_rating, socket.assigns.current_scope.user.rating)
      |> assign(:user_deviation, socket.assigns.current_scope.user.rating_deviation)}
   end
 
   @impl true
   def handle_event("start_session", %{"difficulty" => difficulty}, socket) do
-    difficulty = parse_difficulty(difficulty)
-
-    case Puzzles.next_endgame(selection_user(socket), difficulty) do
-      nil ->
-        {:noreply, put_flash(socket, :error, "No puzzles are available right now.")}
-
-      endgame ->
-        session = %{
-          difficulty: difficulty,
-          started_at_ms: System.system_time(:millisecond),
-          baseline: socket.assigns.user_rating,
-          count: 0,
-          sum_ms: 0
-        }
-
-        socket =
-          socket
-          |> assign(:session, session)
-          |> assign(:puzzle_started_mono, System.monotonic_time(:millisecond))
-          |> assign(:puzzle_counted, false)
-          |> assign(:last_rating_delta, nil)
-          |> PlayCore.init(endgame, page_title: "Train")
-
-        {:noreply, socket}
-    end
+    {:noreply, start_session(socket, parse_difficulty(difficulty))}
   end
 
-  def handle_event("next_puzzle", _params, socket) do
-    session = socket.assigns.session
+  def handle_event("next_puzzle", _params, socket), do: {:noreply, next_puzzle(socket)}
 
-    if session do
-      case Puzzles.next_endgame(selection_user(socket), session.difficulty,
-             exclude_ids: [socket.assigns.endgame.id]
-           ) do
+  def handle_event("retry_pool", _params, socket) do
+    socket =
+      case socket.assigns.session do
         nil ->
-          {:noreply, put_flash(socket, :info, "No more puzzles at this difficulty.")}
+          case socket.assigns.pool do
+            %{difficulty: difficulty} -> start_session(socket, difficulty)
+            _ -> socket
+          end
 
-        endgame ->
-          socket =
-            socket
-            |> assign(:puzzle_started_mono, System.monotonic_time(:millisecond))
-            |> assign(:puzzle_counted, false)
-            |> assign(:last_rating_delta, nil)
-            |> PlayCore.init(endgame, page_title: "Train")
-
-          {:noreply, socket}
+        _session ->
+          next_puzzle(socket)
       end
-    else
-      {:noreply, socket}
-    end
+
+    {:noreply, socket}
   end
 
   def handle_event("stop_session", _params, socket) do
@@ -253,7 +257,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
         session -> assign(socket, :last_session, summarise(session, socket.assigns.user_rating))
       end
 
-    {:noreply, assign(socket, :session, nil)}
+    {:noreply, socket |> assign(:session, nil) |> assign(:pool, nil)}
   end
 
   def handle_event("endgame_move_played", params, socket) do
@@ -299,6 +303,53 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
     do: PlayCore.best_line_move_applied(socket, params)
 
   def handle_event("back_to_game", _params, socket), do: PlayCore.back_to_game(socket)
+
+  defp start_session(socket, difficulty) do
+    case Puzzles.next_endgame(selection_user(socket), difficulty) do
+      nil ->
+        assign(socket, :pool, %{difficulty: difficulty})
+
+      endgame ->
+        session = %{
+          difficulty: difficulty,
+          started_at_ms: System.system_time(:millisecond),
+          baseline: socket.assigns.user_rating,
+          count: 0,
+          sum_ms: 0
+        }
+
+        socket
+        |> assign(:session, session)
+        |> assign(:pool, nil)
+        |> assign(:puzzle_started_mono, System.monotonic_time(:millisecond))
+        |> assign(:puzzle_counted, false)
+        |> assign(:last_rating_delta, nil)
+        |> PlayCore.init(endgame, page_title: "Train")
+    end
+  end
+
+  defp next_puzzle(socket) do
+    session = socket.assigns.session
+
+    if session do
+      case Puzzles.next_endgame(selection_user(socket), session.difficulty,
+             exclude_ids: [socket.assigns.endgame.id]
+           ) do
+        nil ->
+          assign(socket, :pool, %{difficulty: session.difficulty})
+
+        endgame ->
+          socket
+          |> assign(:pool, nil)
+          |> assign(:puzzle_started_mono, System.monotonic_time(:millisecond))
+          |> assign(:puzzle_counted, false)
+          |> assign(:last_rating_delta, nil)
+          |> PlayCore.init(endgame, page_title: "Train")
+      end
+    else
+      socket
+    end
+  end
 
   # A completed puzzle contributes one first-attempt time to the average. A
   # retry happens after this point and is deliberately ignored.

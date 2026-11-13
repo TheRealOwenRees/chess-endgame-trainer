@@ -21,7 +21,22 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
   alias Chesstrainer.Ratings
   alias ChesstrainerWeb.RatingComponents
 
+  require Logger
+
   @uci_pattern ~r/^[a-h][1-8][a-h][1-8][qrbn]?$/
+
+  @typedoc """
+  A blocked puzzle's user-facing state.
+
+  `kind` names the failure class, `title` and `message` are the only copy shown
+  to the player, and `retry` says whether fetching again can plausibly help.
+  """
+  @type blocked :: %{
+          kind: :cooldown | :rate_limited | :not_covered | :unavailable,
+          title: String.t(),
+          message: String.t(),
+          retry: boolean()
+        }
 
   @doc """
   Loads `endgame` and starts an attempt on it.
@@ -39,7 +54,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
     |> assign(:fen, endgame.fen)
     |> assign(:tablebase, nil)
     |> assign(:status, :loading)
-    |> assign(:blocked_reason, nil)
+    |> assign(:blocked, nil)
     |> assign(:best_move, nil)
     |> assign(:plies, [])
     |> assign(:reviewing, false)
@@ -164,7 +179,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
              |> snapshot(fen, tablebase)
              |> assign(:awaiting_reply, false)
              |> assign(:status, :playing)
-             |> assign(:blocked_reason, nil)
+             |> assign(:blocked, nil)
              |> assign(:move_input_error, nil)
              |> push_event("resume_board", %{})}
 
@@ -173,7 +188,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
              socket
              |> assign(:awaiting_reply, false)
              |> assign(:status, :blocked)
-             |> assign(:blocked_reason, blocked_reason(other))}
+             |> assign(:blocked, blocked(other))}
         end
       end
     else
@@ -359,14 +374,14 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
           |> assign(:tablebase, tablebase)
           |> snapshot(fen, tablebase)
           |> assign(:status, :playing)
-          |> assign(:blocked_reason, nil)
+          |> assign(:blocked, nil)
           |> push_init_board(fen)
 
         other ->
           socket
           |> assign(:tablebase, nil)
           |> assign(:status, :blocked)
-          |> assign(:blocked_reason, blocked_reason(other))
+          |> assign(:blocked, blocked(other))
           |> push_init_board(fen)
       end
     else
@@ -383,25 +398,54 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
     })
   end
 
-  defp blocked_reason({:cooldown, remaining_ms}) do
+  @doc """
+  Classifies a failed tablebase fetch into the copy the player sees.
+
+  One message per failure class; the underlying reason never reaches the page.
+  """
+  @spec blocked(term()) :: blocked()
+  def blocked({:cooldown, remaining_ms}) do
     seconds = max(div(remaining_ms + 999, 1000), 1)
-    "The tablebase is rate-limited. Try again in about #{seconds}s."
+
+    %{
+      kind: :cooldown,
+      title: "Tablebase cooling down",
+      message: "The tablebase is rate-limited. Try again in about #{seconds}s.",
+      retry: true
+    }
   end
 
-  defp blocked_reason({:error, {:too_many_requests, _, _}}) do
-    "The tablebase is rate-limited. Try again in a minute."
+  def blocked({:error, {:too_many_requests, _, _}}) do
+    %{
+      kind: :rate_limited,
+      title: "Tablebase rate-limited",
+      message: "The tablebase is rate-limited. Try again in a minute.",
+      retry: true
+    }
   end
 
-  defp blocked_reason({:error, {:client_error, 404, _}}) do
-    "This position is not covered by the tablebase."
+  def blocked({:error, {:client_error, 404, _}}), do: not_covered()
+  def blocked({:error, :not_covered}), do: not_covered()
+  def blocked({:error, :invalid_endgame}), do: not_covered()
+
+  def blocked({:error, reason}) do
+    Logger.warning("tablebase.unavailable", reason: inspect(reason))
+
+    %{
+      kind: :unavailable,
+      title: "Tablebase unavailable",
+      message: "The tablebase is unavailable right now. Try again in a moment.",
+      retry: true
+    }
   end
 
-  defp blocked_reason({:error, :not_covered}) do
-    "This position is not covered by the tablebase."
-  end
-
-  defp blocked_reason({:error, reason}) do
-    "The tablebase is unavailable (#{inspect(reason)})."
+  defp not_covered do
+    %{
+      kind: :not_covered,
+      title: "Position not covered",
+      message: "This position isn't in the tablebase, so it can't be graded.",
+      retry: false
+    }
   end
 
   defp grade_and_record(socket, from, to, promotion, san, fen_after, draw, check, checkmate) do
@@ -464,7 +508,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
         {:noreply,
          socket
          |> assign(:status, :blocked)
-         |> assign(:blocked_reason, blocked_reason(other))}
+         |> assign(:blocked, blocked(other))}
     end
   end
 
@@ -727,7 +771,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
       :error ->
         case Tablebase.new(fen) do
           {:ok, tablebase} -> {:ok, tablebase, snapshot(socket, fen, tablebase)}
-          other -> {:unavailable, blocked_reason(other), socket}
+          other -> {:unavailable, blocked(other), socket}
         end
     end
   end

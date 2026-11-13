@@ -14,14 +14,14 @@ defmodule ChesstrainerWeb.PlayComponents do
   attr :endgame, :any, required: true
   attr :fen, :string, default: nil
   attr :status, :atom, required: true
-  attr :blocked_reason, :string, default: nil
+  attr :blocked, :map, default: nil
   attr :best_move, :string, default: nil
   attr :plies, :list, required: true
   attr :line, :list, required: true
   attr :reviewing, :boolean, required: true
   attr :review_index, :integer, required: true
   attr :review_tablebase, :any, default: nil
-  attr :review_blocked, :string, default: nil
+  attr :review_blocked, :map, default: nil
   attr :awaiting_reply, :boolean, required: true
   attr :last_grade, :atom, default: nil
   attr :awaiting_best_line, :boolean, default: false
@@ -169,7 +169,23 @@ defmodule ChesstrainerWeb.PlayComponents do
           >
             <.icon name="hero-eye" /> Review
           </.button>
-          <.button phx-click="reset" variant="primary">
+          <.button
+            :if={@status == :blocked && @blocked && @blocked.retry}
+            id="retry-blocked"
+            phx-click="reset"
+            variant="primary"
+          >
+            <.icon name="hero-arrow-path" /> Retry
+          </.button>
+          <.button
+            :if={@status == :blocked && @blocked && !@blocked.retry && @session}
+            id="next-after-blocked"
+            phx-click="next_puzzle"
+            variant="primary"
+          >
+            Next puzzle
+          </.button>
+          <.button :if={@status != :blocked} phx-click="reset" variant="primary">
             <.icon name="hero-arrow-path" />
             {if @status in [:solved, :failed], do: "Try again", else: "Reset"}
           </.button>
@@ -194,7 +210,7 @@ defmodule ChesstrainerWeb.PlayComponents do
               <%= cond do %>
                 <% @review_blocked -> %>
                   <p class="text-muted">Best move unavailable here</p>
-                  <p class="text-muted">{@review_blocked}</p>
+                  <p class="text-muted">{@review_blocked.message}</p>
                 <% @review_tablebase -> %>
                   <p class="text-muted font-semibold mb-1">Best move:</p>
                   <p class="text-success-text">{PlayCore.best_move_text(@review_tablebase) || "—"}</p>
@@ -211,9 +227,9 @@ defmodule ChesstrainerWeb.PlayComponents do
               <%= cond do %>
                 <% @status == :loading -> %>
                   <p class="text-muted">Loading tablebase…</p>
-                <% @status == :blocked -> %>
-                  <p class="font-semibold text-error-text">Tablebase unavailable</p>
-                  <p class="text-error-text">{@blocked_reason}</p>
+                <% @status == :blocked && @blocked -> %>
+                  <p class="font-semibold text-error-text">{@blocked.title}</p>
+                  <p class="text-error-text">{@blocked.message}</p>
                 <% @status == :solved -> %>
                   <p class="font-semibold text-success-text">
                     {if @endgame.result == :draw, do: "Draw held!", else: "Solved!"}
@@ -460,8 +476,7 @@ defmodule ChesstrainerWeb.PlayComponents do
 
   defp move_hint(:loading, _awaiting), do: "Loading the tablebase…"
 
-  defp move_hint(:blocked, _awaiting),
-    do: "The tablebase is unavailable, so moves cannot be entered."
+  defp move_hint(:blocked, _awaiting), do: "Moves are paused."
 
   defp move_hint(status, _awaiting) when status in [:solved, :failed],
     do: "This puzzle is finished. Reset or try again."
@@ -488,7 +503,10 @@ defmodule ChesstrainerWeb.PlayComponents do
         "Loading the tablebase."
 
       assigns.status == :blocked ->
-        "Tablebase unavailable. #{assigns.blocked_reason || "Moves cannot be graded."}"
+        case assigns.blocked do
+          %{title: title, message: message} -> "#{title}. #{message}"
+          _ -> "Tablebase unavailable."
+        end
 
       assigns.reviewing ->
         review_announcement(assigns)
