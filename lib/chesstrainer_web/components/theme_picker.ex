@@ -3,8 +3,12 @@ defmodule ChesstrainerWeb.ThemePicker do
   Search-and-select control shared by the endgame form and bulk importer.
 
   The parent LiveView owns the assignments and handles the events:
-  `search_themes`, `add_theme`, `create_theme`, `create_theme_from_search` and
-  `remove_theme`.
+  `search_themes`, `add_theme`, `create_theme` and `remove_theme`.
+
+  The control renders no `<form>` of its own. It is embedded in the endgame
+  form, where a nested form would be dropped by the HTML parser and take its
+  bindings with it, and it is used standalone on the bulk importer. Binding
+  `phx-change` on the search input keeps both call sites working.
   """
 
   use ChesstrainerWeb, :html
@@ -35,10 +39,11 @@ defmodule ChesstrainerWeb.ThemePicker do
         </.badge>
       </div>
 
-      <form id="theme-form" phx-change="search_themes" phx-submit="create_theme_from_search">
+      <div id="theme-picker">
         <.input
           name="theme_search"
           value={@theme_query}
+          phx-change="search_themes"
           phx-debounce="200"
           autocomplete="off"
           placeholder="Search or create a theme…"
@@ -67,7 +72,7 @@ defmodule ChesstrainerWeb.ThemePicker do
             </button>
           </li>
         </ul>
-      </form>
+      </div>
     </div>
     """
   end

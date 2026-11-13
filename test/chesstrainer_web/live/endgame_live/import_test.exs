@@ -35,7 +35,10 @@ defmodule ChesstrainerWeb.EndgameLive.ImportTest do
     assert html =~ "KR v K"
     assert html =~ "win"
 
-    view |> form("#theme-form", %{theme_search: "Luc"}) |> render_change()
+    view
+    |> element("#theme-picker input[name='theme_search']")
+    |> render_change(%{theme_search: "Luc"})
+
     view |> element("button", "Lucena") |> render_click()
 
     view |> element("button", "Import 1 endgame(s)") |> render_click()

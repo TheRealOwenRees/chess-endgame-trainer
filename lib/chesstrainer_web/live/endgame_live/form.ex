@@ -122,10 +122,6 @@ defmodule ChesstrainerWeb.EndgameLive.Form do
     {:noreply, create_theme(socket, name)}
   end
 
-  def handle_event("create_theme_from_search", %{"theme_search" => name}, socket) do
-    {:noreply, create_theme(socket, name)}
-  end
-
   def handle_event("remove_theme", %{"id" => id}, socket) do
     selected = Enum.reject(socket.assigns.selected_themes, &(Integer.to_string(&1.id) == id))
     {:noreply, assign(socket, :selected_themes, selected)}
