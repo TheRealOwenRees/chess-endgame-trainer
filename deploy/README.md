@@ -979,6 +979,25 @@ the origin evidence should still show `200`:
 sudo PROBE_URL=https://127.0.0.1:9/health /usr/local/sbin/chesstrainer-probe
 ```
 
+The outage drill: stop Phoenix, prove the alert, bring it back. Forcing each
+probe run instead of waiting for the timer keeps the outage under a minute.
+Start the probe **once** per step: every run sends its own check-in, so a
+second start during the outage is a second alert.
+
+```sh
+sudo systemctl start chesstrainer-probe.service            # baseline: probe.ok
+sudo systemctl stop chesstrainer
+sudo systemctl start chesstrainer-probe.service || true    # probe.failed, http 502
+# confirm one Discord message and one email, then:
+sudo systemctl start chesstrainer
+curl -sS -o /dev/null -w '%{http_code}\n' https://innersquare.app/health   # 200
+sudo systemctl start chesstrainer-probe.service            # probe.ok, recovery
+```
+
+Expect `http_status: 502` from Caddy and `origin_status: 000` with
+`origin_curl_exit: 7` in the fail body: Phoenix is down, while the host and the
+edge are fine.
+
 Planned maintenance: stopping the timer is reported as a down check after
 period plus grace, so about four minutes. Pause the check in the healthchecks.io
 UI for the duration, or accept the alert.
@@ -987,6 +1006,20 @@ The probe reaches the edge as a plain `curl`. If a bot policy or WAF rule ever
 starts rejecting it, the fail body's `origin_status` shows the app itself is
 healthy; that is an edge-policy change, not an application outage. Re-enabling
 Bot Fight Mode is tracked in #153.
+
+### Drill log
+
+- **2026-11-13 — install and first drills.** Script and units installed 12:34
+  UTC, timer enabled, first scheduled `probe.ok` at 12:35. Forced-failure drill
+  (`PROBE_URL` at a missing path): one fail ping with `http_status: 404` and
+  `origin_status: 200`, one Discord message and one email, then one recovery
+  notification. Degraded drill (`EXPECT_TABLEBASE=not_configured`): green
+  check-in with the mismatch in the body, no notification. Outage drill: the
+  app was stopped 13:32:55 and started 13:33:42 UTC; the manual probe was
+  started twice while it was down, so `probe.failed` fired at 13:33:06 and
+  13:33:14 (`http 502`) and two notifications arrived for one down → up
+  transition. `probe.ok` at 13:34:03 and one recovery notification. No
+  production data was touched. Start the probe once per drill step.
 
 ## Interactive shell and user management
 
