@@ -437,8 +437,7 @@ defmodule ChesstrainerWeb.PlayComponents do
     |> Enum.with_index(1)
   end
 
-  defp display_plies(true, line, _plies), do: line
-  defp display_plies(false, _line, plies), do: plies
+  defp display_plies(reviewing, line, plies), do: if(reviewing, do: line, else: plies)
 
   defp colour_name(:white), do: "White"
   defp colour_name(:black), do: "Black"
