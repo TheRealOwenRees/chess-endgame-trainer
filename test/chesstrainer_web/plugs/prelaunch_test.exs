@@ -14,12 +14,12 @@ defmodule ChesstrainerWeb.Plugs.PrelaunchTest do
     :ok
   end
 
-  test "allows the public pages, legal pages, health, and admin login", %{conn: conn} do
+  test "allows the public pages, legal pages, health, and login", %{conn: conn} do
     assert conn |> get(~p"/") |> html_response(200)
     assert conn |> get(~p"/privacy") |> html_response(200)
     assert conn |> get(~p"/terms-conditions") |> html_response(200)
     assert conn |> get(~p"/health") |> response(200)
-    assert conn |> get(~p"/admin/log-in") |> html_response(200)
+    assert conn |> get(~p"/users/log-in") |> html_response(200)
   end
 
   test "hides public auth links and start training", %{conn: conn} do
@@ -30,29 +30,26 @@ defmodule ChesstrainerWeb.Plugs.PrelaunchTest do
     refute html =~ "Start training"
   end
 
-  test "the hidden admin login uses the admin form action", %{conn: conn} do
-    html = conn |> get(~p"/admin/log-in") |> html_response(200)
+  test "the prelaunch login form posts to the public login route", %{conn: conn} do
+    html = conn |> get(~p"/users/log-in") |> html_response(200)
 
-    assert html =~ ~s(action="/admin/log-in")
+    assert html =~ ~s(action="/users/log-in")
     refute html =~ "Sign up"
   end
 
-  test "pauses the public login route", %{conn: conn} do
-    assert conn |> get(~p"/users/log-in") |> redirected_to() == "/"
-  end
-
-  test "admin login redirects to the admin area", %{conn: conn} do
-    user =
+  test "an admin can log in through the public login route", %{conn: conn} do
+    admin =
       user_fixture()
       |> Ecto.Changeset.change(role: :admin)
       |> Repo.update!()
 
     conn =
-      post(conn, ~p"/admin/log-in",
-        user: %{email: user.email, password: "hello world!", remember_me: "true"}
+      post(conn, ~p"/users/log-in",
+        user: %{email: admin.email, password: "hello world!", remember_me: "true"}
       )
 
-    assert redirected_to(conn) == "/admin/endgames"
+    assert get_session(conn, :user_token)
+    assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
   end
 
   test "redirects blocked routes to the home page", %{conn: conn} do
@@ -84,7 +81,7 @@ defmodule ChesstrainerWeb.Plugs.PrelaunchTest do
   end
 
   test "blocks registration reached through LiveView navigation", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/admin/log-in")
+    {:ok, view, _html} = live(conn, ~p"/users/log-in")
 
     assert {:error, {:redirect, %{to: "/"}}} =
              live_redirect(view, to: ~p"/users/register")

@@ -10,7 +10,7 @@ defmodule ChesstrainerWeb.HealthController do
     status = if health.status == "down", do: :service_unavailable, else: :ok
 
     conn
-    |> put_resp_header("x-robots-tag", "noindex")
+    |> put_resp_header("x-robots-tag", "noindex, nofollow")
     |> put_status(status)
     |> json(health)
   end

@@ -36,7 +36,6 @@ defmodule ChesstrainerWeb.Router do
     get "/terms-conditions", PageController, :terms_conditions
     get "/mentions-legales", PageController, :mentions_legales
     post "/mailing-list", MailingListController, :create
-    get "/mailing-list/confirm/:token", MailingListController, :confirm
   end
 
   scope "/admin", ChesstrainerWeb do
@@ -88,7 +87,7 @@ defmodule ChesstrainerWeb.Router do
   ## Authentication routes
 
   scope "/", ChesstrainerWeb do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through [:browser, :noindex, :require_authenticated_user]
 
     live_session :require_authenticated_user,
       on_mount: [
@@ -123,12 +122,12 @@ defmodule ChesstrainerWeb.Router do
       live "/endgames/:public_code/play", EndgameLive.Play, :play
       live "/users/register", UserLive.Registration, :new
       live "/users/log-in", UserLive.Login, :new
-      live "/admin/log-in", UserLive.Login, :new
       live "/users/reset-password", UserLive.ResetPassword, :new
       live "/users/reset-password/:token", UserLive.ResetPassword, :edit
     end
 
     get "/users/confirm/:token", UserConfirmationController, :edit
+    get "/mailing-list/confirm/:token", MailingListController, :confirm
 
     post "/users/log-in", UserSessionController, :create
     delete "/users/log-out", UserSessionController, :delete
@@ -147,7 +146,7 @@ defmodule ChesstrainerWeb.Router do
   # Keep this last: routes match in definition order. It gives unmatched paths a
   # branded 404 page with the site chrome instead of Phoenix's bare status page.
   scope "/", ChesstrainerWeb do
-    pipe_through :browser
+    pipe_through [:browser, :noindex]
 
     match :*, "/*path", PageController, :not_found
   end

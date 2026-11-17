@@ -12,14 +12,6 @@ defmodule ChesstrainerWeb.UserSessionController do
     authenticate(conn, user_params, ~p"/users/log-in", nil)
   end
 
-  def create_admin(conn, %{"user" => user_params}) do
-    if ChesstrainerWeb.prelaunch?() do
-      authenticate(conn, user_params, ~p"/admin/log-in", ~p"/admin/endgames")
-    else
-      authenticate(conn, user_params, ~p"/users/log-in", nil)
-    end
-  end
-
   defp authenticate(conn, user_params, failure_path, success_path) do
     %{"email" => login} = user_params
     address = ClientAddress.from_conn(conn)

@@ -27,7 +27,7 @@ defmodule ChesstrainerWeb.UserLive.Login do
           :let={f}
           for={@form}
           id="login_form_password"
-          action={@login_action}
+          action={~p"/users/log-in"}
           phx-submit="submit_password"
           phx-trigger-action={@trigger_submit}
         >
@@ -75,17 +75,12 @@ defmodule ChesstrainerWeb.UserLive.Login do
         get_in(socket.assigns, [:current_scope, Access.key(:user), Access.key(:email)])
 
     form = to_form(%{"email" => email}, as: "user")
-    prelaunch = ChesstrainerWeb.prelaunch?()
-
-    login_action =
-      if prelaunch, do: ~p"/admin/log-in", else: ~p"/users/log-in"
 
     {:ok,
      assign(socket,
        form: form,
        trigger_submit: false,
-       prelaunch: prelaunch,
-       login_action: login_action
+       prelaunch: ChesstrainerWeb.prelaunch?()
      )}
   end
 

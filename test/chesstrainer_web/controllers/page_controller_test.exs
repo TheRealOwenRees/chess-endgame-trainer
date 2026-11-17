@@ -388,7 +388,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     refute html =~ "Browse puzzles"
     assert html =~ ~s(class="site-footer")
     assert html =~ "/assets/js/marketing.js"
-    assert html =~ ~s(name="robots")
+    assert html =~ ~s(<meta name="robots" content="noindex, nofollow")
   end
 
   test "premium users see the puzzles link on the 404 page", %{conn: conn} do
