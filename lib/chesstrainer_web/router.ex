@@ -37,7 +37,6 @@ defmodule ChesstrainerWeb.Router do
     get "/mentions-legales", PageController, :mentions_legales
     post "/mailing-list", MailingListController, :create
     get "/mailing-list/confirm/:token", MailingListController, :confirm
-    post "/admin/log-in", UserSessionController, :create_admin
   end
 
   scope "/admin", ChesstrainerWeb do
