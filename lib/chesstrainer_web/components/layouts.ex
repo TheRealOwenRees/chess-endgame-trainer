@@ -368,7 +368,8 @@ defmodule ChesstrainerWeb.Layouts do
         matomo_url: url,
         matomo_site_id: site_id && to_string(site_id),
         analytics_enabled:
-          is_binary(url) and url != "" and site_id not in [nil, ""] and is_nil(user)
+          is_binary(url) and byte_size(url) > 0 and is_binary(site_id) and byte_size(site_id) > 0 and
+            is_nil(user)
       )
 
     ~H"""

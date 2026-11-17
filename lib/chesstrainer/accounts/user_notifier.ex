@@ -2,20 +2,15 @@ defmodule Chesstrainer.Accounts.UserNotifier do
   import Swoosh.Email
 
   alias Chesstrainer.Branding
-  alias Chesstrainer.Mailer
+  alias Chesstrainer.Mail
 
   # Delivers the email using the application mailer.
   defp deliver(recipient, subject, body) do
-    email =
-      new()
-      |> to(recipient)
-      |> from({Branding.name(), Branding.mail_from()})
-      |> subject(subject)
-      |> text_body(body)
-
-    with {:ok, _metadata} <- Mailer.deliver(email) do
-      {:ok, email}
-    end
+    new()
+    |> to(recipient)
+    |> subject(subject)
+    |> text_body(body)
+    |> Mail.deliver()
   end
 
   @doc """

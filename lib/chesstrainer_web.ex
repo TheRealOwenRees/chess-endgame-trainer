@@ -107,6 +107,7 @@ defmodule ChesstrainerWeb do
       alias Phoenix.LiveView.JS
       alias Chesstrainer.Branding
       alias ChesstrainerWeb.Layouts
+      alias ChesstrainerWeb.SEO
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())

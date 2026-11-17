@@ -59,6 +59,15 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrainTest do
   end
 
   describe "access" do
+    test "is marked noindex for crawlers", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen, moves: grading_moves())
+
+      conn = get(conn, ~p"/guest-train")
+
+      assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
+    end
+
     test "lets an anonymous visitor play a random puzzle", %{conn: conn} do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())

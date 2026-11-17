@@ -111,7 +111,9 @@ defmodule ChesstrainerWeb.Router do
   end
 
   scope "/", ChesstrainerWeb do
-    pipe_through [:browser]
+    # App surface: play pages, auth forms and guest training are reachable
+    # without a session but must never appear in search results.
+    pipe_through [:browser, :noindex]
 
     live_session :current_user,
       on_mount: [

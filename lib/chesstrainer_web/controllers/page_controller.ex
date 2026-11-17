@@ -6,6 +6,7 @@ defmodule ChesstrainerWeb.PageController do
   alias Chesstrainer.Branding
   alias Chesstrainer.DailyPuzzles
   alias Chesstrainer.Endgames
+  alias ChesstrainerWeb.SEO
 
   @description "Short, focused endgame puzzles against tablebase-perfect defence. " <>
                  "Learn to see the winning move and make the endgame your strongest phase."
@@ -15,13 +16,15 @@ defmodule ChesstrainerWeb.PageController do
       render_coming_soon(conn)
     else
       endgames = Endgames.curated_endgames()
+      canonical_url = SEO.canonical_url(conn)
 
       conn
       |> assign(:js_entry, ~p"/assets/js/marketing.js")
       |> assign(:page_title, Branding.home_title())
       |> assign(:title_suffix, "")
       |> assign(:meta_description, @description)
-      |> assign(:canonical_url, current_url(conn))
+      |> assign(:canonical_url, canonical_url)
+      |> assign(:json_ld, SEO.json_ld(canonical_url))
       |> assign(:mailing_list_enabled, mailing_list_enabled?())
       |> render(:home,
         endgames: endgames,
@@ -43,7 +46,7 @@ defmodule ChesstrainerWeb.PageController do
       :meta_description,
       "How #{Branding.name()} collects, uses, and protects your personal data."
     )
-    |> assign(:canonical_url, current_url(conn))
+    |> assign(:canonical_url, SEO.canonical_url(conn))
     |> render(:privacy)
   end
 
@@ -53,7 +56,7 @@ defmodule ChesstrainerWeb.PageController do
     |> assign(:page_title, Branding.title("Terms & Conditions"))
     |> assign(:title_suffix, "")
     |> assign(:meta_description, "The terms that apply when you use #{Branding.name()}.")
-    |> assign(:canonical_url, current_url(conn))
+    |> assign(:canonical_url, SEO.canonical_url(conn))
     |> render(:terms_conditions)
   end
 
@@ -66,7 +69,8 @@ defmodule ChesstrainerWeb.PageController do
       :meta_description,
       "Éditeur, hébergeur et informations légales de #{Branding.name()}."
     )
-    |> assign(:canonical_url, current_url(conn))
+    |> assign(:canonical_url, SEO.canonical_url(conn))
+    |> assign(:lang, "fr")
     |> render(:mentions_legales)
   end
 
@@ -86,7 +90,7 @@ defmodule ChesstrainerWeb.PageController do
     |> assign(:page_title, Branding.home_title())
     |> assign(:title_suffix, "")
     |> assign(:meta_description, @description)
-    |> assign(:canonical_url, current_url(conn))
+    |> assign(:canonical_url, SEO.canonical_url(conn))
     |> assign(:noindex, true)
     |> assign(:mailing_list_enabled, mailing_list_enabled?())
     |> render(:coming_soon)

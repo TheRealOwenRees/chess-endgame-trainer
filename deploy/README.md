@@ -141,6 +141,7 @@ MAILING_LIST_ENABLED=false
 SES_REGION=eu-north-1
 SES_ACCESS_KEY_ID=AKIA...
 SES_SECRET_ACCESS_KEY=...
+SES_CONFIGURATION_SET=my-first-configuration-set
 
 MATOMO_URL=https://analytics.owenrees.eu/
 MATOMO_SITE_ID=6
@@ -161,6 +162,47 @@ pages and the guest trainer. Signed-in account and admin pages are excluded.
 
 The privacy controls, Matomo server settings, retention, and opt-out behaviour
 are documented in `docs/analytics.md`.
+
+## Transactional email
+
+Every outgoing email goes through `Chesstrainer.Mail`, which applies the same
+house rules everywhere:
+
+- **From**: `Inner Square Chess <no-reply@mail.innersquare.app>`. The address
+  lives on the `mail.` subdomain; SES verifies the parent domain, and subdomains
+  inherit that verification, so the subdomain does not need its own identity.
+- **Reply-To**: `support@innersquare.app`. Replies reach a monitored inbox even
+  though the sender says `no-reply`.
+- **SES configuration set**: `SES_CONFIGURATION_SET`, default
+  `my-first-configuration-set`. The set is what links a message to its SNS
+  bounce and complaint notifications. It must exist in `SES_REGION`.
+
+Optional overrides:
+
+```sh
+MAIL_FROM=no-reply@mail.innersquare.app   # try another sender without a rebuild
+MAIL_REDIRECT_TO=you@example.com          # rewrite every recipient (staging/smoke tests)
+```
+
+`MAIL_REDIRECT_TO` rewrites `to`, `cc` and `bcc` to one address, prefixes the
+subject with the original recipients and adds an `X-Original-To` header, so a
+redirected message explains itself. Leave it unset in normal operation.
+
+Check delivery from the release environment:
+
+```sh
+bin/chesstrainer eval 'Mix.Task.run("mail.check", ["--to", "you@example.com"])'
+```
+
+or, in a checkout configured with the production SES variables,
+`mix mail.check --to you@example.com`. The task sends to the given address plus
+the SES mailbox simulators (`success@`, `bounce@`, `complaint@simulator...
+amazonses.com`) so the configuration set's bounce and complaint path can be
+exercised without touching a real inbox. Use `--no-simulators` to skip them.
+
+DNS: the apex publishes DMARC (`p=quarantine`) with aggregate reports sent to
+`dmarc@innersquare.app`, and `mail.innersquare.app` carries the custom MAIL FROM
+SPF record and the SES feedback MX.
 
 Generate the two secrets:
 

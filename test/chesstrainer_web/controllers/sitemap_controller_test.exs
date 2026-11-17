@@ -11,10 +11,17 @@ defmodule ChesstrainerWeb.SitemapControllerTest do
       assert body =~ ~s(<?xml version="1.0" encoding="UTF-8"?>)
       assert body =~ ~s(<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">)
       assert body =~ "<loc>#{base_url}/</loc>"
+      assert body =~ "<lastmod>#{Date.utc_today() |> Date.to_iso8601()}</lastmod>"
       assert body =~ "<loc>#{base_url}/privacy</loc>"
       assert body =~ "<loc>#{base_url}/terms-conditions</loc>"
       assert body =~ "<loc>#{base_url}/mentions-legales</loc>"
       assert length(:binary.matches(body, "<url>")) == 4
+    end
+
+    test "only dates the landing page", %{conn: conn} do
+      body = conn |> get(~p"/sitemap.xml") |> response(200)
+
+      assert length(:binary.matches(body, "<lastmod>")) == 1
     end
 
     test "is served as XML", %{conn: conn} do
