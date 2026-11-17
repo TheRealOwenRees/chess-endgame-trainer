@@ -263,6 +263,61 @@ defmodule Chesstrainer.Themes do
     :ok
   end
 
+  @link_sources [:curated, :community]
+
+  @doc """
+  Links `theme` to many endgames at once with the given source.
+
+  Defaults to `:curated`, which is what the admin tagging workspace writes.
+  Existing links are left alone, so re-applying is safe. Returns the number of
+  endgames the link was attempted for.
+  """
+  @spec tag_endgames(Theme.t(), [Ecto.UUID.t()], :curated | :community) ::
+          {:ok, non_neg_integer()}
+  def tag_endgames(%Theme{id: theme_id}, endgame_ids, source \\ :curated)
+      when is_list(endgame_ids) and source in @link_sources do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    endgame_ids
+    |> Enum.uniq()
+    |> Enum.map(fn endgame_id ->
+      %{
+        endgame_id: Ecto.UUID.dump!(endgame_id),
+        theme_id: theme_id,
+        source: to_string(source),
+        inserted_at: now
+      }
+    end)
+    |> Enum.chunk_every(5_000)
+    |> Enum.each(fn rows ->
+      Repo.insert_all("endgames_themes", rows, on_conflict: :nothing)
+    end)
+
+    {:ok, length(Enum.uniq(endgame_ids))}
+  end
+
+  @doc """
+  Removes a link from `theme` to one endgame, but only if it has the given
+  source.
+
+  The tagging workspace removes `:curated` links only, so a derived or
+  community link can never be deleted by hand. Returns the number removed.
+  """
+  @spec untag_endgame(Theme.t(), Ecto.UUID.t(), :curated | :community) ::
+          {:ok, non_neg_integer()}
+  def untag_endgame(%Theme{id: theme_id}, endgame_id, source \\ :curated)
+      when source in @link_sources do
+    {count, _} =
+      Repo.delete_all(
+        from l in "endgames_themes",
+          where:
+            l.theme_id == ^theme_id and l.endgame_id == type(^endgame_id, :binary_id) and
+              l.source == ^to_string(source)
+      )
+
+    {:ok, count}
+  end
+
   @doc """
   Replaces the derived theme links for one endgame.
 
