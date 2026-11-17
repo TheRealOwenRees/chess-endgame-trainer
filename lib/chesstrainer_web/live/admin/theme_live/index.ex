@@ -2,6 +2,7 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Index do
   use ChesstrainerWeb, :live_view
 
   alias Chesstrainer.Accounts.Policy
+  alias Chesstrainer.Endgames
   alias Chesstrainer.Themes
 
   @category_options [
@@ -20,7 +21,8 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Index do
       <.header>
         Themes
         <:subtitle>
-          Themes group endgames for filtering and puzzle selection. Deleting a theme detaches
+          Themes group endgames for filtering and puzzle selection. Coverage shows how
+          many endgames carry a theme out of the whole library. Deleting a theme detaches
           it from every endgame and leaves the endgames intact.
         </:subtitle>
         <:actions>
@@ -69,17 +71,21 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Index do
         <thead>
           <tr>
             <th>Name</th>
+            <th>Kind</th>
             <th>Category</th>
-            <th>Used by</th>
+            <th>Coverage</th>
             <th><span class="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody id="themes">
           <tr :for={{theme, usage_count} <- @themes} id={"theme-#{theme.id}"}>
             <td>{theme.name}</td>
+            <td>{theme.kind}</td>
             <td>{theme.category}</td>
             <td>
-              <span id={"theme-usage-#{theme.id}"}>{usage_label(usage_count)}</span>
+              <span id={"theme-usage-#{theme.id}"}>
+                {coverage_label(usage_count, @total_endgames)}
+              </span>
             </td>
             <td class="w-0 font-semibold">
               <div class="flex gap-4">
@@ -88,7 +94,7 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Index do
                   phx-click="delete"
                   phx-value-id={theme.id}
                   data-confirm={
-                    "Delete #{theme.name}? Used by #{usage_label(usage_count)}. " <>
+                    "Delete #{theme.name}? Used by #{coverage_label(usage_count, @total_endgames)}. " <>
                       "The endgames will be kept and simply detached."
                   }
                 >
@@ -152,9 +158,10 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Index do
         category: socket.assigns.category
       )
 
-    assign(socket, :themes, themes)
+    assign(socket, themes: themes, total_endgames: Endgames.count_endgames())
   end
 
-  defp usage_label(1), do: "1 endgame"
-  defp usage_label(count), do: "#{count} endgames"
+  defp coverage_label(count, total) do
+    "#{count} of #{total} #{if total == 1, do: "endgame", else: "endgames"}"
+  end
 end

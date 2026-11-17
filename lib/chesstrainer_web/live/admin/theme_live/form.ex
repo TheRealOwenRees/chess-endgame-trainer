@@ -11,6 +11,12 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Form do
     {"Tactic", "tactic"}
   ]
 
+  @kind_options [
+    {"Technique", "technique"},
+    {"Motif", "motif"},
+    {"Material", "material"}
+  ]
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -21,17 +27,30 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Form do
         {@page_title}
         <:subtitle>
           Themes group endgames for filtering. Names must be unique within a category,
-          ignoring case.
+          ignoring case. The slug is generated from the name and stays fixed afterwards,
+          so links to a theme keep working when it is renamed.
         </:subtitle>
       </.header>
 
       <.form for={@form} id="theme-form" phx-change="validate" phx-submit="save">
         <.input field={@form[:name]} type="text" label="Name" autocomplete="off" required />
         <.input
+          field={@form[:kind]}
+          type="select"
+          label="Kind"
+          options={@kind_options}
+        />
+        <.input
           field={@form[:category]}
           type="select"
           label="Category"
           options={@category_options}
+        />
+        <.input
+          field={@form[:description]}
+          type="textarea"
+          label="Description"
+          rows="3"
         />
 
         <footer>
@@ -54,6 +73,7 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Form do
     socket
     |> assign(:page_title, "New theme")
     |> assign(:theme, theme)
+    |> assign(:kind_options, @kind_options)
     |> assign(:category_options, @category_options)
     |> assign(:form, to_form(Themes.change_theme(theme)))
   end
@@ -64,6 +84,7 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Form do
     socket
     |> assign(:page_title, "Edit theme")
     |> assign(:theme, theme)
+    |> assign(:kind_options, @kind_options)
     |> assign(:category_options, @category_options)
     |> assign(:form, to_form(Themes.change_theme(theme)))
   end
@@ -87,12 +108,15 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Form do
   end
 
   defp save_theme(socket, :new, theme_params) do
-    case Themes.create_theme(theme_params) do
+    case Themes.create_theme(socket.assigns.current_scope, theme_params) do
       {:ok, _theme} ->
         {:noreply,
          socket
          |> put_flash(:info, "Theme created successfully.")
          |> push_navigate(to: ~p"/admin/themes")}
+
+      {:error, :unauthorized} ->
+        {:noreply, put_flash(socket, :error, "You are not authorized to manage themes.")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset, action: :insert))}

@@ -56,6 +56,17 @@ defmodule Chesstrainer.Accounts.User do
   end
 
   @doc """
+  A user changeset for changing the plan.
+
+  The plan is programmatic and must never be cast from user-supplied params.
+  """
+  def plan_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:plan])
+    |> validate_required([:plan])
+  end
+
+  @doc """
   A user changeset for an admin-created invitation.
 
   The account is created without a password and marked confirmed, so the

@@ -59,7 +59,14 @@ theme_names =
 Repo.insert_all(
   Theme,
   Enum.map(theme_names, fn name ->
-    %{name: name, category: :endgame, inserted_at: now, updated_at: now}
+    %{
+      name: name,
+      slug: Theme.slugify(name),
+      kind: :technique,
+      category: :endgame,
+      inserted_at: now,
+      updated_at: now
+    }
   end),
   on_conflict: :nothing
 )

@@ -4,6 +4,8 @@ defmodule Chesstrainer.Themes do
   """
 
   import Ecto.Query, warn: false
+  alias Chesstrainer.Accounts.Policy
+  alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Repo
 
   alias Chesstrainer.Themes.Theme
@@ -75,7 +77,24 @@ defmodule Chesstrainer.Themes do
   def get_theme!(id), do: Repo.get!(Theme, id)
 
   @doc """
+  Gets a single endgame theme by its slug.
+
+  Returns `nil` when no endgame theme has that slug.
+  """
+  def get_theme_by_slug(slug) when is_binary(slug) do
+    Repo.one(
+      from t in Theme,
+        where: t.slug == ^slug and t.category == :endgame,
+        limit: 1
+    )
+  end
+
+  @doc """
   Creates a theme.
+
+  This is the unscoped path used by internal callers such as seeds, fixtures and
+  the admin picker, which are already behind an authorization check. Prefer
+  `create_theme/2` wherever a scope is available.
 
   ## Examples
 
@@ -90,6 +109,21 @@ defmodule Chesstrainer.Themes do
     %Theme{}
     |> Theme.changeset(attrs)
     |> Repo.insert()
+  end
+
+  @doc """
+  Creates a theme on behalf of an administrator.
+
+  Members cannot introduce new theme names; their contribution path is a
+  suggestion, which a moderator reviews. Returns `{:error, :unauthorized}`
+  for a scope that cannot manage themes.
+  """
+  def create_theme(%Scope{} = scope, attrs) do
+    if Policy.can?(scope, :manage_themes) do
+      create_theme(attrs)
+    else
+      {:error, :unauthorized}
+    end
   end
 
   @doc """
@@ -160,18 +194,68 @@ defmodule Chesstrainer.Themes do
   @doc """
   Finds a theme by name (trimmed and case-insensitive) for a category, creating it
   if it does not exist.
+
+  Options:
+
+    * `:kind` - the kind for a newly created theme; defaults to `:technique`
+
+  This is the picker's helper and is expected to run behind an admin check.
   """
-  def get_or_create(name, category) when is_binary(name) do
+  def get_or_create(name, category, opts \\ []) when is_binary(name) do
     name = String.trim(name)
 
     if name == "" do
       {:error, :blank_name}
     else
       case find_by_name(name, category) do
-        nil -> create_theme(%{name: name, category: category})
-        theme -> {:ok, theme}
+        nil ->
+          create_theme(%{
+            name: name,
+            category: category,
+            kind: Keyword.get(opts, :kind, :technique)
+          })
+
+        theme ->
+          {:ok, theme}
       end
     end
+  end
+
+  @doc """
+  Replaces the derived theme links for one endgame.
+
+  Only links whose source is `derived` are removed, so curated and
+  community-approved links survive every derivation pass. Links that are
+  already present are left alone, which makes the operation idempotent.
+  """
+  @spec sync_derived_themes(Ecto.UUID.t(), [term()]) :: :ok
+  def sync_derived_themes(endgame_id, theme_ids) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Repo.transaction(fn ->
+      Repo.delete_all(
+        from l in "endgames_themes",
+          where: l.endgame_id == type(^endgame_id, :binary_id) and l.source == "derived"
+      )
+
+      rows =
+        theme_ids
+        |> Enum.uniq()
+        |> Enum.map(fn theme_id ->
+          %{
+            endgame_id: Ecto.UUID.dump!(endgame_id),
+            theme_id: theme_id,
+            source: "derived",
+            inserted_at: now
+          }
+        end)
+
+      if rows != [] do
+        Repo.insert_all("endgames_themes", rows, on_conflict: :nothing)
+      end
+    end)
+
+    :ok
   end
 
   defp find_by_name(name, category) do
