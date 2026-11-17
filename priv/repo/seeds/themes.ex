@@ -8,6 +8,10 @@ defmodule Chesstrainer.Repo.Seeds.Themes do
       "Lucena",
       "Philidor",
       "opposition",
+      "key squares",
+      "triangulation",
+      "shouldering",
+      "king activity",
       "promotion",
       "stalemate"
     ]
