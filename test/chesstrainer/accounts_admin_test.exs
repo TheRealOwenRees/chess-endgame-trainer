@@ -1,8 +1,6 @@
 defmodule Chesstrainer.AccountsAdminTest do
   use Chesstrainer.DataCase, async: false
 
-  require Logger
-
   import Chesstrainer.AccountsFixtures
   import ExUnit.CaptureLog
   import Swoosh.TestAssertions
