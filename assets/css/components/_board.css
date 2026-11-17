@@ -43,6 +43,13 @@
 /* Play board */
 #endgame-board { position: relative; }
 
+/* Chessground's stock stylesheet shifts the file labels 24px right of the
+   board, assuming a gutter we don't have, so they land on square boundaries
+   instead of under each file. Place the row on the board and right-justify
+   each label within its square; the row's width already matches the board
+   because the container is sized to whole squares. */
+#endgame-board coords.files { left: 0; text-align: right; }
+
 /* Chessground's wrapper has no intrinsic height; let it fill the sized
    aspect-ratio container so the board scales with the viewport. */
 #endgame-board .cg-wrap { width: 100%; height: 100%; }
