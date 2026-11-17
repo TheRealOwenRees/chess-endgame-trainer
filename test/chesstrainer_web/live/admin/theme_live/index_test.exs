@@ -11,8 +11,8 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.IndexTest do
 
   setup :register_and_log_in_admin
 
-  test "lists themes with their usage count", %{conn: conn} do
-    used_theme = theme_fixture(%{name: "Lucena"})
+  test "lists themes with their kind and coverage", %{conn: conn} do
+    used_theme = theme_fixture(%{name: "Lucena", kind: :technique})
     unused_theme = theme_fixture(%{name: "Philidor"})
     endgame = endgame_fixture()
     {:ok, _} = Endgames.update_endgame(endgame, %{}, [used_theme])
@@ -20,8 +20,9 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.IndexTest do
     {:ok, view, _html} = live(conn, ~p"/admin/themes")
 
     assert has_element?(view, "#theme-#{used_theme.id}")
-    assert has_element?(view, "#theme-usage-#{used_theme.id}", "1 endgame")
-    assert has_element?(view, "#theme-usage-#{unused_theme.id}", "0 endgames")
+    assert has_element?(view, "#theme-#{used_theme.id}", "technique")
+    assert has_element?(view, "#theme-usage-#{used_theme.id}", "1 of 1 endgame")
+    assert has_element?(view, "#theme-usage-#{unused_theme.id}", "0 of 1 endgame")
   end
 
   test "filters by name and category", %{conn: conn} do
@@ -57,7 +58,7 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.IndexTest do
 
     {:ok, view, html} = live(conn, ~p"/admin/themes")
 
-    assert html =~ "Used by 1 endgame"
+    assert html =~ "Used by 1 of 1 endgame"
     assert html =~ "The endgames will be kept"
 
     view |> element("#theme-#{theme.id} a", "Delete") |> render_click()
