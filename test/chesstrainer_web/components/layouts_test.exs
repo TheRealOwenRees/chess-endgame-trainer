@@ -5,6 +5,7 @@ defmodule ChesstrainerWeb.LayoutsTest do
 
   alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Accounts.User
+  alias Chesstrainer.Branding
   alias ChesstrainerWeb.Layouts
 
   describe "navbar/1" do
@@ -27,6 +28,44 @@ defmodule ChesstrainerWeb.LayoutsTest do
       assert html =~ ~p"/users/log-in"
       assert html =~ ~p"/users/register"
       refute html =~ ~s(class="nav-user-menu")
+    end
+  end
+
+  describe "discord_link/1" do
+    setup do
+      previous = Application.get_env(:chesstrainer, :branding)
+      on_exit(fn -> restore_env(:branding, previous) end)
+      :ok
+    end
+
+    test "renders an icon-only link to the configured invite" do
+      html = render_component(&Layouts.discord_link/1, %{})
+
+      assert html =~ ~s(href="#{Branding.discord_invite_url()}")
+      assert html =~ ~s(aria-label="Join the #{Branding.name()} Discord")
+      assert html =~ ~s(target="_blank")
+      assert html =~ "noopener noreferrer"
+      assert html =~ ~r/<a[^>]*class="discord-link"[^>]*>\s*<svg/
+    end
+
+    test "is rendered by the navbar and the footer" do
+      navbar = render_component(&Layouts.navbar/1, %{current_scope: nil})
+      assert navbar =~ ~s(class="discord-link")
+
+      footer = render_component(&Layouts.footer/1, %{})
+      assert footer =~ ~s(class="discord-link")
+    end
+
+    test "renders nothing when no invite is configured" do
+      Application.put_env(
+        :chesstrainer,
+        :branding,
+        Keyword.put(Application.get_env(:chesstrainer, :branding, []), :discord_invite, "")
+      )
+
+      html = render_component(&Layouts.discord_link/1, %{})
+
+      refute html =~ "discord-link"
     end
   end
 

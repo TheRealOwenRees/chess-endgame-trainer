@@ -128,6 +128,8 @@ defmodule ChesstrainerWeb.Layouts do
               <% end %>
             </div>
           <% end %>
+
+          <.discord_link />
         </div>
       </nav>
     </header>
@@ -225,10 +227,40 @@ defmodule ChesstrainerWeb.Layouts do
         <a href="/terms-conditions">Terms & Conditions</a>
         <a href="/mentions-legales">Mentions légales</a>
         <a href="/sitemap.xml">Sitemap</a>
+        <.discord_link />
       </nav>
 
       <small>© {@year} {Branding.name()}</small>
     </footer>
+    """
+  end
+
+  @doc """
+  Renders the Discord invite as an icon-only link.
+
+  The glyph is decorative; the `aria-label` carries the link's purpose for
+  screen readers. Renders nothing when no invite is configured, so environments
+  without one never show a dead link.
+  """
+  def discord_link(assigns) do
+    assigns = assign(assigns, :href, Branding.discord_invite_url())
+
+    ~H"""
+    <a
+      :if={@href}
+      class="discord-link"
+      href={@href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={"Join the #{Branding.name()} Discord"}
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path
+          fill="currentColor"
+          d="M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0105c.1202.0991.246.1971.3728.2914a.077.077 0 0 1-.0066.1277c-.5986.3428-1.2201.6447-1.8739.8923a.0766.0766 0 0 0-.0407.1057c.36.699.7715 1.3647 1.225 1.9942a.076.076 0 0 0 .0843.0276c1.9608-.6066 3.9493-1.5218 6.0021-3.0294a.077.077 0 0 0 .0322-.0561c.5008-5.1763-.8398-9.6746-3.5543-13.6607a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"
+        />
+      </svg>
+    </a>
     """
   end
 

@@ -12,7 +12,8 @@ defmodule Chesstrainer.Branding do
     wordmark: "INNERSQUARE",
     tagline: "Endgame Trainer",
     support_email: "support@innersquare.app",
-    mail_from: "no-reply@mail.innersquare.app"
+    mail_from: "no-reply@mail.innersquare.app",
+    discord_invite: "https://discord.gg/Z2NfkG7thV"
   ]
 
   @doc "The display name, e.g. `\"Lucid Chess\"`."
@@ -29,6 +30,26 @@ defmodule Chesstrainer.Branding do
 
   @doc "The From address used for outgoing mail."
   def mail_from, do: get(:mail_from)
+
+  @doc """
+  The Discord invite URL, or `nil` when no invite is configured.
+
+  Accepts either a bare invite code (`"abc123"`) or a full URL; a bare code is
+  expanded to `https://discord.gg/<code>`.
+  """
+  def discord_invite_url do
+    case get(:discord_invite) do
+      value when is_binary(value) ->
+        case String.trim(value) do
+          "" -> nil
+          "http" <> _ = url -> url
+          code -> "https://discord.gg/#{code}"
+        end
+
+      _ ->
+        nil
+    end
+  end
 
   @doc "The home-page title, e.g. `\"Lucid Chess — Endgame Trainer\"`."
   def home_title, do: "#{name()} — #{tagline()}"

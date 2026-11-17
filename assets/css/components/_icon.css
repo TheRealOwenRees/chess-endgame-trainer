@@ -1,2 +1,9 @@
 .eyebrow { display: flex; align-items: center; gap: 9px; margin-bottom: 27px; color: var(--color-coral-text); text-transform: uppercase; letter-spacing: .13em; font-size: 12px; font-weight: 700; }
 .eyebrow svg { width: 20px; height: 20px; }
+
+/* Icon-only external links, e.g. the Discord invite in the navbar and footer.
+   Colour is inherited so the glyph matches the surrounding link row. */
+.discord-link { display: inline-flex; align-items: center; color: inherit; transition: opacity .2s; }
+.discord-link:hover { opacity: .55; }
+.discord-link:focus-visible { outline: 2px solid var(--color-coral-control); outline-offset: 3px; border-radius: 4px; }
+.discord-link svg { width: 20px; height: 20px; }
