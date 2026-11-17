@@ -2,14 +2,21 @@ defmodule Chesstrainer.Puzzles do
   @moduledoc """
   Selects endgames to serve as puzzles.
 
-  A puzzle is played at one of three difficulties — `:easy`, `:medium` or
-  `:hard` — defined relative to the current user's rating: `:medium` is within
-  a configurable band of the user's rating, `:easy` below it and `:hard` above
-  it. The same endgame is therefore easy for one player and hard for another.
+  Difficulty is a bias, not a filter. Every endgame is weighted by how close its
+  rating is to a target derived from the user's rating — the user's own rating
+  for `:medium`, below it for `:easy` and above it for `:hard` — and one
+  candidate is drawn from that weighted distribution. Nearby endgames are much
+  more likely, but the whole library stays reachable, so a thin region around
+  the user's rating can never leave the pool empty.
 
-  Selection prefers endgames the user has not attempted in the last 30 days.
-  When that pool is empty it falls back to any endgame in the band; the rating
-  window keeps a recent replay unrated until it expires.
+  Endgames the user has attempted inside the repeat window are skipped, as is
+  anything passed in `:exclude_ids` (the puzzles already served in a session).
+  Only when every candidate is excluded does selection fall back to the least
+  recently attempted endgame, so the repeat is the most overdue one rather than
+  an arbitrary one.
+
+  The same endgame is therefore easy for one player and hard for another: a
+  rating is what makes the two comparable.
   """
 
   import Ecto.Query, warn: false
@@ -17,95 +24,115 @@ defmodule Chesstrainer.Puzzles do
   alias Chesstrainer.Repo
   alias Chesstrainer.Accounts.User
   alias Chesstrainer.Attempts
+  alias Chesstrainer.Attempts.Attempt
   alias Chesstrainer.Endgames.Endgame
 
-  @default_band_width 100
+  @default_spread 150
+  @default_repeat_window_days 30
+  @default_targets [easy: -200, medium: 0, hard: 200]
   @difficulties [:easy, :medium, :hard]
 
   @doc "The difficulties a session can be played at."
   def difficulties, do: @difficulties
 
   @doc """
-  The half-width of the medium band, in rating points.
+  How far, in rating points, a puzzle's likelihood falls off from the target.
 
-  Configured under `:chesstrainer, :puzzles, :band_width`.
+  A larger spread draws more widely around the target. Configured under
+  `:chesstrainer, :puzzles, :spread`.
   """
-  def band_width do
-    :chesstrainer
-    |> Application.get_env(:puzzles, [])
-    |> Keyword.get(:band_width, @default_band_width)
-  end
+  def spread, do: setting(:spread, @default_spread)
 
   @doc """
-  The `{min, max}` rating range for `difficulty` relative to `rating`.
+  The minimum gap, in days, before the same endgame may be served again.
 
-  A `nil` bound is open-ended.
+  Configured under `:chesstrainer, :puzzles, :repeat_window_days`.
   """
-  def difficulty_range(rating, difficulty) when difficulty in @difficulties do
-    width = band_width()
+  def repeat_window_days, do: setting(:repeat_window_days, @default_repeat_window_days)
 
-    case difficulty do
-      :easy -> {nil, rating - width}
-      :medium -> {rating - width, rating + width}
-      :hard -> {rating + width, nil}
-    end
+  @doc """
+  The rating `difficulty` aims at, given the player's `rating`.
+
+  The offsets are configured under `:chesstrainer, :puzzles, :targets`.
+  """
+  def difficulty_target(rating, difficulty) when difficulty in @difficulties do
+    rating + Keyword.fetch!(setting(:targets, @default_targets), difficulty)
   end
 
   @doc """
   Picks the next puzzle for `user` at `difficulty`, using `user.rating` as the
   baseline.
 
-  `:exclude_ids` (default `[]`) skips endgames by id — used to avoid repeating
-  the puzzle just played. Returns `nil` when no endgame exists at all.
+  `:exclude_ids` (default `[]`) skips endgames by id — used for the puzzles
+  already served in this session. Returns `nil` when no endgame exists at all.
   """
   def next_endgame(%User{} = user, difficulty, opts \\ [])
       when difficulty in @difficulties do
     exclude_ids = Keyword.get(opts, :exclude_ids, [])
-    band = difficulty_range(user.rating, difficulty)
-    recent_ids = Attempts.recent_endgame_ids(user.id)
+    recent_ids = Attempts.recent_endgame_ids(user.id, repeat_window_days())
+    target = difficulty_target(user.rating, difficulty)
 
-    fresh =
-      Endgame
-      |> in_band(band)
-      |> skip_ids(exclude_ids)
-      |> skip_ids(recent_ids)
-      |> random_one()
-
-    fresh || fallback(user.rating, band, exclude_ids)
-  end
-
-  defp fallback(rating, band, exclude_ids) do
     Endgame
-    |> in_band(band)
-    |> skip_ids(exclude_ids)
-    |> random_one()
+    |> on_side_of(user.rating, difficulty)
+    |> skip_ids(exclude_ids ++ recent_ids)
+    |> weighted_one(target)
     |> case do
-      nil -> nearest(rating, exclude_ids)
+      nil -> least_recently_attempted(user.id, exclude_ids)
       endgame -> endgame
     end
   end
 
-  defp nearest(rating, exclude_ids) do
+  # Keep the labels honest: "easy" never serves above the user's rating plus the
+  # spread, and "hard" never below it minus the spread. "medium" is open, which
+  # is what lets it reach the rest of the library.
+  defp on_side_of(query, _rating, :medium), do: query
+
+  defp on_side_of(query, rating, :easy),
+    do: where(query, [e], e.rating <= ^(rating + spread()))
+
+  defp on_side_of(query, rating, :hard),
+    do: where(query, [e], e.rating >= ^(rating - spread()))
+
+  # Draw one row with probability proportional to
+  # `exp(-|rating - target| / spread)`: an exponential race, where the row with
+  # the smallest `-ln(U) / weight` wins.
+  defp weighted_one(query, target) do
+    spread = spread() * 1.0
+    target = target * 1.0
+
+    query
+    |> order_by(
+      [e],
+      fragment("-ln(1 - random()) * exp(abs(? - ?) / ?)", e.rating, ^target, ^spread)
+    )
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  # Every candidate is excluded, so the repeat window is overruled: serve
+  # whatever the user has waited longest to see again.
+  defp least_recently_attempted(user_id, exclude_ids) do
+    attempted =
+      Attempt
+      |> where([a], a.user_id == ^user_id)
+      |> group_by([a], a.endgame_id)
+      |> select([a], %{endgame_id: a.endgame_id, last_at: max(a.inserted_at)})
+
     Endgame
     |> skip_ids(exclude_ids)
-    |> order_by([e], asc: fragment("ABS(? - ?)", e.rating, ^rating))
+    |> join(:left, [e], a in subquery(attempted), on: a.endgame_id == e.id)
+    |> order_by([_e, a], asc_nulls_first: a.last_at)
+    |> order_by([e], fragment("random()"))
     |> limit(1)
     |> Repo.one()
   end
-
-  defp random_one(query) do
-    query
-    |> order_by([e], fragment("RANDOM()"))
-    |> limit(1)
-    |> Repo.one()
-  end
-
-  defp in_band(query, {nil, max}), do: where(query, [e], e.rating <= ^max)
-  defp in_band(query, {min, nil}), do: where(query, [e], e.rating >= ^min)
-
-  defp in_band(query, {min, max}),
-    do: where(query, [e], e.rating >= ^min and e.rating <= ^max)
 
   defp skip_ids(query, []), do: query
   defp skip_ids(query, ids), do: where(query, [e], e.id not in ^ids)
+
+  defp setting(key, default) do
+    :chesstrainer
+    |> Application.get_env(:puzzles, [])
+    |> Keyword.get(key, default)
+  end
 end

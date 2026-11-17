@@ -61,11 +61,16 @@ config :chesstrainer, :ratings,
   window_days: 7,
   rd_inflation_c: 10.0
 
-# Difficulty bands for puzzle sessions. An endgame is "medium" when its rating
-# falls within `band_width` of the user's rating, "easy" below that band and
-# "hard" above it. Tweak to widen or narrow the served difficulty (e.g. 150 or
-# 200).
-config :chesstrainer, :puzzles, band_width: 100
+# Puzzle selection. Difficulty is a weighted bias towards a target rating —
+# `medium` targets the user's rating, `easy` 200 below it and `hard` 200 above
+# it — and `spread` is how many rating points it takes for a puzzle's chance to
+# fall off by a factor of e. `repeat_window_days` is how long an attempted
+# puzzle stays out of the pool. Tweak `spread` to widen or narrow the served
+# difficulty (e.g. 100 or 250).
+config :chesstrainer, :puzzles,
+  spread: 150,
+  repeat_window_days: 30,
+  targets: [easy: -200, medium: 0, hard: 200]
 
 # Public codes of the endgames pinned to the landing-page puzzle grid, in
 # display order. When empty (or short) the grid is topped up with a date-seeded

@@ -106,8 +106,8 @@ defmodule Chesstrainer.Attempts do
   @doc """
   The distinct endgame ids `user_id` has attempted in the last `days` days.
 
-  Used by puzzle selection to prefer fresh puzzles; a retry still counts as an
-  attempt, even though the rating window leaves it unrated.
+  Used by puzzle selection to skip puzzles inside the repeat window; a retry
+  still counts as an attempt, even though the rating window leaves it unrated.
   """
   def recent_endgame_ids(user_id, days \\ 30) do
     cutoff = DateTime.add(DateTime.utc_now(), -days, :day)

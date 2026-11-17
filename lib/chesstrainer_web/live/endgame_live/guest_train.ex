@@ -135,7 +135,10 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
 
   @impl true
   def mount(_params, _session, socket) do
-    socket = assign(socket, :limit, GuestLimits.limit())
+    socket =
+      socket
+      |> assign(:limit, GuestLimits.limit())
+      |> assign(:served_ids, [])
 
     cond do
       signed_in?(socket) ->
@@ -217,11 +220,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
         |> assign(:limit_reached, retry_ms)
 
       {:ok, _remaining} ->
-        endgame =
-          Endgames.random_endgame(exclude_ids: [socket.assigns.endgame.id]) ||
-            Endgames.random_endgame()
-
-        case endgame do
+        case random_unserved(socket) do
           nil -> assign(socket, :empty, :exhausted)
           endgame -> start_guest_puzzle(socket, socket.assigns.guest_address, endgame)
         end
@@ -234,11 +233,19 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
         {:ok, limit_wall(socket, address, retry_ms)}
 
       {:ok, _remaining} ->
-        case Endgames.random_endgame() do
+        case random_unserved(socket) do
           nil -> {:ok, empty_pool(socket, address)}
           endgame -> {:ok, start_guest_puzzle(socket, address, endgame)}
         end
     end
+  end
+
+  # Prefer an endgame this visitor has not seen in this session. Once the whole
+  # pool is served — only possible on a very long guest session — start over
+  # rather than dead-end.
+  defp random_unserved(socket) do
+    Endgames.random_endgame(exclude_ids: socket.assigns.served_ids) ||
+      Endgames.random_endgame()
   end
 
   defp start_guest_puzzle(socket, address, endgame) do
@@ -250,6 +257,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
         |> assign(:guest_remaining, remaining)
         |> assign(:limit_reached, nil)
         |> assign(:empty, nil)
+        |> assign(:served_ids, [endgame.id | socket.assigns.served_ids])
         |> PlayCore.init(endgame, page_title: "Train")
 
       {:limit_reached, retry_ms} ->

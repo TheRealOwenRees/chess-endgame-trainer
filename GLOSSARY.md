@@ -105,6 +105,14 @@ carries a start time and a rating baseline for the timer and rating-gain
 monitor. Ephemeral — it lives only in the running LiveView, never persisted.
 _Avoid_: Run, game, attempt
 
+**Repeat window**:
+The minimum interval before the same endgame may be served to the same user
+again. Selection skips endgames attempted inside the window; only when nothing
+else is available does the least recently attempted endgame come back. It is
+independent of the rating window, which decides whether a replay may move a
+rating.
+_Avoid_: Cooldown (reserved for tablebase rate-limiting), due date
+
 ## Ratings
 
 **Rating**:
@@ -128,11 +136,13 @@ systems; the trainer deliberately does not track it.
 _Avoid_: Variance, inconsistency
 
 **Difficulty**:
-A choice — `easy`, `medium` or `hard` — that selects which puzzles to serve
-relative to the current user's rating: `medium` is near the user's rating,
-`easy` below it, `hard` above it. The band width is a configured constant. It is
-a property of a session, not of an endgame — the same endgame is easy for one
-user and hard for another.
+A choice — `easy`, `medium` or `hard` — that biases which puzzles are served
+relative to the current user's rating: `medium` centres on the user's rating,
+`easy` below it, `hard` above it. Candidates are weighted by how close their
+rating is to that centre, so a session draws mostly from near the target but the
+whole library stays reachable. The spread is a configured constant. It is a
+property of a session, not of an endgame — the same endgame is easy for one user
+and hard for another.
 _Avoid_: Level, rank, tier
 
 ## Infrastructure
