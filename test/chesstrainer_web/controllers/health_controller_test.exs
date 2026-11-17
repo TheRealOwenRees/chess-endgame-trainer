@@ -10,7 +10,7 @@ defmodule ChesstrainerWeb.HealthControllerTest do
       assert body["db"] == "ok"
       assert body["tablebase"] == "local"
       assert body["process"] == "ok"
-      assert get_resp_header(conn, "x-robots-tag") == ["noindex"]
+      assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
     end
 
     test "returns degraded when local tablebases are not configured", %{conn: conn} do
@@ -53,7 +53,7 @@ defmodule ChesstrainerWeb.HealthControllerTest do
       assert body["db"] == "down"
       assert body["tablebase"] == "local"
       assert body["process"] == "ok"
-      assert get_resp_header(conn, "x-robots-tag") == ["noindex"]
+      assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
     end
   end
 

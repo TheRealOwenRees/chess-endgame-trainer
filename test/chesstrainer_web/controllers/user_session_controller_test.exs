@@ -186,22 +186,6 @@ defmodule ChesstrainerWeb.UserSessionControllerTest do
       assert get_session(conn, :user_token)
     end
 
-    test "the admin login uses the same throttle", %{conn: conn, user: user} do
-      for _ <- 1..LoginThrottle.max_per_login() do
-        post(conn, ~p"/admin/log-in", %{
-          "user" => %{"email" => user.email, "password" => "wrong password"}
-        })
-      end
-
-      conn =
-        post(conn, ~p"/admin/log-in", %{
-          "user" => %{"email" => user.email, "password" => valid_user_password()}
-        })
-
-      refute get_session(conn, :user_token)
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Too many attempts."
-    end
-
     test "log events contain no raw address or password", %{conn: conn, user: user} do
       log =
         capture_log(

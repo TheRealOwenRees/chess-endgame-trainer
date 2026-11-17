@@ -40,8 +40,11 @@
     </div>
   </section>
 
-  <%!-- <section class="learning-strip" id="method">
-    <p>Built for the part of chess that decides everything.</p>
+  <section class="learning-strip" id="method">
+    <figure class="learning-quote">
+      <blockquote>“The hardest game to win is a won game.”</blockquote>
+      <figcaption>— Emmanuel Lasker</figcaption>
+    </figure>
     <div class="stat">
       <strong>{count_label(@puzzle_count)}</strong>
       <span>puzzles</span>
@@ -50,9 +53,9 @@
       <strong>{@user_count}</strong>
       <span>Players improving their endgame</span>
     </div>
-  </section> --%>
+  </section>
 
-  <%!-- <section class="puzzle-section" id="puzzles">
+  <section class="puzzle-section" id="puzzles">
     <div class="section-heading">
       <div>
         <span class="section-kicker">Choose your lesson</span>
@@ -65,16 +68,16 @@
         that you’ll recognise over the board.
       </p>
     </div>
-    <div class="puzzle-grid">
-      <%= for {endgame, index} <- Enum.with_index(@endgames) do %>
-        <.puzzle_card
-          endgame={endgame}
-          index={index}
-          active={@active_endgame && endgame.id == @active_endgame.id}
-        />
-      <% end %>
+    <div class="puzzle-coming-soon">
+      <div class="eyebrow">
+        <.icon_spark /> Coming soon
+      </div>
+      <strong>The lesson library is on its way.</strong>
+      <p>
+        A growing set of positions, each teaching one idea. Today’s puzzle is already live.
+      </p>
     </div>
-  </section> --%>
+  </section>
 
   <.mailing_list_signup :if={@mailing_list_enabled} />
 

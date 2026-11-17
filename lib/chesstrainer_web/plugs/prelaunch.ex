@@ -19,6 +19,7 @@ defmodule ChesstrainerWeb.Plugs.Prelaunch do
     /health
     /robots.txt
     /sitemap.xml
+    /users/log-in
     /favicon.ico
     /favicon.svg
     /favicon-16x16.png
@@ -40,7 +41,6 @@ defmodule ChesstrainerWeb.Plugs.Prelaunch do
     /assets
     /fonts
     /images
-    /dev
   )
 
   def init(opts), do: opts

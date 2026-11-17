@@ -6,19 +6,20 @@ defmodule ChesstrainerWeb.SitemapController do
   them and they render the same interactive surface with only the position
   differing, so listing them all would be index bloat. Revisit that if public
   browse pages (by Key or theme) exist and are worth ranking.
+
+  No `<lastmod>` is emitted: none of these pages has a stored modification time,
+  and an invented date (such as "today" on every request) teaches crawlers to
+  distrust the sitemap.
   """
 
   use ChesstrainerWeb, :controller
 
   def index(conn, _params) do
-    # The landing page changes every day (daily puzzle, counts), so its
-    # lastmod is honest. The legal pages have no stored modification time, and
-    # an invented lastmod is worse than none.
     entries = [
-      {url(conn, ~p"/"), Date.utc_today()},
-      {url(conn, ~p"/privacy"), nil},
-      {url(conn, ~p"/terms-conditions"), nil},
-      {url(conn, ~p"/mentions-legales"), nil}
+      url(conn, ~p"/"),
+      url(conn, ~p"/privacy"),
+      url(conn, ~p"/terms-conditions"),
+      url(conn, ~p"/mentions-legales")
     ]
 
     conn
@@ -28,8 +29,8 @@ defmodule ChesstrainerWeb.SitemapController do
 
   defp render_sitemap(entries) do
     urls =
-      Enum.map_join(entries, fn {loc, lastmod} ->
-        "  <url><loc>#{escape(loc)}</loc>#{lastmod_entry(lastmod)}</url>\n"
+      Enum.map_join(entries, fn loc ->
+        "  <url><loc>#{escape(loc)}</loc></url>\n"
       end)
 
     """
@@ -38,9 +39,6 @@ defmodule ChesstrainerWeb.SitemapController do
     #{urls}</urlset>
     """
   end
-
-  defp lastmod_entry(nil), do: ""
-  defp lastmod_entry(%Date{} = date), do: "<lastmod>#{Date.to_iso8601(date)}</lastmod>"
 
   # Templates escape automatically; this response is built as a plain string,
   # so XML-significant characters must be escaped here.

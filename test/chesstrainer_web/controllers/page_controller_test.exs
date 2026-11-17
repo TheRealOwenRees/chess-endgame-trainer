@@ -68,9 +68,16 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert LazyHTML.text(LazyHTML.query(document, "title")) =~ Branding.home_title()
     refute html =~ "Phoenix Framework"
 
-    eyebrow = LazyHTML.query(document, ".eyebrow")
+    eyebrow = LazyHTML.query(document, ".hero .eyebrow")
     assert LazyHTML.text(eyebrow) =~ "Endgames, simplified"
     assert LazyHTML.attribute(LazyHTML.query(eyebrow, "svg"), "aria-hidden") == ["true"]
+
+    assert LazyHTML.text(LazyHTML.query(document, ".puzzle-coming-soon")) =~ "Coming soon"
+
+    assert LazyHTML.text(LazyHTML.query(document, ".learning-quote")) =~
+             "The hardest game to win is a won game."
+
+    assert html =~ "Emmanuel Lasker"
 
     assert LazyHTML.attribute(LazyHTML.query(document, ~s(meta[name="description"])), "content") ==
              [@description]
@@ -381,7 +388,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     refute html =~ "Browse puzzles"
     assert html =~ ~s(class="site-footer")
     assert html =~ "/assets/js/marketing.js"
-    assert html =~ ~s(name="robots")
+    assert html =~ ~s(<meta name="robots" content="noindex, nofollow")
   end
 
   test "premium users see the puzzles link on the 404 page", %{conn: conn} do
