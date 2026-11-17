@@ -48,9 +48,13 @@ config :chesstrainer, :mail_redirect_to, System.get_env("MAIL_REDIRECT_TO")
 
 # Local Syzygy tablebases: set TABLEBASE_PATH to the directory holding the
 # .rtbw/.rtbz files. When unset, the local backend stays disabled and lookups
-# fall back to Lichess.
-if tablebase_path = System.get_env("TABLEBASE_PATH") do
-  config :chesstrainer, :tablebase_path, tablebase_path
+# fall back to Lichess. Tests are always pinned to the committed 3-piece
+# fixtures by config/test.exs, so an exported TABLEBASE_PATH cannot make them
+# depend on whatever tables the developer happens to have downloaded.
+if config_env() != :test do
+  if tablebase_path = System.get_env("TABLEBASE_PATH") do
+    config :chesstrainer, :tablebase_path, tablebase_path
+  end
 end
 
 # Tablebase cache: size and the UTC time of the daily backup. Environment
