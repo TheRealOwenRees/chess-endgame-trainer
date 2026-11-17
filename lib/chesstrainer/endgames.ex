@@ -111,8 +111,13 @@ defmodule Chesstrainer.Endgames do
   @doc """
   Returns `{key, count}` groups for endgames matching the filters, sorted by key.
 
-  Filters is a map with optional `:themes` (a list of theme ids; an endgame must
-  carry any one of them) and `:key` (an exact Key).
+  Filters is a map with optional:
+
+    * `:themes` - a list of theme ids; an endgame must carry any one of them
+    * `:key` - an exact Key
+    * `:with_theme` - `{theme_id, source}`; only endgames linked to the theme
+      with that source
+    * `:without_theme` - a theme id; only endgames not linked to the theme at all
   """
   def list_key_groups(filters \\ %{}) do
     Endgame
@@ -125,20 +130,31 @@ defmodule Chesstrainer.Endgames do
 
   @doc """
   Returns the endgames for one Key, matching the filters, with themes preloaded.
+
+  Accepts `:limit` and `:offset` options for paginating large Key groups.
   """
-  def list_endgames_for_key(key, filters \\ %{}) do
+  def list_endgames_for_key(key, filters \\ %{}, opts \\ []) do
+    skip = Keyword.get(opts, :offset, 0)
+
     Endgame
     |> apply_filters(filters)
     |> where([e], e.key == ^key)
     |> preload(:themes)
-    |> order_by([e], asc: e.fen)
+    |> order_by([e], asc: e.fen, asc: e.id)
+    |> limit_query(Keyword.get(opts, :limit))
+    |> offset(^skip)
     |> Repo.all()
   end
+
+  defp limit_query(query, nil), do: query
+  defp limit_query(query, limit), do: limit(query, ^limit)
 
   defp apply_filters(query, filters) do
     query
     |> filter_themes(Map.get(filters, :themes, []))
     |> filter_key(Map.get(filters, :key))
+    |> filter_with_theme(Map.get(filters, :with_theme))
+    |> filter_without_theme(Map.get(filters, :without_theme))
   end
 
   defp filter_themes(query, []), do: query
@@ -155,6 +171,30 @@ defmodule Chesstrainer.Endgames do
 
   defp filter_key(query, key) when key in [nil, ""], do: query
   defp filter_key(query, key), do: where(query, [e], e.key == ^key)
+
+  defp filter_with_theme(query, nil), do: query
+
+  defp filter_with_theme(query, {theme_id, source}) do
+    endgame_ids =
+      from(t in "endgames_themes",
+        where: t.theme_id == ^theme_id and t.source == ^to_string(source),
+        select: t.endgame_id
+      )
+
+    where(query, [e], e.id in subquery(endgame_ids))
+  end
+
+  defp filter_without_theme(query, nil), do: query
+
+  defp filter_without_theme(query, theme_id) do
+    endgame_ids =
+      from(t in "endgames_themes",
+        where: t.theme_id == ^theme_id,
+        select: t.endgame_id
+      )
+
+    where(query, [e], e.id not in subquery(endgame_ids))
+  end
 
   @doc """
   Gets a single endgame.

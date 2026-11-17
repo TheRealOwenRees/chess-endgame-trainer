@@ -218,6 +218,43 @@ defmodule Chesstrainer.ThemesTest do
     end
   end
 
+  describe "tag_endgames/3 and untag_endgame/3" do
+    test "adds curated links without duplicating them" do
+      theme = theme_fixture()
+      first = endgame_fixture()
+      second = endgame_fixture()
+
+      assert {:ok, 2} = Themes.tag_endgames(theme, [first.id, second.id])
+      assert {:ok, 2} = Themes.tag_endgames(theme, [first.id, second.id])
+
+      assert link_sources(first.id) == %{theme.id => "curated"}
+      assert link_sources(second.id) == %{theme.id => "curated"}
+    end
+
+    test "never overwrites a derived link" do
+      theme = theme_fixture()
+      endgame = endgame_fixture()
+
+      :ok = Themes.sync_derived_themes(endgame.id, [theme.id])
+
+      assert {:ok, 1} = Themes.tag_endgames(theme, [endgame.id])
+      assert link_sources(endgame.id) == %{theme.id => "derived"}
+    end
+
+    test "removes only the requested source" do
+      theme = theme_fixture()
+      curated = endgame_fixture()
+      community = endgame_fixture()
+
+      {:ok, _} = Themes.tag_endgames(theme, [curated.id], :curated)
+      {:ok, _} = Themes.tag_endgames(theme, [community.id], :community)
+
+      assert {:ok, 1} = Themes.untag_endgame(theme, curated.id, :curated)
+      assert link_sources(curated.id) == %{}
+      assert link_sources(community.id) == %{theme.id => "community"}
+    end
+  end
+
   defp link_rows(endgame_id) do
     Repo.all(
       from l in "endgames_themes",

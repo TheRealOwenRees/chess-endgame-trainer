@@ -55,6 +55,7 @@ defmodule ChesstrainerWeb.Router do
       live "/themes", Admin.ThemeLive.Index, :index
       live "/themes/new", Admin.ThemeLive.Form, :new
       live "/themes/:id/edit", Admin.ThemeLive.Form, :edit
+      live "/themes/:id/tag", Admin.ThemeLive.Tag, :tag
 
       live "/users", Admin.UserLive.Index, :index
       live "/users/new", Admin.UserLive.New, :new

@@ -1,6 +1,8 @@
 defmodule Chesstrainer.EndgamesTest do
   use Chesstrainer.DataCase
 
+  import Chesstrainer.EndgamesFixtures
+
   alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Endgame
   alias Chesstrainer.Themes
@@ -385,6 +387,32 @@ defmodule Chesstrainer.EndgamesTest do
       Application.put_env(:chesstrainer, :curated_endgame_codes, [])
 
       assert Endgames.curated_endgames() == []
+    end
+  end
+
+  describe "theme filters and pagination" do
+    test "groups endgames by whether they carry a theme" do
+      {:ok, theme} = Themes.create_theme(%{name: "Lucena", category: :endgame})
+      tagged = create_endgame!(@kr)
+      create_endgame!(@kq)
+      {:ok, _} = Endgames.update_endgame(tagged, %{}, [theme])
+
+      assert Endgames.list_key_groups(%{with_theme: {theme.id, :curated}}) == [{"KR v K", 1}]
+      assert Endgames.list_key_groups(%{without_theme: theme.id}) == [{"KQ v K", 1}]
+    end
+
+    test "paginates the endgames in one key group" do
+      endgames = for _ <- 1..3, do: endgame_fixture()
+
+      first = Endgames.list_endgames_for_key("K v K", %{}, limit: 2, offset: 0)
+      second = Endgames.list_endgames_for_key("K v K", %{}, limit: 2, offset: 2)
+
+      assert length(first) == 2
+      assert length(second) == 1
+
+      ids = Enum.map(first ++ second, & &1.id)
+      assert Enum.sort(ids) == Enum.sort(Enum.map(endgames, & &1.id))
+      assert length(Enum.uniq(ids)) == 3
     end
   end
 end

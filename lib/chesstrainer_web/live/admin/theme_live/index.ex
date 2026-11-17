@@ -89,6 +89,12 @@ defmodule ChesstrainerWeb.Admin.ThemeLive.Index do
             </td>
             <td class="w-0 font-semibold">
               <div class="flex gap-4">
+                <.link
+                  :if={theme.category == :endgame and theme.kind == :technique}
+                  navigate={~p"/admin/themes/#{theme.id}/tag"}
+                >
+                  Tag
+                </.link>
                 <.link navigate={~p"/admin/themes/#{theme.id}/edit"}>Edit</.link>
                 <.link
                   phx-click="delete"
