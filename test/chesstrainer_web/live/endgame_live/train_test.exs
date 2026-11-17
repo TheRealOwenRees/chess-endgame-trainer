@@ -170,6 +170,18 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert Enum.any?(endgames, &(&1.id == second.id))
     end
 
+    test "does not serve the same puzzle twice in a session", %{conn: conn} do
+      {view, [only]} = start_medium_session(conn, 1)
+
+      solve_current(view)
+      view |> element("#next-puzzle-button") |> render_click()
+
+      assigns = :sys.get_state(view.pid).socket.assigns
+      assert has_element?(view, "#pool-exhausted")
+      assert assigns.endgame.id == only.id
+      assert assigns.session.served_ids == [only.id]
+    end
+
     test "keeps next puzzle available while reviewing", %{conn: conn} do
       {view, endgames} = start_medium_session(conn, 2)
       first = :sys.get_state(view.pid).socket.assigns.endgame

@@ -106,7 +106,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
           id="pool-exhausted"
           class="rounded-xl border border-hairline bg-canvas-raised p-6"
         >
-          <h2 class="text-lg font-semibold">You've finished every puzzle at this difficulty</h2>
+          <h2 class="text-lg font-semibold">You've played every puzzle available right now</h2>
           <p class="mt-1 text-sm text-muted">
             There are no more {difficulty_label(@session.difficulty)} puzzles right now.
             Try again, or pick another difficulty.
@@ -161,7 +161,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
               <div>
                 <h2 class="text-lg font-semibold">Choose a difficulty</h2>
                 <p class="mt-1 text-sm text-muted">
-                  Difficulty bands are ±{Puzzles.band_width()} around your rating.
+                  Easy draws easier endgames, hard draws harder ones — your rating sets the centre.
                 </p>
               </div>
               <.link
@@ -190,7 +190,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
               </.button>
             </div>
             <div class="mt-4 grid gap-2">
-              <%= for {difficulty, label, description} <- difficulty_options(@user_rating) do %>
+              <%= for {difficulty, label, description} <- difficulty_options() do %>
                 <.button
                   id={"difficulty-#{difficulty}"}
                   phx-click="start_session"
@@ -315,7 +315,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
           started_at_ms: System.system_time(:millisecond),
           baseline: socket.assigns.user_rating,
           count: 0,
-          sum_ms: 0
+          sum_ms: 0,
+          served_ids: [endgame.id]
         }
 
         socket
@@ -333,13 +334,16 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
 
     if session do
       case Puzzles.next_endgame(selection_user(socket), session.difficulty,
-             exclude_ids: [socket.assigns.endgame.id]
+             exclude_ids: session.served_ids
            ) do
         nil ->
           assign(socket, :pool, %{difficulty: session.difficulty})
 
         endgame ->
+          session = %{session | served_ids: [endgame.id | session.served_ids]}
+
           socket
+          |> assign(:session, session)
           |> assign(:pool, nil)
           |> assign(:puzzle_started_mono, System.monotonic_time(:millisecond))
           |> assign(:puzzle_counted, false)
@@ -395,13 +399,11 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
 
   defp parse_difficulty(_value), do: :medium
 
-  defp difficulty_options(rating) do
-    width = Puzzles.band_width()
-
+  defp difficulty_options do
     [
-      {:easy, "Easy", "below #{round(rating - width)}"},
-      {:medium, "Medium", "#{round(rating - width)}–#{round(rating + width)}"},
-      {:hard, "Hard", "above #{round(rating + width)}"}
+      {:easy, "Easy", "easier than your rating"},
+      {:medium, "Medium", "around your rating"},
+      {:hard, "Hard", "harder than your rating"}
     ]
   end
 
