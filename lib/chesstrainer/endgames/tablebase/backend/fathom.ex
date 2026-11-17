@@ -80,6 +80,38 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.Fathom do
     end
   end
 
+  @doc """
+  Probes the local tablebase and returns the raw root outcome and move list.
+
+  Unlike `probe_result_local/1`, this keeps the per-move tuples and the raw WDL
+  atom, including `:cursed_win` and `:blessed_loss`, which the motif derivation
+  needs. It never falls back to the remote backend or consults the cache.
+
+  Returns `{:error, :unsupported}` when the local files cannot answer the
+  position, including a partial tablebase set where Fathom reports `:failed`.
+  """
+  @spec probe_local_detail(String.t()) ::
+          {:ok, %{wdl: atom(), dtz: integer(), moves: [tuple()]}}
+          | {:error, :not_configured | :terminal | :unsupported}
+  def probe_local_detail(fen) do
+    with {:ok, largest} <- Local.check(),
+         pieces when is_integer(pieces) <- FEN.piece_count(fen),
+         true <- pieces <= largest || {:error, :unsupported},
+         {:ok, {root, moves}} <- Nif.probe(fen) do
+      case root do
+        :failed -> {:error, :unsupported}
+        :checkmate -> {:error, :terminal}
+        :stalemate -> {:error, :terminal}
+        {wdl, _from, _to, _promotes, _ep, dtz} -> {:ok, %{wdl: wdl, dtz: dtz, moves: moves}}
+      end
+    else
+      {:error, :not_configured} = error -> error
+      {:error, :unsupported} = error -> error
+      {:error, _reason} -> {:error, :unsupported}
+      nil -> {:error, :unsupported}
+    end
+  end
+
   defp fallback(fen) do
     (Application.get_env(:chesstrainer, :tablebase_fallback) || Lichess).probe(fen)
   end

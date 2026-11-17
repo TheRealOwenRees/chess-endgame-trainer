@@ -6,6 +6,11 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.FathomTest.Stub do
   def probe(_fen), do: {:ok, %Tablebase{category: :draw, checkmate: false, moves: []}}
 end
 
+defmodule Chesstrainer.Endgames.Tablebase.Backend.FathomTest.ExplodingFallback do
+  @moduledoc false
+  def probe(_fen), do: raise("the remote tablebase must not be called")
+end
+
 defmodule Chesstrainer.Endgames.Tablebase.Backend.FathomTest do
   # Not async: the local backend reads app config and Fathom keeps global state.
   use ExUnit.Case, async: false
@@ -18,6 +23,7 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.FathomTest do
 
   @krk "4k3/8/8/8/8/8/8/R3K3 w - - 0 1"
   @mate "7k/6Q1/5K2/8/8/8/8/8 b - - 0 1"
+  @kpk "8/8/3k4/8/8/3KP3/8/8 w - - 0 1"
 
   test "probes a KRvK position locally" do
     assert {:ok, %Tablebase{} = tablebase} = FathomBackend.probe(@krk)
@@ -80,6 +86,39 @@ defmodule Chesstrainer.Endgames.Tablebase.Backend.FathomTest do
       Application.put_env(:chesstrainer, :tablebase_fallback, __MODULE__.Stub)
 
       assert {:ok, %Tablebase{category: :draw}} = FathomBackend.probe(@krk)
+    end
+  end
+
+  describe "probe_local_detail/1" do
+    test "returns the raw root WDL, DTZ and every legal move" do
+      assert {:ok, %{wdl: :win, dtz: dtz, moves: moves}} =
+               FathomBackend.probe_local_detail(@krk)
+
+      assert is_integer(dtz)
+      assert length(moves) == 15
+      assert Enum.all?(moves, &(elem(&1, 0) in [:win, :cursed_win, :draw, :blessed_loss, :loss]))
+    end
+
+    test "returns terminal for a finished position" do
+      assert {:error, :terminal} = FathomBackend.probe_local_detail(@mate)
+    end
+
+    test "returns unsupported when the local files cannot answer the position" do
+      assert {:error, :unsupported} = FathomBackend.probe_local_detail(@kpk)
+    end
+
+    test "never calls the remote backend" do
+      previous = Application.get_env(:chesstrainer, :tablebase_fallback)
+
+      on_exit(fn ->
+        if previous,
+          do: Application.put_env(:chesstrainer, :tablebase_fallback, previous),
+          else: Application.delete_env(:chesstrainer, :tablebase_fallback)
+      end)
+
+      Application.put_env(:chesstrainer, :tablebase_fallback, __MODULE__.ExplodingFallback)
+
+      assert {:error, :unsupported} = FathomBackend.probe_local_detail(@kpk)
     end
   end
 end
