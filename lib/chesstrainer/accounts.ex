@@ -168,6 +168,18 @@ defmodule Chesstrainer.Accounts do
     |> Repo.update()
   end
 
+  @doc """
+  Updates a user's subscription plan.
+
+  Plans are programmatic values; registration never casts `plan`, so a user
+  cannot upgrade themselves.
+  """
+  def update_user_plan(%User{} = user, plan) do
+    user
+    |> User.plan_changeset(%{plan: plan})
+    |> Repo.update()
+  end
+
   ## Admin user management
 
   @doc """

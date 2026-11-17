@@ -276,6 +276,21 @@ defmodule Chesstrainer.AccountsTest do
     end
   end
 
+  describe "update_user_plan/2" do
+    test "changes the user's plan" do
+      user = user_fixture()
+
+      assert {:ok, %User{plan: :premium}} = Accounts.update_user_plan(user, :premium)
+    end
+
+    test "rejects a plan that is not in the enum" do
+      user = user_fixture()
+
+      assert {:error, changeset} = Accounts.update_user_plan(user, :platinum)
+      assert %{plan: ["is invalid"]} = errors_on(changeset)
+    end
+  end
+
   describe "sudo_mode?/2" do
     test "validates the authenticated_at time" do
       now = DateTime.utc_now()
