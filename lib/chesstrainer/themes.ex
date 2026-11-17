@@ -222,6 +222,48 @@ defmodule Chesstrainer.Themes do
   end
 
   @doc """
+  Replaces every link to `scoped_theme_ids` with the derived links in `links`.
+
+  This is for themes that are objectively derived: the pass owns its themes
+  entirely, so a link's previous source is irrelevant and every link is
+  rewritten as `derived`. Links to themes outside `scoped_theme_ids` — curated
+  or community — are untouched.
+
+  The operation is a full refresh for the given themes, so it can move an
+  endgame between families when a rule changes. `links` is a list of
+  `{endgame_id, theme_id}` pairs.
+  """
+  @spec replace_theme_links([term()], [{Ecto.UUID.t(), term()}]) :: :ok
+  def replace_theme_links(scoped_theme_ids, links) when is_list(links) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Repo.transaction(fn ->
+      if scoped_theme_ids != [] do
+        Repo.delete_all(
+          from l in "endgames_themes",
+            where: l.theme_id in ^scoped_theme_ids
+        )
+      end
+
+      links
+      |> Enum.map(fn {endgame_id, theme_id} ->
+        %{
+          endgame_id: Ecto.UUID.dump!(endgame_id),
+          theme_id: theme_id,
+          source: "derived",
+          inserted_at: now
+        }
+      end)
+      |> Enum.chunk_every(5_000)
+      |> Enum.each(fn rows ->
+        Repo.insert_all("endgames_themes", rows, on_conflict: :nothing)
+      end)
+    end)
+
+    :ok
+  end
+
+  @doc """
   Replaces the derived theme links for one endgame.
 
   Only links whose source is `derived` are removed, so curated and
