@@ -15,7 +15,7 @@ config :chesstrainer, :branding,
   wordmark: "INNERSQUARE",
   tagline: "Endgame Trainer",
   support_email: "support@innersquare.app",
-  mail_from: "no-reply@innersquare.app"
+  mail_from: "no-reply@mail.innersquare.app"
 
 # Prelaunch gating. Production sets these from PRELAUNCH and
 # MAILING_LIST_ENABLED; dev and test use these defaults.

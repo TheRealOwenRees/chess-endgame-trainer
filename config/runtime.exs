@@ -28,6 +28,24 @@ if mailing_list_enabled = System.get_env("MAILING_LIST_ENABLED") do
   config :chesstrainer, :mailing_list_enabled, mailing_list_enabled in ~w(true 1)
 end
 
+# Sender address override. The default lives in config/config.exs; this lets a
+# deploy try a different From address (for example a new sending subdomain)
+# without a rebuild.
+if mail_from = System.get_env("MAIL_FROM") do
+  branding = Application.get_env(:chesstrainer, :branding, [])
+  config :chesstrainer, :branding, Keyword.put(branding, :mail_from, mail_from)
+end
+
+# SES configuration set stamped on every outgoing email. The set is what links
+# a message to its SNS bounce and complaint notifications.
+config :chesstrainer,
+       :ses_configuration_set,
+       System.get_env("SES_CONFIGURATION_SET", "my-first-configuration-set")
+
+# Rewrite every recipient to one address while testing. Leave unset in normal
+# operation; see `mix mail.check`.
+config :chesstrainer, :mail_redirect_to, System.get_env("MAIL_REDIRECT_TO")
+
 # Local Syzygy tablebases: set TABLEBASE_PATH to the directory holding the
 # .rtbw/.rtbz files. When unset, the local backend stays disabled and lookups
 # fall back to Lichess.

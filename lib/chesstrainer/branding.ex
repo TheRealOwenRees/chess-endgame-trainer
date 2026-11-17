@@ -12,7 +12,7 @@ defmodule Chesstrainer.Branding do
     wordmark: "INNERSQUARE",
     tagline: "Endgame Trainer",
     support_email: "support@innersquare.app",
-    mail_from: "no-reply@innersquare.app"
+    mail_from: "no-reply@mail.innersquare.app"
   ]
 
   @doc "The display name, e.g. `\"Lucid Chess\"`."

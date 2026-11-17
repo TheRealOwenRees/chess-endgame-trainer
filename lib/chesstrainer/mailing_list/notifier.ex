@@ -6,7 +6,7 @@ defmodule Chesstrainer.MailingList.Notifier do
   import Swoosh.Email
 
   alias Chesstrainer.Branding
-  alias Chesstrainer.Mailer
+  alias Chesstrainer.Mail
 
   @doc """
   Delivers the confirmation email for a mailing-list subscription.
@@ -30,16 +30,10 @@ defmodule Chesstrainer.MailingList.Notifier do
   end
 
   defp deliver(recipient, subject, body) do
-    email =
-      new()
-      |> to(recipient)
-      |> from({Branding.name(), Branding.mail_from()})
-      |> reply_to(Branding.support_email())
-      |> subject(subject)
-      |> text_body(body)
-
-    with {:ok, _metadata} <- Mailer.deliver(email) do
-      {:ok, email}
-    end
+    new()
+    |> to(recipient)
+    |> subject(subject)
+    |> text_body(body)
+    |> Mail.deliver()
   end
 end
