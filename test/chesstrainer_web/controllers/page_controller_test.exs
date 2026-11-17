@@ -74,6 +74,11 @@ defmodule ChesstrainerWeb.PageControllerTest do
 
     assert LazyHTML.text(LazyHTML.query(document, ".puzzle-coming-soon")) =~ "Coming soon"
 
+    assert LazyHTML.text(LazyHTML.query(document, ".learning-quote")) =~
+             "The hardest game to win is a won game."
+
+    assert html =~ "Emmanuel Lasker"
+
     assert LazyHTML.attribute(LazyHTML.query(document, ~s(meta[name="description"])), "content") ==
              [@description]
 
