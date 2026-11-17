@@ -86,12 +86,46 @@ defmodule ChesstrainerWeb.PageControllerTest do
           {~s(meta[property="og:title"]), Branding.home_title()},
           {~s(meta[property="og:description"]), @description},
           {~s(meta[property="og:url"]), canonical},
-          {~s(meta[name="twitter:card"]), "summary"},
+          {~s(meta[property="og:image"]), ChesstrainerWeb.SEO.og_image_url()},
+          {~s(meta[property="og:image:width"]), "1200"},
+          {~s(meta[property="og:image:height"]), "630"},
+          {~s(meta[name="twitter:card"]), "summary_large_image"},
+          {~s(meta[name="twitter:image"]), ChesstrainerWeb.SEO.og_image_url()},
           {~s(meta[name="twitter:title"]), Branding.home_title()},
           {~s(meta[name="twitter:description"]), @description}
         ] do
       assert LazyHTML.attribute(LazyHTML.query(document, selector), "content") == [content]
     end
+  end
+
+  test "canonical URL drops query parameters", %{conn: conn} do
+    html = conn |> get("/?utm_source=newsletter&utm_medium=email") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    assert [canonical] =
+             LazyHTML.attribute(LazyHTML.query(document, ~s(link[rel="canonical"])), "href")
+
+    assert canonical == ChesstrainerWeb.Endpoint.url() <> "/"
+
+    assert LazyHTML.attribute(LazyHTML.query(document, ~s(meta[property="og:url"])), "content") ==
+             [canonical]
+  end
+
+  test "home page publishes WebSite structured data", %{conn: conn} do
+    html = conn |> get(~p"/") |> html_response(200)
+    document = LazyHTML.from_document(html)
+
+    json =
+      document
+      |> LazyHTML.query(~s(script[type="application/ld+json"]))
+      |> LazyHTML.text()
+      |> Jason.decode!()
+
+    assert json["@context"] == "https://schema.org"
+
+    types = Enum.map(json["@graph"], & &1["@type"])
+    assert "WebSite" in types
+    assert "Organization" in types
   end
 
   test "GET /privacy renders the privacy policy", %{conn: conn} do
@@ -150,6 +184,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     document = LazyHTML.from_document(html)
 
     assert LazyHTML.text(LazyHTML.query(document, "h1")) == "Mentions légales"
+    assert html =~ ~s(lang="fr")
     assert html =~ "Owen REES"
     assert html =~ "929"
     assert html =~ "293 B"

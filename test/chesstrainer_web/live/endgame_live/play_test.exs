@@ -135,6 +135,15 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   end
 
   describe "mount" do
+    test "is marked noindex for crawlers", %{conn: conn} do
+      endgame = endgame_fixture()
+      seed_tablebase(endgame.fen)
+
+      conn = get(conn, ~p"/endgames/#{endgame.public_code}/play")
+
+      assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
+    end
+
     test "renders the chessboard hook div and pushes init_board", %{conn: conn} do
       endgame = endgame_fixture(color: :white)
       seed_tablebase(endgame.fen)

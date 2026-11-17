@@ -11,27 +11,36 @@ defmodule ChesstrainerWeb.SitemapController do
   use ChesstrainerWeb, :controller
 
   def index(conn, _params) do
-    urls = [
-      url(conn, ~p"/"),
-      url(conn, ~p"/privacy"),
-      url(conn, ~p"/terms-conditions"),
-      url(conn, ~p"/mentions-legales")
+    # The landing page changes every day (daily puzzle, counts), so its
+    # lastmod is honest. The legal pages have no stored modification time, and
+    # an invented lastmod is worse than none.
+    entries = [
+      {url(conn, ~p"/"), Date.utc_today()},
+      {url(conn, ~p"/privacy"), nil},
+      {url(conn, ~p"/terms-conditions"), nil},
+      {url(conn, ~p"/mentions-legales"), nil}
     ]
 
     conn
     |> put_resp_content_type("application/xml")
-    |> send_resp(200, render_sitemap(urls))
+    |> send_resp(200, render_sitemap(entries))
   end
 
-  defp render_sitemap(urls) do
-    entries = Enum.map_join(urls, &"  <url><loc>#{escape(&1)}</loc></url>\n")
+  defp render_sitemap(entries) do
+    urls =
+      Enum.map_join(entries, fn {loc, lastmod} ->
+        "  <url><loc>#{escape(loc)}</loc>#{lastmod_entry(lastmod)}</url>\n"
+      end)
 
     """
     <?xml version="1.0" encoding="UTF-8"?>
     <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    #{entries}</urlset>
+    #{urls}</urlset>
     """
   end
+
+  defp lastmod_entry(nil), do: ""
+  defp lastmod_entry(%Date{} = date), do: "<lastmod>#{Date.to_iso8601(date)}</lastmod>"
 
   # Templates escape automatically; this response is built as a plain string,
   # so XML-significant characters must be escaped here.

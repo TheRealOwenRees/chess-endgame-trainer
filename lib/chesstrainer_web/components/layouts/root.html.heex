@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang={assigns[:lang] || "en"}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -30,7 +30,24 @@
       content={assigns[:meta_description]}
     />
     <meta :if={assigns[:canonical_url]} property="og:url" content={assigns[:canonical_url]} />
-    <meta :if={assigns[:meta_description]} name="twitter:card" content="summary" />
+    <meta
+      :if={assigns[:meta_description]}
+      property="og:image"
+      content={assigns[:og_image_url] || SEO.og_image_url()}
+    />
+    <meta :if={assigns[:meta_description]} property="og:image:width" content="1200" />
+    <meta :if={assigns[:meta_description]} property="og:image:height" content="630" />
+    <meta
+      :if={assigns[:meta_description]}
+      property="og:image:alt"
+      content={"#{Branding.name()} — #{Branding.tagline()}"}
+    />
+    <meta :if={assigns[:meta_description]} name="twitter:card" content="summary_large_image" />
+    <meta
+      :if={assigns[:meta_description]}
+      name="twitter:image"
+      content={assigns[:og_image_url] || SEO.og_image_url()}
+    />
     <meta
       :if={assigns[:meta_description]}
       name="twitter:title"
@@ -73,6 +90,9 @@
     >
     </script>
     <Layouts.theme_script />
+    <script :if={assigns[:json_ld]} type="application/ld+json">
+      <%= raw(assigns[:json_ld]) %>
+    </script>
   </head>
   <body>
     <a
