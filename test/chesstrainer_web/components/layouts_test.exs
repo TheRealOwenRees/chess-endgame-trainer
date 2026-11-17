@@ -29,6 +29,15 @@ defmodule ChesstrainerWeb.LayoutsTest do
       assert html =~ ~p"/users/register"
       refute html =~ ~s(class="nav-user-menu")
     end
+
+    test "renders the utility controls in both the bar and the mobile menu" do
+      html = render_component(&Layouts.navbar/1, %{current_scope: nil})
+
+      assert html =~ ~s(class="nav-menu-tools")
+      # One copy for the bar, one for the collapsible menu; CSS shows one.
+      assert length(String.split(html, ~s(role="radiogroup"))) == 3
+      assert length(String.split(html, ~s(class="discord-link"))) == 3
+    end
   end
 
   describe "discord_link/1" do

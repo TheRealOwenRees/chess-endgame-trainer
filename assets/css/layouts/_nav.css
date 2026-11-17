@@ -14,6 +14,9 @@
 .nav-links a { transition: opacity .2s; }
 .nav-links a:hover { opacity: .55; }
 .nav-links a.nav-cta:hover { opacity: 1; }
+/* Utilities (colour mode, Discord) sit in the bar on desktop and in the
+   collapsible menu on small screens. */
+.nav-menu-tools { display: none; }
 .nav-user-menu { position: relative; }
 .nav-user-menu summary { display: flex; align-items: center; gap: 6px; list-style: none; cursor: pointer; color: var(--color-muted); font-weight: 500; }
 .nav-user-menu summary::-webkit-details-marker { display: none; }
@@ -42,6 +45,11 @@ html[data-theme="dark"] .nav-user-menu-panel { box-shadow: 0 18px 40px rgba(0, 0
     .nav-links.open { display: flex; }
     .nav-cta { width: 100%; }
     .nav-links { display: none; position: absolute; top: 65px; left: 0; right: 0; padding: 24px; flex-direction: column; align-items: stretch; gap: 22px; border-radius: 10px; background: var(--color-canvas-raised); box-shadow: 0 18px 40px rgba(23,53,45,.15); }
+    .nav-menu-tools { display: flex; align-items: center; justify-content: space-between; gap: 18px; width: 100%; }
+    /* The menu owns these on small screens; keep them in the bar only when no
+       menu is rendered (prelaunch with no links). */
+    .nav-wrap:has(#nav-links) .nav-right > [role="radiogroup"],
+    .nav-wrap:has(#nav-links) .nav-right > .discord-link { display: none; }
     .nav-user-menu-panel { position: static; min-width: 0; padding: 12px 0 0; background: transparent; box-shadow: none; }
     html[data-theme="dark"] .nav-links { box-shadow: 0 18px 40px rgba(0, 0, 0, .45); }
 }

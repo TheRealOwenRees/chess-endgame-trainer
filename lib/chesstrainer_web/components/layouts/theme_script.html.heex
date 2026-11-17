@@ -65,7 +65,10 @@
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
 
       event.preventDefault();
-      const buttons = Array.from(document.querySelectorAll("[data-phx-theme]"));
+      // Each breakpoint renders its own copy of the switch, so only the visible
+      // group takes part in arrow-key navigation.
+      const buttons = Array.from(document.querySelectorAll("[data-phx-theme]"))
+        .filter((button) => button.offsetParent !== null);
       const offset = event.key === "ArrowRight" ? 1 : -1;
       const index = (buttons.indexOf(button) + offset + buttons.length) % buttons.length;
       const next = buttons[index];

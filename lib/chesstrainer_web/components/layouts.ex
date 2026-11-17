@@ -126,6 +126,11 @@ defmodule ChesstrainerWeb.Layouts do
                   Start training <.icon_arrow />
                 </.pill_button>
               <% end %>
+
+              <div class="nav-menu-tools">
+                <.colour_mode_toggle />
+                <.discord_link />
+              </div>
             </div>
           <% end %>
 
