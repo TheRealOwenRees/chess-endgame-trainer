@@ -5,6 +5,7 @@ defmodule ChesstrainerWeb.UserDataController do
 
   alias Chesstrainer.Attempts
   alias Chesstrainer.Branding
+  alias Chesstrainer.Themes
 
   @user_columns ~w(user_username user_email user_rating user_rating_deviation user_plan user_joined_at)
   @attempt_columns ~w(played_at puzzle public_code color result outcome rated_at)
@@ -15,12 +16,13 @@ defmodule ChesstrainerWeb.UserDataController do
 
     try do
       attempts = Attempts.list_attempts_for_user(user.id)
+      suggestions = Themes.list_suggestions_for_user(user.id)
       filename = "lucid-chess-data-#{Date.utc_today()}.#{format}"
 
       conn
       |> put_resp_content_type(content_type(format))
       |> put_resp_header("content-disposition", ~s(attachment; filename="#{filename}"))
-      |> send_resp(200, body(format, user, attempts))
+      |> send_resp(200, body(format, user, attempts, suggestions))
     rescue
       exception ->
         export_failed(conn, Exception.message(exception))
@@ -48,10 +50,14 @@ defmodule ChesstrainerWeb.UserDataController do
     |> redirect(to: ~p"/users/profile/data")
   end
 
-  defp body("csv", user, attempts), do: to_csv(user, attempts)
+  defp body("csv", user, attempts, _suggestions), do: to_csv(user, attempts)
 
-  defp body("json", user, attempts) do
-    %{user: user_map(user), attempts: Enum.map(attempts, &attempt_map/1)}
+  defp body("json", user, attempts, suggestions) do
+    %{
+      user: user_map(user),
+      attempts: Enum.map(attempts, &attempt_map/1),
+      theme_suggestions: Enum.map(suggestions, &suggestion_map/1)
+    }
     |> Jason.encode!(pretty: true)
   end
 
@@ -75,6 +81,17 @@ defmodule ChesstrainerWeb.UserDataController do
       result: attempt.endgame.result,
       outcome: attempt.outcome,
       rated_at: attempt.rated_at && DateTime.to_iso8601(attempt.rated_at)
+    }
+  end
+
+  defp suggestion_map(suggestion) do
+    %{
+      suggested_at: DateTime.to_iso8601(suggestion.inserted_at),
+      puzzle: suggestion.endgame && suggestion.endgame.key,
+      public_code: suggestion.endgame && suggestion.endgame.public_code,
+      theme: suggestion.theme && suggestion.theme.name,
+      proposed_name: suggestion.proposed_name,
+      status: suggestion.status
     }
   end
 

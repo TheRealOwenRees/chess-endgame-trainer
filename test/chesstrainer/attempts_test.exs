@@ -39,6 +39,22 @@ defmodule Chesstrainer.AttemptsTest do
     end
   end
 
+  describe "attempted?/2" do
+    test "is true only after an attempt on that endgame" do
+      user = user_fixture()
+      endgame = endgame_fixture()
+      other_endgame = endgame_fixture()
+
+      refute Attempts.attempted?(user.id, endgame.id)
+
+      {:ok, _} = Attempts.record_attempt(Scope.for_user(user), endgame, :failed)
+
+      assert Attempts.attempted?(user.id, endgame.id)
+      refute Attempts.attempted?(user.id, other_endgame.id)
+      refute Attempts.attempted?(user_fixture().id, endgame.id)
+    end
+  end
+
   describe "count_users_with_attempts/0" do
     test "counts distinct users who have recorded an attempt" do
       first = user_fixture()

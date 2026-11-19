@@ -99,6 +99,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
           last_checkmate={@last_checkmate}
           rating={@user_rating}
           rating_delta={@last_rating_delta}
+          current_scope={@current_scope}
         />
 
         <section
