@@ -11,6 +11,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
 
   alias Chesstrainer.Puzzles
   alias Chesstrainer.Themes
+  alias ChesstrainerWeb.CollectionParams
   alias ChesstrainerWeb.EndgameLive.PlayCore
   alias ChesstrainerWeb.PlayComponents
 
@@ -28,18 +29,18 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
           />
         <% true -> %>
           <.header>
-            {if @theme, do: "Train #{@theme.name}", else: "Train"}
+            {if @collection_label, do: "Train #{@collection_label}", else: "Train"}
             <:subtitle>
               <%= if @session do %>
-                <%= if @session.theme_name do %>
-                  {@session.theme_name} · {difficulty_label(@session.difficulty)} · Play a run of
-                  endgame puzzles.
+                <%= if @session.collection_label do %>
+                  {@session.collection_label} · {difficulty_label(@session.difficulty)} · Play a run
+                  of endgame puzzles.
                 <% else %>
                   {difficulty_label(@session.difficulty)} · Play a run of endgame puzzles.
                 <% end %>
               <% else %>
-                <%= if @theme do %>
-                  Play a run of {@theme.name} puzzles. Choose a difficulty.
+                <%= if @collection_label do %>
+                  Play a run of {@collection_label} puzzles. Choose a difficulty.
                 <% else %>
                   Choose a difficulty to start a session.
                 <% end %>
@@ -60,9 +61,9 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
               id="session-bar"
               class="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-canvas-raised p-3 text-sm"
             >
-              <span :if={@session.theme_name}>
-                <span class="text-muted">Theme</span>
-                <span id="session-theme" class="font-semibold">{@session.theme_name}</span>
+              <span :if={@session.collection_label}>
+                <span class="text-muted">Collection</span>
+                <span id="session-theme" class="font-semibold">{@session.collection_label}</span>
               </span>
               <span>
                 <span class="text-muted">Difficulty</span>
@@ -128,7 +129,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
               <h2 class="text-lg font-semibold">{pool_title(@session)}</h2>
               <p class="mt-1 text-sm text-muted">
                 There are no more {difficulty_label(@session.difficulty)}
-                {theme_prefix(@session)}puzzles right now. Try again, or pick another difficulty.
+                {collection_prefix(@session)}puzzles right now. Try again, or pick another
+                difficulty.
               </p>
               <div class="mt-4 flex flex-wrap items-center gap-2">
                 <.button id="retry-pool" phx-click="retry_pool" variant="primary">
@@ -138,12 +140,12 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
                   Change difficulty
                 </.button>
                 <.link
-                  :if={@session.theme_name}
+                  :if={@session.collection_label}
                   id="train-unfiltered"
                   navigate={~p"/train"}
                   class="font-semibold text-primary-text underline underline-offset-4"
                 >
-                  Train all themes
+                  Play the whole library
                 </.link>
               </div>
             </section>
@@ -187,8 +189,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
                 <div class="flex items-start justify-between gap-4">
                   <div>
                     <h2 class="text-lg font-semibold">
-                      {if @theme,
-                        do: "Choose a difficulty for #{@theme.name}",
+                      {if @collection_label,
+                        do: "Choose a difficulty for #{@collection_label}",
                         else: "Choose a difficulty"}
                     </h2>
                     <p class="mt-1 text-sm text-muted">
@@ -215,18 +217,18 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
                   <p class="font-semibold">No puzzles available right now</p>
                   <p class="mt-1 text-muted">
                     There are no {difficulty_label(@pool.difficulty)}
-                    {if @theme, do: "#{@theme.name} ", else: ""}puzzles yet. Try again, or choose another difficulty.
+                    {if @collection_label, do: "#{@collection_label} ", else: ""}puzzles yet. Try again, or choose another difficulty.
                   </p>
                   <.button id="retry-pool" phx-click="retry_pool" class="mt-3">
                     <.icon name="hero-arrow-path" /> Retry
                   </.button>
                   <.link
-                    :if={@theme}
+                    :if={@collection_label}
                     id="train-unfiltered"
                     navigate={~p"/train"}
                     class="mt-3 inline-block font-semibold text-primary-text underline underline-offset-4"
                   >
-                    Train all themes
+                    Play the whole library
                   </.link>
                 </div>
                 <div class="mt-4 grid gap-2">
@@ -266,16 +268,22 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
          |> assign(:page_title, "Page not found")}
 
       theme ->
-        socket =
-          socket
-          |> assign(:theme, theme)
-          |> assign(:page_title, "Train #{theme.name}")
-
-        {:ok, socket}
+        {:ok, use_collection(socket, %{themes: [theme], key: nil})}
     end
   end
 
-  def mount(_params, _session, socket), do: {:ok, initial_assigns(socket)}
+  def mount(params, _session, socket) do
+    {:ok, use_collection(initial_assigns(socket), CollectionParams.parse(params))}
+  end
+
+  defp use_collection(socket, collection) do
+    label = CollectionParams.label(collection)
+
+    socket
+    |> assign(:collection, collection)
+    |> assign(:collection_label, label)
+    |> assign(:page_title, if(label, do: "Train #{label}", else: "Train"))
+  end
 
   defp initial_assigns(socket) do
     socket
@@ -285,7 +293,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
     |> assign(:puzzle_started_mono, nil)
     |> assign(:puzzle_counted, false)
     |> assign(:pool, nil)
-    |> assign(:theme, nil)
+    |> assign(:collection, CollectionParams.empty())
+    |> assign(:collection_label, nil)
     |> assign(:not_found, false)
     |> assign(:user_rating, socket.assigns.current_scope.user.rating)
     |> assign(:user_deviation, socket.assigns.current_scope.user.rating_deviation)
@@ -369,19 +378,22 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
   def handle_event("back_to_game", _params, socket), do: PlayCore.back_to_game(socket)
 
   defp start_session(socket, difficulty) do
-    theme = socket.assigns.theme
-    theme_id = theme && theme.id
+    collection = socket.assigns.collection
+    theme_ids = Enum.map(collection.themes, & &1.id)
 
-    case Puzzles.next_endgame(selection_user(socket), difficulty, theme_id: theme_id) do
+    case Puzzles.next_endgame(selection_user(socket), difficulty,
+           theme_ids: theme_ids,
+           key: collection.key
+         ) do
       nil ->
         assign(socket, :pool, %{difficulty: difficulty})
 
       endgame ->
         session = %{
           difficulty: difficulty,
-          theme_id: theme_id,
-          theme_name: theme && theme.name,
-          theme_slug: theme && theme.slug,
+          theme_ids: theme_ids,
+          key: collection.key,
+          collection_label: socket.assigns.collection_label,
           started_at_ms: System.system_time(:millisecond),
           baseline: socket.assigns.user_rating,
           count: 0,
@@ -405,7 +417,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
     if session do
       case Puzzles.next_endgame(selection_user(socket), session.difficulty,
              exclude_ids: session.served_ids,
-             theme_id: session.theme_id
+             theme_ids: session.theme_ids,
+             key: session.key
            ) do
         nil ->
           assign(socket, :pool, %{difficulty: session.difficulty})
@@ -482,13 +495,14 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
   defp difficulty_label(:medium), do: "Medium"
   defp difficulty_label(:hard), do: "Hard"
 
-  defp pool_title(%{theme_name: nil}), do: "You've played every puzzle available right now"
+  defp pool_title(%{collection_label: nil}),
+    do: "You've played every puzzle available right now"
 
-  defp pool_title(%{theme_name: name}),
-    do: "You've played every #{name} puzzle available right now"
+  defp pool_title(%{collection_label: label}),
+    do: "You've played every #{label} puzzle available right now"
 
-  defp theme_prefix(%{theme_name: nil}), do: ""
-  defp theme_prefix(%{theme_name: name}), do: "#{name} "
+  defp collection_prefix(%{collection_label: nil}), do: ""
+  defp collection_prefix(%{collection_label: label}), do: "#{label} "
 
   defp net_gain(%{baseline: baseline}, rating) when is_number(rating), do: rating - baseline
   defp net_gain(_session, _rating), do: nil

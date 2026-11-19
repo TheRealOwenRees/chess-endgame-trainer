@@ -154,7 +154,7 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
 
       assigns = :sys.get_state(view.pid).socket.assigns
       assert assigns.endgame.id == themed.id
-      assert assigns.session.theme_name == "Lucena"
+      assert assigns.session.collection_label == "Lucena"
       assert has_element?(view, "#session-theme", "Lucena")
     end
 
@@ -174,7 +174,31 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
 
       assert has_element?(view, "#pool-exhausted", "Lucena")
       assert has_element?(view, "#train-unfiltered[href='/train']")
-      assert render(view) =~ "Train all themes"
+      assert render(view) =~ "Play the whole library"
+    end
+
+    test "plays a collection built from the query grammar", %{conn: conn} do
+      lucena = theme_fixture(%{name: "Lucena"})
+      philidor = theme_fixture(%{name: "Philidor"})
+      kr_fen = "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1"
+      kq_fen = "8/8/3k4/8/8/3K1Q2/8/8 w - - 0 1"
+      kr = endgame_fixture(fen: kr_fen, rating: 1500)
+      _kq = endgame_fixture(fen: kq_fen, rating: 1500)
+      {:ok, _} = Endgames.update_endgame(kr, %{}, [lucena, philidor])
+      seed_tablebase(kr.fen, moves: grading_moves())
+
+      {:ok, view, _html} =
+        live(conn, ~p"/train?themes=lucena,philidor&key=KR+v+K")
+
+      assert render(view) =~ "Train Lucena, Philidor · KR v K"
+
+      view |> element("#difficulty-medium") |> render_click()
+
+      assigns = :sys.get_state(view.pid).socket.assigns
+      assert assigns.endgame.id == kr.id
+      assert assigns.session.collection_label == "Lucena, Philidor · KR v K"
+      assert assigns.session.key == "KR v K"
+      assert has_element?(view, "#session-theme", "Lucena, Philidor · KR v K")
     end
   end
 
