@@ -4,8 +4,11 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
   import Phoenix.LiveViewTest
   import Chesstrainer.AccountsFixtures
   import Chesstrainer.EndgamesFixtures
+  import Chesstrainer.ThemesFixtures
 
+  alias Chesstrainer.Accounts
   alias Chesstrainer.Attempts.Attempt
+  alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Endgames.Tablebase.Cache, as: TablebaseCache
   alias Chesstrainer.FEN
@@ -73,6 +76,7 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
   describe "access" do
     test "redirects anonymous visitors to log in", %{conn: conn} do
       assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/train")
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/train/lucena")
     end
   end
 
@@ -129,6 +133,73 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
 
       assert has_element?(view, "#puzzle-search[href='/endgames']")
       assert render(view) =~ "Puzzle Search"
+    end
+  end
+
+  describe "themed sessions" do
+    setup %{conn: conn} do
+      {:ok, user} = Accounts.update_user_plan(user_fixture(), :premium)
+      %{conn: log_in_user(conn, user)}
+    end
+
+    test "resolves the slug and only serves endgames carrying the theme", %{conn: conn} do
+      theme = theme_fixture(%{name: "Lucena"})
+      themed = endgame_fixture(fen: Enum.fetch!(@session_fens, 0), rating: 1500)
+      _other = endgame_fixture(fen: Enum.fetch!(@session_fens, 1), rating: 1500)
+      {:ok, _} = Endgames.update_endgame(themed, %{}, [theme])
+      seed_tablebase(themed.fen, moves: grading_moves())
+
+      {:ok, view, html} = live(conn, ~p"/train/#{theme.slug}")
+
+      assert html =~ "Train Lucena"
+      assert has_element?(view, "#difficulty-medium")
+
+      view |> element("#difficulty-medium") |> render_click()
+
+      assigns = :sys.get_state(view.pid).socket.assigns
+      assert assigns.endgame.id == themed.id
+      assert assigns.session.theme_name == "Lucena"
+      assert has_element?(view, "#session-theme", "Lucena")
+    end
+
+    test "stops with a themed exhaustion message and a link to unfiltered training", %{
+      conn: conn
+    } do
+      theme = theme_fixture(%{name: "Lucena"})
+      only = endgame_fixture(fen: Enum.fetch!(@session_fens, 0), rating: 1500)
+      {:ok, _} = Endgames.update_endgame(only, %{}, [theme])
+      seed_tablebase(only.fen, moves: grading_moves())
+
+      {:ok, view, _html} = live(conn, ~p"/train/#{theme.slug}")
+      view |> element("#difficulty-medium") |> render_click()
+
+      solve_current(view)
+      view |> element("#next-puzzle-button") |> render_click()
+
+      assert has_element?(view, "#pool-exhausted", "Lucena")
+      assert has_element?(view, "#train-unfiltered[href='/train']")
+      assert render(view) =~ "Train all themes"
+    end
+  end
+
+  describe "themed access" do
+    setup :register_and_log_in_user
+
+    test "unknown slugs render the branded 404", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/train/no-such-theme")
+
+      assert render(view) =~ "on the board"
+      assert has_element?(view, ".error-page")
+    end
+
+    test "free users get an upsell instead of a session", %{conn: conn} do
+      theme = theme_fixture(%{name: "Lucena"})
+
+      {:ok, view, _html} = live(conn, ~p"/train/#{theme.slug}")
+
+      assert has_element?(view, "#premium-required")
+      refute has_element?(view, "#difficulty-picker")
+      assert render(view) =~ "Lucena"
     end
   end
 

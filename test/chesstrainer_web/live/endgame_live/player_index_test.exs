@@ -59,6 +59,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
 
     assert has_element?(view, "#key-group-KR-v-K")
     refute has_element?(view, "#key-group-KQ-v-K")
+    assert has_element?(view, "#train-theme-links a[href='/train/lucena']")
   end
 
   test "navigating to a play page renders the board", %{conn: conn} do

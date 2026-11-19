@@ -112,6 +112,7 @@ defmodule ChesstrainerWeb.Router do
       ] do
       live "/endgames", EndgameLive.PlayerIndex, :index
       live "/train", EndgameLive.Train, :train
+      live "/train/:theme_slug", EndgameLive.Train, :theme
       live "/users/profile", UserLive.Profile, :account
       live "/users/profile/settings", UserLive.Profile, :settings
       live "/users/profile/data", UserLive.Profile, :data

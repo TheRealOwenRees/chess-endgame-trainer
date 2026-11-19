@@ -64,22 +64,39 @@ defmodule Chesstrainer.Puzzles do
   baseline.
 
   `:exclude_ids` (default `[]`) skips endgames by id — used for the puzzles
-  already served in this session. Returns `nil` when no endgame exists at all.
+  already served in this session. `:theme_id` restricts selection to endgames
+  carrying that theme; the fallback is restricted too, so a themed session never
+  silently widens to unrelated endgames. Returns `nil` when no endgame exists at
+  all, or none within the theme.
   """
   def next_endgame(%User{} = user, difficulty, opts \\ [])
       when difficulty in @difficulties do
     exclude_ids = Keyword.get(opts, :exclude_ids, [])
+    theme_id = Keyword.get(opts, :theme_id)
     recent_ids = Attempts.recent_endgame_ids(user.id, repeat_window_days())
     target = difficulty_target(user.rating, difficulty)
 
     Endgame
     |> on_side_of(user.rating, difficulty)
+    |> filter_theme(theme_id)
     |> skip_ids(exclude_ids ++ recent_ids)
     |> weighted_one(target)
     |> case do
-      nil -> least_recently_attempted(user.id, exclude_ids)
+      nil -> least_recently_attempted(user.id, exclude_ids, theme_id)
       endgame -> endgame
     end
+  end
+
+  defp filter_theme(query, nil), do: query
+
+  defp filter_theme(query, theme_id) do
+    endgame_ids =
+      from(t in "endgames_themes",
+        where: t.theme_id == ^theme_id,
+        select: t.endgame_id
+      )
+
+    where(query, [e], e.id in subquery(endgame_ids))
   end
 
   # Keep the labels honest: "easy" never serves above the user's rating plus the
@@ -111,7 +128,7 @@ defmodule Chesstrainer.Puzzles do
 
   # Every candidate is excluded, so the repeat window is overruled: serve
   # whatever the user has waited longest to see again.
-  defp least_recently_attempted(user_id, exclude_ids) do
+  defp least_recently_attempted(user_id, exclude_ids, theme_id) do
     attempted =
       Attempt
       |> where([a], a.user_id == ^user_id)
@@ -119,6 +136,7 @@ defmodule Chesstrainer.Puzzles do
       |> select([a], %{endgame_id: a.endgame_id, last_at: max(a.inserted_at)})
 
     Endgame
+    |> filter_theme(theme_id)
     |> skip_ids(exclude_ids)
     |> join(:left, [e], a in subquery(attempted), on: a.endgame_id == e.id)
     |> order_by([_e, a], asc_nulls_first: a.last_at)
