@@ -390,6 +390,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
       assert render(view) =~ "Failed"
       assert Endgames.get_endgame!(endgame.id).times_attempted == 1
+      assert render(view) =~ "Attempts: 1 · Solved: 0"
     end
 
     test "rejects a move that is out of sequence", %{conn: conn} do
@@ -490,6 +491,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert render(view) =~ "Solved!"
       assert Endgames.get_endgame!(endgame.id).times_solved == 1
       assert Endgames.get_endgame!(endgame.id).times_attempted == 1
+      assert render(view) =~ "Attempts: 1 · Solved: 1"
     end
 
     test "solves on a promotion that keeps the win", %{conn: conn} do
