@@ -27,6 +27,19 @@ defmodule Chesstrainer.Attempts do
   end
 
   @doc """
+  Whether `user_id` has recorded at least one attempt on `endgame_id`.
+
+  A suggestion needs a real playthrough behind it, not just an open page.
+  """
+  @spec attempted?(Ecto.UUID.t(), Ecto.UUID.t()) :: boolean()
+  def attempted?(user_id, endgame_id) do
+    Repo.exists?(
+      from a in Attempt,
+        where: a.user_id == ^user_id and a.endgame_id == ^endgame_id
+    )
+  end
+
+  @doc """
   The timestamp of the most recent rated attempt for a user/endgame pair, or nil.
   """
   def last_rated_at(user_id, endgame_id) do

@@ -90,6 +90,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrain do
         move_input_error={@move_input_error}
         last_check={@last_check}
         last_checkmate={@last_checkmate}
+        current_scope={@current_scope}
       />
 
       <p :if={@loading} class="text-base-content/70">Picking a random puzzle…</p>

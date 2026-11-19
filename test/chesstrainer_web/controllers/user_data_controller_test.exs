@@ -3,9 +3,11 @@ defmodule ChesstrainerWeb.UserDataControllerTest do
 
   import Chesstrainer.AccountsFixtures
   import Chesstrainer.EndgamesFixtures
+  import Chesstrainer.ThemesFixtures
 
   alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Attempts
+  alias Chesstrainer.Themes
 
   setup %{conn: conn} do
     user = user_fixture()
@@ -116,5 +118,21 @@ defmodule ChesstrainerWeb.UserDataControllerTest do
     body = conn |> get(~p"/users/profile/export/json") |> response(200)
 
     refute body =~ other_endgame.public_code
+  end
+
+  test "includes the player's theme suggestions in the JSON export", %{
+    conn: conn,
+    user: user,
+    endgame: endgame
+  } do
+    theme = theme_fixture(%{name: "Lucena"})
+    {:ok, _} = Themes.suggest_theme(Scope.for_user(user), endgame, %{theme_id: theme.id})
+
+    body = conn |> get(~p"/users/profile/export/json") |> response(200) |> Jason.decode!()
+
+    assert [%{"puzzle" => puzzle, "theme" => "Lucena", "status" => "pending"}] =
+             body["theme_suggestions"]
+
+    assert puzzle == endgame.key
   end
 end

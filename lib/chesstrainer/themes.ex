@@ -6,9 +6,13 @@ defmodule Chesstrainer.Themes do
   import Ecto.Query, warn: false
   alias Chesstrainer.Accounts.Policy
   alias Chesstrainer.Accounts.Scope
+  alias Chesstrainer.Accounts.User
+  alias Chesstrainer.Attempts
+  alias Chesstrainer.Endgames.Endgame
   alias Chesstrainer.Repo
 
   alias Chesstrainer.Themes.Theme
+  alias Chesstrainer.Themes.ThemeSuggestion
 
   @doc """
   Returns the list of themes.
@@ -173,18 +177,34 @@ defmodule Chesstrainer.Themes do
     Theme.changeset(theme, attrs)
   end
 
-  def search("", _category), do: []
+  @doc """
+  Searches themes by name within a category.
 
-  def search(query, category) when is_binary(query) do
+  Options:
+
+    * `:kind` - restrict to one kind, e.g. `:technique`
+    * `:exclude_ids` - omit themes with these ids
+  """
+  def search(query, category, opts \\ [])
+
+  def search("", _category, _opts), do: []
+
+  def search(query, category, opts) when is_binary(query) do
     case String.trim(query) do
       "" ->
         []
 
       query ->
         pattern = "%#{query}%"
+        kind = Keyword.get(opts, :kind)
+        exclude_ids = Keyword.get(opts, :exclude_ids, [])
 
         Theme
         |> where([t], ilike(t.name, ^pattern) and t.category == ^category)
+        |> then(fn q -> if kind, do: where(q, [t], t.kind == ^kind), else: q end)
+        |> then(fn q ->
+          if exclude_ids == [], do: q, else: where(q, [t], t.id not in ^exclude_ids)
+        end)
         |> order_by([t], asc: t.name)
         |> limit(20)
         |> Repo.all()
@@ -317,6 +337,161 @@ defmodule Chesstrainer.Themes do
 
     {:ok, count}
   end
+
+  @doc """
+  Suggests a technique theme for an endgame on behalf of a signed-in player.
+
+  `attrs` carries either `:theme_id` for an existing theme or `:proposed_name`
+  for a new one. The player must have a recorded attempt on the endgame, and
+  only technique themes can be suggested. The result is stored as `pending`;
+  this never creates an endgame-to-theme link.
+
+  A proposed name that matches an existing theme is folded into a suggestion
+  for that theme instead of becoming a duplicate name.
+  """
+  @spec suggest_theme(Scope.t() | nil, Endgame.t(), map()) ::
+          {:ok, ThemeSuggestion.t()} | {:error, atom() | Ecto.Changeset.t()}
+  def suggest_theme(scope, endgame, attrs)
+
+  def suggest_theme(nil, _endgame, _attrs), do: {:error, :unauthorized}
+  def suggest_theme(%Scope{user: nil}, _endgame, _attrs), do: {:error, :unauthorized}
+
+  def suggest_theme(%Scope{user: %User{} = user}, %Endgame{} = endgame, attrs) do
+    with true <- Attempts.attempted?(user.id, endgame.id) || {:error, :not_attempted},
+         {:ok, target} <- suggestion_target(endgame, attrs) do
+      %ThemeSuggestion{user_id: user.id, endgame_id: endgame.id, status: :pending}
+      |> ThemeSuggestion.changeset(target)
+      |> Repo.insert()
+    end
+  end
+
+  @doc """
+  Withdraws a player's own pending suggestion.
+  """
+  @spec withdraw_suggestion(Scope.t() | nil, ThemeSuggestion.t()) ::
+          {:ok, ThemeSuggestion.t()} | {:error, :unauthorized | :not_pending}
+  def withdraw_suggestion(scope, suggestion)
+
+  def withdraw_suggestion(nil, _suggestion), do: {:error, :unauthorized}
+  def withdraw_suggestion(%Scope{user: nil}, _suggestion), do: {:error, :unauthorized}
+
+  def withdraw_suggestion(
+        %Scope{user: %User{id: user_id}},
+        %ThemeSuggestion{user_id: user_id, status: :pending} = suggestion
+      ) do
+    Repo.delete(suggestion)
+  end
+
+  def withdraw_suggestion(%Scope{user: %User{id: user_id}}, %ThemeSuggestion{user_id: user_id}) do
+    {:error, :not_pending}
+  end
+
+  def withdraw_suggestion(_scope, _suggestion), do: {:error, :unauthorized}
+
+  @doc """
+  The number of pending suggestions for an endgame.
+  """
+  def pending_suggestion_count(endgame_id) do
+    Repo.one(
+      from s in ThemeSuggestion,
+        where: s.endgame_id == ^endgame_id and s.status == :pending,
+        select: count(s.id)
+    )
+  end
+
+  @doc """
+  Pending suggestion counts keyed by existing theme id.
+  """
+  def pending_suggestion_counts(endgame_id) do
+    ThemeSuggestion
+    |> where(
+      [s],
+      s.endgame_id == ^endgame_id and s.status == :pending and not is_nil(s.theme_id)
+    )
+    |> group_by([s], s.theme_id)
+    |> select([s], {s.theme_id, count(s.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  A player's pending suggestions for one endgame, with the suggested theme.
+  """
+  def pending_suggestions_for_user(endgame_id, user_id) do
+    ThemeSuggestion
+    |> where(
+      [s],
+      s.endgame_id == ^endgame_id and s.user_id == ^user_id and s.status == :pending
+    )
+    |> order_by([s], asc: s.inserted_at)
+    |> preload(:theme)
+    |> Repo.all()
+  end
+
+  @doc """
+  Every suggestion a player has made, newest first, for the data export.
+  """
+  def list_suggestions_for_user(user_id) do
+    ThemeSuggestion
+    |> where([s], s.user_id == ^user_id)
+    |> order_by([s], desc: s.inserted_at)
+    |> preload([:endgame, :theme])
+    |> Repo.all()
+  end
+
+  defp suggestion_target(endgame, attrs) do
+    theme_id = Map.get(attrs, :theme_id) || Map.get(attrs, "theme_id")
+    name = Map.get(attrs, :proposed_name) || Map.get(attrs, "proposed_name")
+
+    cond do
+      present?(theme_id) -> existing_theme_target(endgame, theme_id)
+      present?(name) -> proposed_name_target(endgame, name)
+      true -> {:error, :blank}
+    end
+  end
+
+  defp existing_theme_target(endgame, theme_id) do
+    case Repo.get(Theme, theme_id) do
+      nil ->
+        {:error, :unknown_theme}
+
+      %Theme{} = theme ->
+        cond do
+          theme.category != :endgame -> {:error, :not_suggestible}
+          theme.kind != :technique -> {:error, :not_suggestible}
+          endgame_theme?(endgame.id, theme.id) -> {:error, :already_tagged}
+          true -> {:ok, %{theme_id: theme.id}}
+        end
+    end
+  end
+
+  defp proposed_name_target(endgame, name) do
+    name = String.trim(name)
+
+    cond do
+      name == "" ->
+        {:error, :blank_name}
+
+      String.length(name) > 60 ->
+        {:error, :name_too_long}
+
+      true ->
+        case find_by_name(name, :endgame) do
+          %Theme{kind: :technique} = theme -> existing_theme_target(endgame, theme.id)
+          %Theme{} -> {:error, :not_suggestible}
+          nil -> {:ok, %{proposed_name: name}}
+        end
+    end
+  end
+
+  defp endgame_theme?(endgame_id, theme_id) do
+    Repo.exists?(
+      from l in "endgames_themes",
+        where: l.endgame_id == type(^endgame_id, :binary_id) and l.theme_id == ^theme_id
+    )
+  end
+
+  defp present?(value), do: not is_nil(value) and to_string(value) != ""
 
   @doc """
   Replaces the derived theme links for one endgame.

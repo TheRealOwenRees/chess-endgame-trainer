@@ -65,6 +65,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
         last_checkmate={@last_checkmate}
         rating={@user_rating}
         rating_delta={@last_rating_delta}
+        current_scope={@current_scope}
       />
 
       <div :if={@user_rating} class="mb-4">

@@ -9,6 +9,7 @@ defmodule Chesstrainer.ThemesTest do
 
   alias Chesstrainer.Accounts
   alias Chesstrainer.Accounts.Scope
+  alias Chesstrainer.Attempts
   alias Chesstrainer.Endgames
   alias Chesstrainer.Repo
   alias Chesstrainer.Themes
@@ -253,6 +254,166 @@ defmodule Chesstrainer.ThemesTest do
       assert link_sources(curated.id) == %{}
       assert link_sources(community.id) == %{theme.id => "community"}
     end
+  end
+
+  describe "theme suggestions" do
+    test "a player with an attempt can suggest an existing technique theme" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+      theme = theme_fixture()
+
+      assert {:ok, suggestion} =
+               Themes.suggest_theme(scope, endgame, %{theme_id: theme.id})
+
+      assert suggestion.status == :pending
+      assert suggestion.theme_id == theme.id
+      assert suggestion.user_id == scope.user.id
+      assert link_sources(endgame.id) == %{}
+    end
+
+    test "requires a recorded attempt" do
+      endgame = endgame_fixture()
+      scope = user_scope_fixture()
+      theme = theme_fixture()
+
+      assert {:error, :not_attempted} =
+               Themes.suggest_theme(scope, endgame, %{theme_id: theme.id})
+    end
+
+    test "rejects anonymous scopes" do
+      endgame = endgame_fixture()
+      theme = theme_fixture()
+
+      assert {:error, :unauthorized} = Themes.suggest_theme(nil, endgame, %{theme_id: theme.id})
+
+      assert {:error, :unauthorized} =
+               Themes.suggest_theme(%Scope{}, endgame, %{theme_id: theme.id})
+    end
+
+    test "rejects themes that are not technique themes" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+      material = theme_fixture(%{name: "Rook endgame", kind: :material})
+
+      assert {:error, :not_suggestible} =
+               Themes.suggest_theme(scope, endgame, %{theme_id: material.id})
+    end
+
+    test "rejects a theme the endgame already carries" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+      theme = theme_fixture()
+      {:ok, _} = Endgames.update_endgame(endgame, %{}, [theme])
+
+      assert {:error, :already_tagged} =
+               Themes.suggest_theme(scope, endgame, %{theme_id: theme.id})
+    end
+
+    test "does not duplicate the same suggestion" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+      theme = theme_fixture()
+
+      assert {:ok, _} = Themes.suggest_theme(scope, endgame, %{theme_id: theme.id})
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Themes.suggest_theme(scope, endgame, %{theme_id: theme.id})
+
+      assert changeset.errors != []
+    end
+
+    test "proposes a new name and folds a matching existing name into that theme" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+      opposition = theme_fixture(%{name: "Opposition"})
+
+      assert {:ok, suggestion} =
+               Themes.suggest_theme(scope, endgame, %{proposed_name: "  Back rank mate  "})
+
+      assert suggestion.proposed_name == "Back rank mate"
+      assert suggestion.theme_id == nil
+
+      assert {:ok, folded} =
+               Themes.suggest_theme(scope, endgame, %{proposed_name: "opposition"})
+
+      assert folded.theme_id == opposition.id
+      assert folded.proposed_name == nil
+    end
+
+    test "does not duplicate a proposed name, ignoring case" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+
+      assert {:ok, _} = Themes.suggest_theme(scope, endgame, %{proposed_name: "Back rank mate"})
+
+      assert {:error, %Ecto.Changeset{}} =
+               Themes.suggest_theme(scope, endgame, %{proposed_name: "back rank mate"})
+    end
+
+    test "rejects a proposed name that matches a material theme" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+      theme_fixture(%{name: "Pawn endgame", kind: :material})
+
+      assert {:error, :not_suggestible} =
+               Themes.suggest_theme(scope, endgame, %{proposed_name: "Pawn endgame"})
+    end
+
+    test "withdraws only the player's own pending suggestion" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+      theme = theme_fixture()
+      {:ok, suggestion} = Themes.suggest_theme(scope, endgame, %{theme_id: theme.id})
+
+      other_scope = user_scope_fixture()
+
+      assert {:error, :unauthorized} = Themes.withdraw_suggestion(other_scope, suggestion)
+      assert {:ok, _} = Themes.withdraw_suggestion(scope, suggestion)
+      assert Themes.pending_suggestion_count(endgame.id) == 0
+    end
+
+    test "cannot withdraw a suggestion that is no longer pending" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+      theme = theme_fixture()
+      {:ok, suggestion} = Themes.suggest_theme(scope, endgame, %{theme_id: theme.id})
+      {:ok, accepted} = Repo.update(Ecto.Changeset.change(suggestion, status: :accepted))
+
+      assert {:error, :not_pending} = Themes.withdraw_suggestion(scope, accepted)
+    end
+
+    test "counts pending suggestions per theme and in total" do
+      endgame = endgame_fixture()
+      theme = theme_fixture()
+
+      for _ <- 1..2 do
+        scope = attempted_scope(endgame)
+        {:ok, _} = Themes.suggest_theme(scope, endgame, %{theme_id: theme.id})
+      end
+
+      scope = attempted_scope(endgame)
+      {:ok, _} = Themes.suggest_theme(scope, endgame, %{proposed_name: "New idea"})
+
+      assert Themes.pending_suggestion_count(endgame.id) == 3
+      assert Themes.pending_suggestion_counts(endgame.id) == %{theme.id => 2}
+    end
+
+    test "lists a player's suggestions for the data export" do
+      endgame = endgame_fixture()
+      scope = attempted_scope(endgame)
+      theme = theme_fixture()
+      {:ok, _} = Themes.suggest_theme(scope, endgame, %{theme_id: theme.id})
+
+      assert [suggestion] = Themes.list_suggestions_for_user(scope.user.id)
+      assert suggestion.endgame.id == endgame.id
+      assert suggestion.theme.id == theme.id
+    end
+  end
+
+  defp attempted_scope(endgame) do
+    scope = user_scope_fixture()
+    {:ok, _attempt} = Attempts.record_attempt(scope, endgame, :solved)
+    scope
   end
 
   defp link_rows(endgame_id) do
