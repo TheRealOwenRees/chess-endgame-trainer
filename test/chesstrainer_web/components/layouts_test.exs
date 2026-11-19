@@ -28,6 +28,17 @@ defmodule ChesstrainerWeb.LayoutsTest do
       assert html =~ ~p"/users/log-in"
       assert html =~ ~p"/users/register"
       refute html =~ ~s(class="nav-user-menu")
+      refute html =~ ~s(href="/endgames")
+    end
+
+    test "any signed-in user gets the endgame library link" do
+      for plan <- [:free, :premium] do
+        scope = Scope.for_user(%User{username: "alice", plan: plan})
+
+        html = render_component(&Layouts.navbar/1, %{current_scope: scope})
+
+        assert html =~ ~s(href="/endgames")
+      end
     end
 
     test "renders the utility controls in both the bar and the mobile menu" do

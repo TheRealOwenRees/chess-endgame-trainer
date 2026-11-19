@@ -32,16 +32,17 @@ defmodule ChesstrainerWeb.ErrorHTMLTest do
     assert html =~ ~s(class="site-footer")
   end
 
-  test "hides the puzzles link from guests and free users" do
-    refute render("404") =~ "Browse puzzles"
-    refute render("404", Scope.for_user(%User{plan: :free})) =~ "Browse puzzles"
+  test "hides the endgame link from guests" do
+    refute render("404") =~ "Browse endgames"
   end
 
-  test "shows the puzzles link to premium users" do
-    html = render("404", Scope.for_user(%User{plan: :premium}))
+  test "shows the endgame link to any signed-in user" do
+    for plan <- [:free, :premium] do
+      html = render("404", Scope.for_user(%User{plan: plan}))
 
-    assert html =~ "Browse puzzles"
-    assert html =~ ~s(href="/endgames")
+      assert html =~ "Browse endgames"
+      assert html =~ ~s(href="/endgames")
+    end
   end
 
   test "unknown statuses fall back to the plain status message" do
