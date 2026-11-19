@@ -81,6 +81,49 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
     assert has_element?(view, ~s{a[href="/endgames"]})
   end
 
+  test "puts the Key filter in the address bar", %{conn: conn} do
+    endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+
+    {:ok, view, _html} = live(conn, ~p"/endgames")
+
+    view |> form("#key-filter-form", %{key: "KR v K"}) |> render_change()
+
+    assert_patch(view, ~p"/endgames?key=KR+v+K")
+  end
+
+  test "the Key filter narrows the list and the play button", %{conn: conn} do
+    endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+    endgame_fixture(fen: "8/8/3k4/8/8/3K1Q2/8/8 w - - 0 1")
+
+    {:ok, view, _html} = live(conn, ~p"/endgames")
+
+    assert has_element?(view, "#key-group-KQ-v-K")
+    assert has_element?(view, "#key-group-KR-v-K")
+
+    view |> form("#key-filter-form", %{key: "KR v K"}) |> render_change()
+
+    assert has_element?(view, "#key-group-KR-v-K")
+    refute has_element?(view, "#key-group-KQ-v-K")
+    assert has_element?(view, "#play-collection[href*='key=KR']", "Play these 1")
+  end
+
+  test "keeps the Key when a theme is added and removed", %{conn: conn} do
+    lucena = theme_fixture(%{name: "Lucena"})
+    kr = endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+    {:ok, _} = Endgames.update_endgame(kr, %{}, [lucena])
+
+    {:ok, view, _html} = live(conn, ~p"/endgames?key=KR+v+K")
+
+    view |> form("#theme-filter-form", %{theme_search: "Luc"}) |> render_change()
+    view |> element("button", "Lucena") |> render_click()
+
+    assert_patch(view, ~p"/endgames?key=KR+v+K&themes=lucena")
+
+    view |> element("button[aria-label='Remove Lucena']") |> render_click()
+
+    assert_patch(view, ~p"/endgames?key=KR+v+K")
+  end
+
   describe "collection URLs" do
     test "puts the theme filter in the address bar", %{conn: conn} do
       lucena = theme_fixture(%{name: "Lucena"})

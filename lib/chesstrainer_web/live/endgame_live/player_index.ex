@@ -109,14 +109,15 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
   @impl true
   def handle_event("add_theme", %{"id" => id}, socket) do
     theme = Themes.get_theme!(id)
+    themes = Enum.uniq_by(socket.assigns.selected_themes ++ [theme], & &1.id)
 
-    patch_filters(socket, Enum.uniq_by(socket.assigns.selected_themes ++ [theme], & &1.id))
+    patch_filters(socket, themes, socket.assigns.selected_key)
   end
 
   def handle_event("remove_theme", %{"id" => id}, socket) do
     themes = Enum.reject(socket.assigns.selected_themes, &(Integer.to_string(&1.id) == id))
 
-    patch_filters(socket, themes)
+    patch_filters(socket, themes, socket.assigns.selected_key)
   end
 
   def handle_event("filter_key", %{"key" => key}, socket) do
@@ -127,7 +128,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
 
   def handle_event(event, params, socket), do: handle_filter_event(event, params, socket)
 
-  defp patch_filters(socket, themes, key \\ nil) do
+  defp patch_filters(socket, themes, key) do
     {:noreply, push_patch(socket, to: filters_path(themes, key))}
   end
 
