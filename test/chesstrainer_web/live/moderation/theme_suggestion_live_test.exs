@@ -14,7 +14,7 @@ defmodule ChesstrainerWeb.Moderation.ThemeSuggestionLiveTest do
   alias Chesstrainer.Repo
   alias Chesstrainer.Themes
 
-  @path "/moderation/theme-suggestions"
+  @path "/admin/moderation/theme-suggestions"
 
   test "guests are sent to log in" do
     assert redirected_to(get(build_conn(), @path)) == ~p"/users/log-in"
@@ -36,15 +36,29 @@ defmodule ChesstrainerWeb.Moderation.ThemeSuggestionLiveTest do
     assert has_element?(view, "#target-#{suggestion.id}", "Lucena")
     assert html =~ suggestion.author.username
     assert html =~ "1 suggestion"
-    assert html =~ "Moderation"
+
+    assert has_element?(view, "nav[aria-label='Admin'] a", "Moderation")
+    refute has_element?(view, "nav[aria-label='Admin'] a", "Endgames")
+    refute has_element?(view, "nav[aria-label='Admin'] a", "Themes")
+    refute has_element?(view, "nav[aria-label='Admin'] a", "Users")
   end
 
-  test "admins can review too", %{conn: conn} do
+  test "moderators cannot open the rest of the admin area" do
+    conn = log_in_user(build_conn(), user_with_role(:moderator))
+
+    assert redirected_to(get(conn, "/admin/endgames")) == ~p"/"
+  end
+
+  test "admins can review too and keep the full admin navigation", %{conn: conn} do
     suggestion = pending_suggestion()
 
     {:ok, view, _html} = live(log_in_user(conn, user_with_role(:admin)), @path)
 
     assert has_element?(view, "#suggestion-#{suggestion.id}")
+    assert has_element?(view, "nav[aria-label='Admin'] a", "Endgames")
+    assert has_element?(view, "nav[aria-label='Admin'] a", "Themes")
+    assert has_element?(view, "nav[aria-label='Admin'] a", "Users")
+    assert has_element?(view, "nav[aria-label='Admin'] a", "Moderation")
   end
 
   test "approving links the theme as community and clears the item", %{conn: conn} do

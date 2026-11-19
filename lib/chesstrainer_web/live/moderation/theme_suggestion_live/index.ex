@@ -22,6 +22,8 @@ defmodule ChesstrainerWeb.Moderation.ThemeSuggestionLive.Index do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} wide>
+      <Layouts.admin_nav current_scope={@current_scope} />
+
       <.header>
         Theme suggestions
         <:subtitle>

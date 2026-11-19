@@ -155,7 +155,7 @@ defmodule ChesstrainerWeb.Layouts do
             {:manage_endgames, "Endgames", ~p"/admin/endgames"},
             {:manage_themes, "Themes", ~p"/admin/themes"},
             {:manage_users, "Users", ~p"/admin/users"},
-            {:review_theme_suggestions, "Moderation", ~p"/moderation/theme-suggestions"}
+            {:review_theme_suggestions, "Moderation", ~p"/admin/moderation/theme-suggestions"}
           ],
           Policy.can?(assigns.current_scope, capability),
           do: %{label: label, href: href}
@@ -189,20 +189,18 @@ defmodule ChesstrainerWeb.Layouts do
       end
 
     admin =
-      if admin?(scope) do
-        [%{label: "Admin", href: ~p"/admin/endgames"}]
-      else
-        []
+      cond do
+        admin?(scope) ->
+          [%{label: "Admin", href: ~p"/admin/endgames"}]
+
+        can_review_suggestions?(scope) ->
+          [%{label: "Admin", href: ~p"/admin/moderation/theme-suggestions"}]
+
+        true ->
+          []
       end
 
-    moderation =
-      if can_review_suggestions?(scope) and not admin?(scope) do
-        [%{label: "Moderation", href: ~p"/moderation/theme-suggestions"}]
-      else
-        []
-      end
-
-    marketing ++ admin ++ moderation
+    marketing ++ admin
   end
 
   defp signed_in_user(%{user: %{username: _} = user}), do: user

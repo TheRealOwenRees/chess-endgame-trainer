@@ -63,17 +63,18 @@ defmodule ChesstrainerWeb.Router do
     end
   end
 
-  # Moderators review theme suggestions here without gaining the rest of the
-  # admin area, which stays admin-only.
-  scope "/moderation", ChesstrainerWeb.Moderation do
+  # Moderators get a streamlined admin area: the same /admin prefix and
+  # navigation, but only the moderation section is routable for them. The
+  # endgame, theme and user screens stay behind the admin-only scope above.
+  scope "/admin", ChesstrainerWeb do
     pipe_through [:browser, :noindex, :require_moderator_user]
 
-    live_session :moderation,
+    live_session :admin_moderation,
       on_mount: [
         {ChesstrainerWeb.UserAuth, :enforce_prelaunch},
         {ChesstrainerWeb.UserAuth, :require_moderator}
       ] do
-      live "/theme-suggestions", ThemeSuggestionLive.Index, :index
+      live "/moderation/theme-suggestions", Moderation.ThemeSuggestionLive.Index, :index
     end
   end
 
