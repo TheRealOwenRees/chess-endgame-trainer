@@ -439,6 +439,180 @@ defmodule Chesstrainer.Themes do
     |> Repo.all()
   end
 
+  @doc """
+  A page of pending suggestions for the review queue, oldest first, with the
+  endgame, its themes, the proposer and the suggested theme preloaded.
+  """
+  def list_pending_suggestions(opts \\ []) do
+    limit = Keyword.get(opts, :limit, 20)
+    offset = Keyword.get(opts, :offset, 0)
+
+    ThemeSuggestion
+    |> where([s], s.status == :pending)
+    |> order_by([s], asc: s.inserted_at, asc: s.id)
+    |> limit(^limit)
+    |> offset(^offset)
+    |> preload([:user, :theme, endgame: :themes])
+    |> Repo.all()
+  end
+
+  @doc "The number of suggestions waiting for review."
+  def count_pending_suggestions do
+    Repo.one(
+      from s in ThemeSuggestion,
+        where: s.status == :pending,
+        select: count(s.id)
+    )
+  end
+
+  @doc """
+  Evidence counts for a list of suggestions, keyed by suggestion id.
+
+  A suggestion for an existing theme counts every pending suggestion for the
+  same endgame and theme; a proposed name counts the same case-insensitive
+  name for that endgame. This is the "N players suggest this" line.
+  """
+  def pending_evidence(suggestions) when is_list(suggestions) do
+    endgame_ids = suggestions |> Enum.map(& &1.endgame_id) |> Enum.uniq()
+
+    rows =
+      Repo.all(
+        from s in ThemeSuggestion,
+          where: s.endgame_id in ^endgame_ids and s.status == :pending,
+          select: {s.endgame_id, s.theme_id, s.proposed_name}
+      )
+
+    counts =
+      Enum.reduce(rows, %{}, fn {endgame_id, theme_id, name}, acc ->
+        key = evidence_key(endgame_id, theme_id, name)
+        Map.update(acc, key, 1, &(&1 + 1))
+      end)
+
+    Map.new(suggestions, fn suggestion ->
+      key = evidence_key(suggestion.endgame_id, suggestion.theme_id, suggestion.proposed_name)
+      {suggestion.id, Map.get(counts, key, 0)}
+    end)
+  end
+
+  @doc "Gets a suggestion, raising if it does not exist."
+  def get_suggestion!(id), do: Repo.get!(ThemeSuggestion, id)
+
+  @doc """
+  Approves a pending suggestion on behalf of a reviewer.
+
+  Approving a suggestion for an existing theme, or accepting a proposed name,
+  writes the link with source `community`. Passing `:theme_id` merges the
+  suggestion into that theme instead and records the status as `merged`.
+
+  Returns `{:error, :unauthorized | :not_pending | :not_suggestible |
+  :unknown_theme | :invalid_name}`.
+  """
+  @spec approve_suggestion(Scope.t() | nil, ThemeSuggestion.t(), keyword()) ::
+          {:ok, ThemeSuggestion.t()} | {:error, atom()}
+  def approve_suggestion(scope, %ThemeSuggestion{} = suggestion, opts \\ []) do
+    cond do
+      not Policy.can?(scope, :review_theme_suggestions) ->
+        {:error, :unauthorized}
+
+      suggestion.status != :pending ->
+        {:error, :not_pending}
+
+      true ->
+        suggestion = Repo.preload(suggestion, :theme)
+
+        Repo.transaction(fn ->
+          with {:ok, theme, status} <- approval_target(suggestion, opts),
+               :ok <- ensure_community_link(theme, suggestion.endgame_id),
+               {:ok, updated} <-
+                 update_review(suggestion, %{
+                   status: status,
+                   reviewer_id: scope.user.id,
+                   reviewed_at: now()
+                 }) do
+            updated
+          else
+            {:error, reason} -> Repo.rollback(reason)
+            other -> Repo.rollback(other)
+          end
+        end)
+    end
+  end
+
+  @doc """
+  Rejects a pending suggestion with a required reason.
+  """
+  @spec reject_suggestion(Scope.t() | nil, ThemeSuggestion.t(), String.t()) ::
+          {:ok, ThemeSuggestion.t()}
+          | {:error, :unauthorized | :not_pending | :note_required | Ecto.Changeset.t()}
+  def reject_suggestion(scope, %ThemeSuggestion{} = suggestion, note) do
+    cond do
+      not Policy.can?(scope, :review_theme_suggestions) ->
+        {:error, :unauthorized}
+
+      suggestion.status != :pending ->
+        {:error, :not_pending}
+
+      not is_binary(note) or String.trim(note) == "" ->
+        {:error, :note_required}
+
+      true ->
+        suggestion
+        |> Ecto.Changeset.change(%{
+          status: :rejected,
+          note: String.trim(note),
+          reviewer_id: scope.user.id,
+          reviewed_at: now()
+        })
+        |> Repo.update()
+    end
+  end
+
+  defp approval_target(%ThemeSuggestion{theme: %Theme{} = theme}, _opts) do
+    validate_target(theme, :accepted)
+  end
+
+  defp approval_target(%ThemeSuggestion{proposed_name: name}, opts) when is_binary(name) do
+    case Keyword.get(opts, :theme_id) do
+      nil ->
+        case get_or_create(name, "endgame", kind: :technique) do
+          {:ok, theme} -> validate_target(theme, :accepted)
+          {:error, _reason} -> {:error, :invalid_name}
+        end
+
+      theme_id ->
+        case Repo.get(Theme, theme_id) do
+          nil -> {:error, :unknown_theme}
+          theme -> validate_target(theme, :merged)
+        end
+    end
+  end
+
+  defp validate_target(%Theme{} = theme, status) do
+    if theme.category == :endgame and theme.kind == :technique do
+      {:ok, theme, status}
+    else
+      {:error, :not_suggestible}
+    end
+  end
+
+  defp ensure_community_link(%Theme{} = theme, endgame_id) do
+    {:ok, _count} = tag_endgames(theme, [endgame_id], :community)
+    :ok
+  end
+
+  defp update_review(suggestion, attrs) do
+    suggestion
+    |> Ecto.Changeset.change(attrs)
+    |> Repo.update()
+  end
+
+  defp evidence_key(endgame_id, nil, name),
+    do: {endgame_id, :name, String.downcase(name || "")}
+
+  defp evidence_key(endgame_id, theme_id, _name), do: {endgame_id, :theme, theme_id}
+
+  defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
+
   defp suggestion_target(endgame, attrs) do
     theme_id = Map.get(attrs, :theme_id) || Map.get(attrs, "theme_id")
     name = Map.get(attrs, :proposed_name) || Map.get(attrs, "proposed_name")

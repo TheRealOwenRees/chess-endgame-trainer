@@ -16,17 +16,19 @@ defmodule Chesstrainer.Accounts.Policy do
   @capabilities %{
     manage_endgames: [:admin, :super_admin],
     manage_themes: [:admin, :super_admin],
-    manage_users: [:admin, :super_admin]
+    manage_users: [:admin, :super_admin],
+    review_theme_suggestions: [:moderator, :admin, :super_admin]
   }
 
-  @doc "All admin capabilities."
+  @doc "All capabilities."
   @spec capabilities() :: [atom()]
   def capabilities, do: Map.keys(@capabilities)
 
   @doc """
-  Returns true when the scope may perform the given admin capability.
+  Returns true when the scope may perform the given capability.
 
-  A nil scope or a member/moderator never satisfies an admin capability.
+  A nil scope or a member never satisfies a capability. Moderators satisfy only
+  `:review_theme_suggestions`; the rest are admin capabilities.
   """
   @spec can?(Scope.t() | nil, atom()) :: boolean()
   def can?(%Scope{user: %User{role: role}}, capability) when is_atom(capability) do

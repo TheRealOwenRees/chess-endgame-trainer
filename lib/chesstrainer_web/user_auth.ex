@@ -5,6 +5,7 @@ defmodule ChesstrainerWeb.UserAuth do
   import Phoenix.Controller
 
   alias Chesstrainer.Accounts
+  alias Chesstrainer.Accounts.Policy
   alias Chesstrainer.Accounts.Role
   alias Chesstrainer.Accounts.Scope
 
@@ -280,6 +281,31 @@ defmodule ChesstrainerWeb.UserAuth do
     end
   end
 
+  def on_mount(:require_moderator, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    cond do
+      is_nil(socket.assigns.current_scope) ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
+          |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+
+        {:halt, socket}
+
+      Policy.can?(socket.assigns.current_scope, :review_theme_suggestions) ->
+        {:cont, socket}
+
+      true ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You are not authorized to access this page.")
+          |> Phoenix.LiveView.redirect(to: ~p"/")
+
+        {:halt, socket}
+    end
+  end
+
   def on_mount(:require_sudo_mode, _params, session, socket) do
     socket = mount_current_scope(socket, session)
 
@@ -349,6 +375,32 @@ defmodule ChesstrainerWeb.UserAuth do
         |> halt()
 
       Role.admin?(conn.assigns.current_scope.user.role) ->
+        conn
+
+      true ->
+        conn
+        |> put_flash(:error, "You are not authorized to access this page.")
+        |> redirect(to: ~p"/")
+        |> halt()
+    end
+  end
+
+  @doc """
+  Plug for routes that require the theme-suggestion review capability.
+
+  Moderators, admins and super admins may pass. Unauthenticated visitors are
+  sent to log in; everyone else is sent home.
+  """
+  def require_moderator_user(conn, _opts) do
+    cond do
+      is_nil(conn.assigns.current_scope) ->
+        conn
+        |> put_flash(:error, "You must log in to access this page.")
+        |> maybe_store_return_to()
+        |> redirect(to: ~p"/users/log-in")
+        |> halt()
+
+      Policy.can?(conn.assigns.current_scope, :review_theme_suggestions) ->
         conn
 
       true ->

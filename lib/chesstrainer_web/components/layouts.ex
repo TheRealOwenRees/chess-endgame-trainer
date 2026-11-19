@@ -111,6 +111,12 @@ defmodule ChesstrainerWeb.Layouts do
                     <.link navigate={~p"/users/profile"}>Account</.link>
                     <.link navigate={~p"/users/profile/settings"}>Settings</.link>
                     <.link navigate={~p"/users/profile/data"}>Data</.link>
+                    <.link
+                      :if={can_review_suggestions?(@current_scope)}
+                      navigate={~p"/moderation/theme-suggestions"}
+                    >
+                      Review suggestions
+                    </.link>
                     <.link href={~p"/users/log-out"} method="delete">Log out</.link>
                   </div>
                 </details>
@@ -202,6 +208,8 @@ defmodule ChesstrainerWeb.Layouts do
 
   defp admin?(%{user: %{role: role}}), do: Role.admin?(role)
   defp admin?(_scope), do: false
+
+  defp can_review_suggestions?(scope), do: Policy.can?(scope, :review_theme_suggestions)
 
   # Signed-in users start a puzzle session; visitors browse the public list.
   defp start_href(%{user: %{}}), do: ~p"/train"

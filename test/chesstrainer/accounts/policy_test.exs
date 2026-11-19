@@ -8,13 +8,20 @@ defmodule Chesstrainer.Accounts.PolicyTest do
   alias Chesstrainer.Accounts.Scope
 
   describe "can?/2" do
-    test "members and moderators have no admin capabilities" do
-      for role <- [:member, :moderator], capability <- Policy.capabilities() do
-        refute Policy.can?(scope_for(role), capability)
+    test "members have no capabilities" do
+      for capability <- Policy.capabilities() do
+        refute Policy.can?(scope_for(:member), capability)
       end
     end
 
-    test "admins and super admins have every admin capability" do
+    test "moderators can only review theme suggestions" do
+      for capability <- Policy.capabilities() do
+        assert Policy.can?(scope_for(:moderator), capability) ==
+                 (capability == :review_theme_suggestions)
+      end
+    end
+
+    test "admins and super admins have every capability" do
       for role <- [:admin, :super_admin], capability <- Policy.capabilities() do
         assert Policy.can?(scope_for(role), capability)
       end
@@ -22,6 +29,7 @@ defmodule Chesstrainer.Accounts.PolicyTest do
 
     test "a nil scope has no capabilities" do
       refute Policy.can?(nil, :manage_users)
+      refute Policy.can?(nil, :review_theme_suggestions)
     end
   end
 
