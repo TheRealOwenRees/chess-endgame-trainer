@@ -11,6 +11,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
 
   alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Puzzles
+  alias Chesstrainer.Themes
   alias ChesstrainerWeb.EndgameLive.PlayCore
   alias ChesstrainerWeb.PlayComponents
 
@@ -18,214 +19,302 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <.header>
-        Train
-        <:subtitle>
-          <%= if @session do %>
-            {difficulty_label(@session.difficulty)} · Play a run of endgame puzzles.
-          <% else %>
-            Choose a difficulty to start a session.
-          <% end %>
-        </:subtitle>
-        <:actions>
-          <.button :if={@session} phx-click="stop_session">
-            <.icon name="hero-x-mark" /> Stop session
-          </.button>
-          <.button
-            :if={Scope.premium?(@current_scope)}
-            id="puzzle-search"
-            navigate={~p"/endgames"}
+      <%= cond do %>
+        <% @not_found -> %>
+          <ChesstrainerWeb.ErrorHTML.error_page
+            status={404}
+            title="This page isn't on the board"
+            message="The theme you were looking for moved, or never existed. Check the address, or head back to the trainer."
+            current_scope={@current_scope}
+          />
+        <% @premium_required -> %>
+          <section
+            id="premium-required"
+            class="rounded-xl border border-warning/30 bg-warning/10 p-6"
           >
-            <.icon name="hero-magnifying-glass" /> Puzzle Search
-          </.button>
-        </:actions>
-      </.header>
-
-      <%= if @session do %>
-        <div
-          id="session-bar"
-          class="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-canvas-raised p-3 text-sm"
-        >
-          <span>
-            <span class="text-muted">Difficulty</span>
-            <span class="font-semibold">{difficulty_label(@session.difficulty)}</span>
-          </span>
-          <span>
-            <span class="text-muted">Time</span>
-            <span
-              id={"session-clock-#{@session.started_at_ms}"}
-              phx-hook="SessionClock"
-              data-started-at={@session.started_at_ms}
-              class="font-mono"
-            >
-              {format_duration(elapsed_ms(@session))}
-            </span>
-          </span>
-          <span>
-            <span class="text-muted">Avg/puzzle</span>
-            <span class="font-mono">{format_duration(avg_ms(@session))}</span>
-          </span>
-          <span class="flex items-center gap-2">
-            <span class="text-muted">Rating</span>
-            <span id="session-rating" class="font-mono font-semibold">{round(@user_rating)}</span>
-            <.rating_change
-              :if={@session.count > 0}
-              id="session-rating-change"
-              delta={net_gain(@session, @user_rating)}
-            />
-          </span>
-        </div>
-
-        <PlayComponents.play_surface
-          :if={is_nil(@pool)}
-          session={true}
-          endgame={@endgame}
-          fen={@fen}
-          status={@status}
-          blocked={@blocked}
-          best_move={@best_move}
-          plies={@plies}
-          line={@line}
-          reviewing={@reviewing}
-          review_index={@review_index}
-          review_tablebase={@review_tablebase}
-          review_blocked={@review_blocked}
-          awaiting_reply={@awaiting_reply}
-          last_grade={@last_grade}
-          awaiting_best_line={@awaiting_best_line}
-          move_input={@move_input}
-          move_input_error={@move_input_error}
-          last_check={@last_check}
-          last_checkmate={@last_checkmate}
-          rating={@user_rating}
-          rating_delta={@last_rating_delta}
-          current_scope={@current_scope}
-        />
-
-        <section
-          :if={@pool}
-          id="pool-exhausted"
-          class="rounded-xl border border-hairline bg-canvas-raised p-6"
-        >
-          <h2 class="text-lg font-semibold">You've played every puzzle available right now</h2>
-          <p class="mt-1 text-sm text-muted">
-            There are no more {difficulty_label(@session.difficulty)} puzzles right now.
-            Try again, or pick another difficulty.
-          </p>
-          <div class="mt-4 flex flex-wrap gap-2">
-            <.button id="retry-pool" phx-click="retry_pool" variant="primary">
-              <.icon name="hero-arrow-path" /> Retry
-            </.button>
-            <.button id="change-difficulty" phx-click="stop_session">
-              Change difficulty
-            </.button>
-          </div>
-        </section>
-      <% else %>
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div id="difficulty-picker" class="w-full max-w-md rounded-xl bg-base-100 p-6 shadow-xl">
-            <div
-              :if={@last_session}
-              id="last-session"
-              class="mb-4 rounded-lg bg-canvas-raised p-3 text-sm"
-            >
-              <p class="mb-1 font-semibold">Last session</p>
-              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                <span>
-                  <span class="text-muted">Difficulty</span>
-                  <span class="font-semibold">{difficulty_label(@last_session.difficulty)}</span>
-                </span>
-                <span>
-                  <span class="text-muted">Time</span>
-                  <span class="font-mono">{format_duration(@last_session.duration_ms)}</span>
-                </span>
-                <span>
-                  <span class="text-muted">Puzzles</span>
-                  <span class="font-mono">{@last_session.count}</span>
-                </span>
-                <span>
-                  <span class="text-muted">Avg/puzzle</span>
-                  <span class="font-mono">{format_duration(@last_session.avg_ms)}</span>
-                </span>
-                <span class="flex items-center gap-2">
-                  <span class="text-muted">Rating</span>
-                  <span class="font-mono font-semibold">{round(@last_session.rating)}</span>
-                  <.rating_change
-                    :if={@last_session.count > 0}
-                    delta={@last_session.gain}
-                  />
-                </span>
-              </div>
+            <h1 class="text-lg font-semibold">Themed sessions are part of Puzzle Search</h1>
+            <p class="mt-1 text-sm text-muted">
+              “{@theme.name}” is available on the premium plan. Puzzle Search lets you
+              browse and train specific themes.
+            </p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <.button navigate={~p"/users/profile"}>View your plan</.button>
+              <.button navigate={~p"/train"}>Train without a theme</.button>
+              <.button navigate={~p"/"}>Back home</.button>
             </div>
-
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <h2 class="text-lg font-semibold">Choose a difficulty</h2>
-                <p class="mt-1 text-sm text-muted">
-                  Easy draws easier endgames, hard draws harder ones — your rating sets the centre.
-                </p>
-              </div>
-              <.link
-                id="close-difficulty"
-                navigate={~p"/"}
-                aria-label="Close and return home"
-                class="rounded-md p-1 text-muted hover:bg-base-200 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                <.icon name="hero-x-mark" class="size-5" />
-              </.link>
-            </div>
-            <div class="mt-4">
-              <.rating_guide rating={@user_rating} deviation={@user_deviation} />
-            </div>
-            <div
-              :if={@pool}
-              id="pool-empty"
-              class="mt-4 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm"
-            >
-              <p class="font-semibold">No puzzles available right now</p>
-              <p class="mt-1 text-muted">
-                There are no {difficulty_label(@pool.difficulty)} puzzles yet. Try again, or choose another difficulty.
-              </p>
-              <.button id="retry-pool" phx-click="retry_pool" class="mt-3">
-                <.icon name="hero-arrow-path" /> Retry
-              </.button>
-            </div>
-            <div class="mt-4 grid gap-2">
-              <%= for {difficulty, label, description} <- difficulty_options() do %>
-                <.button
-                  id={"difficulty-#{difficulty}"}
-                  phx-click="start_session"
-                  phx-value-difficulty={Atom.to_string(difficulty)}
-                  variant={if difficulty == :medium, do: "primary", else: "secondary"}
-                  class="w-full justify-between"
-                >
-                  <span>{label}</span>
-                  <span class="text-xs font-normal opacity-80">{description}</span>
-                </.button>
+          </section>
+        <% true -> %>
+          <.header>
+            {if @theme, do: "Train #{@theme.name}", else: "Train"}
+            <:subtitle>
+              <%= if @session do %>
+                <%= if @session.theme_name do %>
+                  {@session.theme_name} · {difficulty_label(@session.difficulty)} · Play a run of
+                  endgame puzzles.
+                <% else %>
+                  {difficulty_label(@session.difficulty)} · Play a run of endgame puzzles.
+                <% end %>
+              <% else %>
+                <%= if @theme do %>
+                  Play a run of {@theme.name} puzzles. Choose a difficulty.
+                <% else %>
+                  Choose a difficulty to start a session.
+                <% end %>
               <% end %>
+            </:subtitle>
+            <:actions>
+              <.button :if={@session} phx-click="stop_session">
+                <.icon name="hero-x-mark" /> Stop session
+              </.button>
+              <.button
+                :if={Scope.premium?(@current_scope)}
+                id="puzzle-search"
+                navigate={~p"/endgames"}
+              >
+                <.icon name="hero-magnifying-glass" /> Puzzle Search
+              </.button>
+            </:actions>
+          </.header>
+
+          <%= if @session do %>
+            <div
+              id="session-bar"
+              class="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-canvas-raised p-3 text-sm"
+            >
+              <span :if={@session.theme_name}>
+                <span class="text-muted">Theme</span>
+                <span id="session-theme" class="font-semibold">{@session.theme_name}</span>
+              </span>
+              <span>
+                <span class="text-muted">Difficulty</span>
+                <span class="font-semibold">{difficulty_label(@session.difficulty)}</span>
+              </span>
+              <span>
+                <span class="text-muted">Time</span>
+                <span
+                  id={"session-clock-#{@session.started_at_ms}"}
+                  phx-hook="SessionClock"
+                  data-started-at={@session.started_at_ms}
+                  class="font-mono"
+                >
+                  {format_duration(elapsed_ms(@session))}
+                </span>
+              </span>
+              <span>
+                <span class="text-muted">Avg/puzzle</span>
+                <span class="font-mono">{format_duration(avg_ms(@session))}</span>
+              </span>
+              <span class="flex items-center gap-2">
+                <span class="text-muted">Rating</span>
+                <span id="session-rating" class="font-mono font-semibold">{round(@user_rating)}</span>
+                <.rating_change
+                  :if={@session.count > 0}
+                  id="session-rating-change"
+                  delta={net_gain(@session, @user_rating)}
+                />
+              </span>
             </div>
-            <.button navigate={~p"/"} variant="ghost" class="mt-2 w-full justify-center">
-              <.icon name="hero-arrow-left" />Return Home
-            </.button>
-          </div>
-        </div>
+
+            <PlayComponents.play_surface
+              :if={is_nil(@pool)}
+              session={true}
+              endgame={@endgame}
+              fen={@fen}
+              status={@status}
+              blocked={@blocked}
+              best_move={@best_move}
+              plies={@plies}
+              line={@line}
+              reviewing={@reviewing}
+              review_index={@review_index}
+              review_tablebase={@review_tablebase}
+              review_blocked={@review_blocked}
+              awaiting_reply={@awaiting_reply}
+              last_grade={@last_grade}
+              awaiting_best_line={@awaiting_best_line}
+              move_input={@move_input}
+              move_input_error={@move_input_error}
+              last_check={@last_check}
+              last_checkmate={@last_checkmate}
+              rating={@user_rating}
+              rating_delta={@last_rating_delta}
+              current_scope={@current_scope}
+            />
+
+            <section
+              :if={@pool}
+              id="pool-exhausted"
+              class="rounded-xl border border-hairline bg-canvas-raised p-6"
+            >
+              <h2 class="text-lg font-semibold">{pool_title(@session)}</h2>
+              <p class="mt-1 text-sm text-muted">
+                There are no more {difficulty_label(@session.difficulty)}
+                {theme_prefix(@session)}puzzles right now. Try again, or pick another difficulty.
+              </p>
+              <div class="mt-4 flex flex-wrap items-center gap-2">
+                <.button id="retry-pool" phx-click="retry_pool" variant="primary">
+                  <.icon name="hero-arrow-path" /> Retry
+                </.button>
+                <.button id="change-difficulty" phx-click="stop_session">
+                  Change difficulty
+                </.button>
+                <.link
+                  :if={@session.theme_name}
+                  id="train-unfiltered"
+                  navigate={~p"/train"}
+                  class="font-semibold text-primary-text underline underline-offset-4"
+                >
+                  Train all themes
+                </.link>
+              </div>
+            </section>
+          <% else %>
+            <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div id="difficulty-picker" class="w-full max-w-md rounded-xl bg-base-100 p-6 shadow-xl">
+                <div
+                  :if={@last_session}
+                  id="last-session"
+                  class="mb-4 rounded-lg bg-canvas-raised p-3 text-sm"
+                >
+                  <p class="mb-1 font-semibold">Last session</p>
+                  <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span>
+                      <span class="text-muted">Difficulty</span>
+                      <span class="font-semibold">{difficulty_label(@last_session.difficulty)}</span>
+                    </span>
+                    <span>
+                      <span class="text-muted">Time</span>
+                      <span class="font-mono">{format_duration(@last_session.duration_ms)}</span>
+                    </span>
+                    <span>
+                      <span class="text-muted">Puzzles</span>
+                      <span class="font-mono">{@last_session.count}</span>
+                    </span>
+                    <span>
+                      <span class="text-muted">Avg/puzzle</span>
+                      <span class="font-mono">{format_duration(@last_session.avg_ms)}</span>
+                    </span>
+                    <span class="flex items-center gap-2">
+                      <span class="text-muted">Rating</span>
+                      <span class="font-mono font-semibold">{round(@last_session.rating)}</span>
+                      <.rating_change
+                        :if={@last_session.count > 0}
+                        delta={@last_session.gain}
+                      />
+                    </span>
+                  </div>
+                </div>
+
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 class="text-lg font-semibold">
+                      {if @theme,
+                        do: "Choose a difficulty for #{@theme.name}",
+                        else: "Choose a difficulty"}
+                    </h2>
+                    <p class="mt-1 text-sm text-muted">
+                      Easy draws easier endgames, hard draws harder ones — your rating sets the centre.
+                    </p>
+                  </div>
+                  <.link
+                    id="close-difficulty"
+                    navigate={~p"/"}
+                    aria-label="Close and return home"
+                    class="rounded-md p-1 text-muted hover:bg-base-200 hover:text-base-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  >
+                    <.icon name="hero-x-mark" class="size-5" />
+                  </.link>
+                </div>
+                <div class="mt-4">
+                  <.rating_guide rating={@user_rating} deviation={@user_deviation} />
+                </div>
+                <div
+                  :if={@pool}
+                  id="pool-empty"
+                  class="mt-4 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm"
+                >
+                  <p class="font-semibold">No puzzles available right now</p>
+                  <p class="mt-1 text-muted">
+                    There are no {difficulty_label(@pool.difficulty)}
+                    {if @theme, do: "#{@theme.name} ", else: ""}puzzles yet. Try again, or choose another difficulty.
+                  </p>
+                  <.button id="retry-pool" phx-click="retry_pool" class="mt-3">
+                    <.icon name="hero-arrow-path" /> Retry
+                  </.button>
+                  <.link
+                    :if={@theme}
+                    id="train-unfiltered"
+                    navigate={~p"/train"}
+                    class="mt-3 inline-block font-semibold text-primary-text underline underline-offset-4"
+                  >
+                    Train all themes
+                  </.link>
+                </div>
+                <div class="mt-4 grid gap-2">
+                  <%= for {difficulty, label, description} <- difficulty_options() do %>
+                    <.button
+                      id={"difficulty-#{difficulty}"}
+                      phx-click="start_session"
+                      phx-value-difficulty={Atom.to_string(difficulty)}
+                      variant={if difficulty == :medium, do: "primary", else: "secondary"}
+                      class="w-full justify-between"
+                    >
+                      <span>{label}</span>
+                      <span class="text-xs font-normal opacity-80">{description}</span>
+                    </.button>
+                  <% end %>
+                </div>
+                <.button navigate={~p"/"} variant="ghost" class="mt-2 w-full justify-center">
+                  <.icon name="hero-arrow-left" />Return Home
+                </.button>
+              </div>
+            </div>
+          <% end %>
       <% end %>
     </Layouts.app>
     """
   end
 
   @impl true
-  def mount(_params, _session, socket) do
-    {:ok,
-     socket
-     |> assign(:page_title, "Train")
-     |> assign(:session, nil)
-     |> assign(:last_session, nil)
-     |> assign(:puzzle_started_mono, nil)
-     |> assign(:puzzle_counted, false)
-     |> assign(:pool, nil)
-     |> assign(:user_rating, socket.assigns.current_scope.user.rating)
-     |> assign(:user_deviation, socket.assigns.current_scope.user.rating_deviation)}
+  def mount(%{"theme_slug" => slug}, _session, socket) do
+    socket = initial_assigns(socket)
+
+    case Themes.get_theme_by_slug(slug) do
+      nil ->
+        {:ok,
+         socket
+         |> assign(:not_found, true)
+         |> assign(:page_title, "Page not found")}
+
+      theme ->
+        socket =
+          socket
+          |> assign(:theme, theme)
+          |> assign(:page_title, "Train #{theme.name}")
+
+        if Scope.premium?(socket.assigns.current_scope) do
+          {:ok, socket}
+        else
+          {:ok, assign(socket, :premium_required, true)}
+        end
+    end
+  end
+
+  def mount(_params, _session, socket), do: {:ok, initial_assigns(socket)}
+
+  defp initial_assigns(socket) do
+    socket
+    |> assign(:page_title, "Train")
+    |> assign(:session, nil)
+    |> assign(:last_session, nil)
+    |> assign(:puzzle_started_mono, nil)
+    |> assign(:puzzle_counted, false)
+    |> assign(:pool, nil)
+    |> assign(:theme, nil)
+    |> assign(:premium_required, false)
+    |> assign(:not_found, false)
+    |> assign(:user_rating, socket.assigns.current_scope.user.rating)
+    |> assign(:user_deviation, socket.assigns.current_scope.user.rating_deviation)
   end
 
   @impl true
@@ -306,13 +395,19 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
   def handle_event("back_to_game", _params, socket), do: PlayCore.back_to_game(socket)
 
   defp start_session(socket, difficulty) do
-    case Puzzles.next_endgame(selection_user(socket), difficulty) do
+    theme = socket.assigns.theme
+    theme_id = theme && theme.id
+
+    case Puzzles.next_endgame(selection_user(socket), difficulty, theme_id: theme_id) do
       nil ->
         assign(socket, :pool, %{difficulty: difficulty})
 
       endgame ->
         session = %{
           difficulty: difficulty,
+          theme_id: theme_id,
+          theme_name: theme && theme.name,
+          theme_slug: theme && theme.slug,
           started_at_ms: System.system_time(:millisecond),
           baseline: socket.assigns.user_rating,
           count: 0,
@@ -335,7 +430,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
 
     if session do
       case Puzzles.next_endgame(selection_user(socket), session.difficulty,
-             exclude_ids: session.served_ids
+             exclude_ids: session.served_ids,
+             theme_id: session.theme_id
            ) do
         nil ->
           assign(socket, :pool, %{difficulty: session.difficulty})
@@ -411,6 +507,14 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
   defp difficulty_label(:easy), do: "Easy"
   defp difficulty_label(:medium), do: "Medium"
   defp difficulty_label(:hard), do: "Hard"
+
+  defp pool_title(%{theme_name: nil}), do: "You've played every puzzle available right now"
+
+  defp pool_title(%{theme_name: name}),
+    do: "You've played every #{name} puzzle available right now"
+
+  defp theme_prefix(%{theme_name: nil}), do: ""
+  defp theme_prefix(%{theme_name: name}), do: "#{name} "
 
   defp net_gain(%{baseline: baseline}, rating) when is_number(rating), do: rating - baseline
   defp net_gain(_session, _rating), do: nil

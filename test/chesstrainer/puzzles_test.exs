@@ -3,9 +3,11 @@ defmodule Chesstrainer.PuzzlesTest do
 
   import Chesstrainer.AccountsFixtures
   import Chesstrainer.EndgamesFixtures
+  import Chesstrainer.ThemesFixtures
 
   alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Attempts
+  alias Chesstrainer.Endgames
   alias Chesstrainer.Puzzles
   alias Chesstrainer.Repo
 
@@ -126,6 +128,25 @@ defmodule Chesstrainer.PuzzlesTest do
       user = user_fixture()
 
       assert Puzzles.next_endgame(user, :medium) == nil
+    end
+
+    test "restricts selection to a theme, including the fallback" do
+      user = user_fixture()
+      themed = endgame_at(1500, 0)
+      _unrelated = endgame_at(1500, 1)
+      theme = theme_fixture(%{name: "Lucena"})
+      {:ok, _} = Endgames.update_endgame(themed, %{}, [theme])
+
+      for _ <- 1..20 do
+        assert Puzzles.next_endgame(user, :medium, theme_id: theme.id).id == themed.id
+      end
+
+      assert Puzzles.next_endgame(user, :medium,
+               theme_id: theme.id,
+               exclude_ids: [themed.id]
+             ) == nil
+
+      assert Puzzles.next_endgame(user, :medium, theme_id: theme.id) != nil
     end
   end
 end

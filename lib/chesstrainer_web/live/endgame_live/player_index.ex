@@ -20,6 +20,21 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
         selected_key={@selected_key}
       />
 
+      <div
+        :if={@selected_themes != []}
+        id="train-theme-links"
+        class="mb-4 flex flex-wrap items-center gap-2 text-sm"
+      >
+        <span class="text-muted">Train this theme:</span>
+        <.link
+          :for={theme <- @selected_themes}
+          navigate={~p"/train/#{theme.slug}"}
+          class="font-semibold text-primary-text underline underline-offset-4"
+        >
+          {theme.name}
+        </.link>
+      </div>
+
       <.grouped_list :if={@groups != []} groups={@groups}>
         <:header>
           <tr>
