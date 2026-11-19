@@ -36,7 +36,7 @@ defmodule ChesstrainerWeb.Moderation.ThemeSuggestionLiveTest do
     assert has_element?(view, "#target-#{suggestion.id}", "Lucena")
     assert html =~ suggestion.author.username
     assert html =~ "1 suggestion"
-    assert html =~ "Review suggestions"
+    assert html =~ "Moderation"
   end
 
   test "admins can review too", %{conn: conn} do

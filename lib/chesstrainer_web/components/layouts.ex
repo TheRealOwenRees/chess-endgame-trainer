@@ -111,12 +111,6 @@ defmodule ChesstrainerWeb.Layouts do
                     <.link navigate={~p"/users/profile"}>Account</.link>
                     <.link navigate={~p"/users/profile/settings"}>Settings</.link>
                     <.link navigate={~p"/users/profile/data"}>Data</.link>
-                    <.link
-                      :if={can_review_suggestions?(@current_scope)}
-                      navigate={~p"/moderation/theme-suggestions"}
-                    >
-                      Review suggestions
-                    </.link>
                     <.link href={~p"/users/log-out"} method="delete">Log out</.link>
                   </div>
                 </details>
@@ -160,7 +154,8 @@ defmodule ChesstrainerWeb.Layouts do
       for {capability, label, href} <- [
             {:manage_endgames, "Endgames", ~p"/admin/endgames"},
             {:manage_themes, "Themes", ~p"/admin/themes"},
-            {:manage_users, "Users", ~p"/admin/users"}
+            {:manage_users, "Users", ~p"/admin/users"},
+            {:review_theme_suggestions, "Moderation", ~p"/moderation/theme-suggestions"}
           ],
           Policy.can?(assigns.current_scope, capability),
           do: %{label: label, href: href}
@@ -200,7 +195,14 @@ defmodule ChesstrainerWeb.Layouts do
         []
       end
 
-    marketing ++ admin
+    moderation =
+      if can_review_suggestions?(scope) and not admin?(scope) do
+        [%{label: "Moderation", href: ~p"/moderation/theme-suggestions"}]
+      else
+        []
+      end
+
+    marketing ++ admin ++ moderation
   end
 
   defp signed_in_user(%{user: %{username: _} = user}), do: user
