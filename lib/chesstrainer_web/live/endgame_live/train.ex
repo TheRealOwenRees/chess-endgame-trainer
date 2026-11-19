@@ -9,7 +9,6 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
 
   use ChesstrainerWeb, :live_view
 
-  alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Puzzles
   alias Chesstrainer.Themes
   alias ChesstrainerWeb.EndgameLive.PlayCore
@@ -27,22 +26,6 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
             message="The theme you were looking for moved, or never existed. Check the address, or head back to the trainer."
             current_scope={@current_scope}
           />
-        <% @premium_required -> %>
-          <section
-            id="premium-required"
-            class="rounded-xl border border-warning/30 bg-warning/10 p-6"
-          >
-            <h1 class="text-lg font-semibold">Themed sessions are part of Puzzle Search</h1>
-            <p class="mt-1 text-sm text-muted">
-              “{@theme.name}” is available on the premium plan. Puzzle Search lets you
-              browse and train specific themes.
-            </p>
-            <div class="mt-4 flex flex-wrap gap-2">
-              <.button navigate={~p"/users/profile"}>View your plan</.button>
-              <.button navigate={~p"/train"}>Train without a theme</.button>
-              <.button navigate={~p"/"}>Back home</.button>
-            </div>
-          </section>
         <% true -> %>
           <.header>
             {if @theme, do: "Train #{@theme.name}", else: "Train"}
@@ -66,12 +49,8 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
               <.button :if={@session} phx-click="stop_session">
                 <.icon name="hero-x-mark" /> Stop session
               </.button>
-              <.button
-                :if={Scope.premium?(@current_scope)}
-                id="puzzle-search"
-                navigate={~p"/endgames"}
-              >
-                <.icon name="hero-magnifying-glass" /> Puzzle Search
+              <.button id="puzzle-search" navigate={~p"/endgames"}>
+                <.icon name="hero-magnifying-glass" /> Browse endgames
               </.button>
             </:actions>
           </.header>
@@ -292,11 +271,7 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
           |> assign(:theme, theme)
           |> assign(:page_title, "Train #{theme.name}")
 
-        if Scope.premium?(socket.assigns.current_scope) do
-          {:ok, socket}
-        else
-          {:ok, assign(socket, :premium_required, true)}
-        end
+        {:ok, socket}
     end
   end
 
@@ -311,7 +286,6 @@ defmodule ChesstrainerWeb.EndgameLive.Train do
     |> assign(:puzzle_counted, false)
     |> assign(:pool, nil)
     |> assign(:theme, nil)
-    |> assign(:premium_required, false)
     |> assign(:not_found, false)
     |> assign(:user_rating, socket.assigns.current_scope.user.rating)
     |> assign(:user_deviation, socket.assigns.current_scope.user.rating_deviation)

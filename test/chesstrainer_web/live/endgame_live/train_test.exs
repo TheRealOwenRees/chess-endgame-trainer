@@ -94,7 +94,7 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert has_element?(view, "a", "Return Home")
       assert has_element?(view, "#connection-actions")
       assert render(view) =~ ">Reload<"
-      refute has_element?(view, "#puzzle-search")
+      assert has_element?(view, "#puzzle-search[href='/endgames']")
       assert has_element?(view, "#rating-guide")
       assert render(view) =~ "Choose a difficulty"
     end
@@ -121,18 +121,14 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
     end
   end
 
-  describe "premium access" do
-    test "shows the puzzle search link for premium users", %{conn: conn} do
-      {:ok, user} =
-        user_fixture()
-        |> Ecto.Changeset.change(plan: :premium)
-        |> Repo.update()
+  describe "browsing endgames" do
+    setup :register_and_log_in_user
 
-      conn = log_in_user(conn, user)
+    test "free users get the browse link", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/train")
 
       assert has_element?(view, "#puzzle-search[href='/endgames']")
-      assert render(view) =~ "Puzzle Search"
+      assert render(view) =~ "Browse endgames"
     end
   end
 
@@ -192,14 +188,13 @@ defmodule ChesstrainerWeb.EndgameLive.TrainTest do
       assert has_element?(view, ".error-page")
     end
 
-    test "free users get an upsell instead of a session", %{conn: conn} do
+    test "free users can train a theme", %{conn: conn} do
       theme = theme_fixture(%{name: "Lucena"})
 
       {:ok, view, _html} = live(conn, ~p"/train/#{theme.slug}")
 
-      assert has_element?(view, "#premium-required")
-      refute has_element?(view, "#difficulty-picker")
-      assert render(view) =~ "Lucena"
+      assert has_element?(view, "#difficulty-picker")
+      assert render(view) =~ "Train Lucena"
     end
   end
 

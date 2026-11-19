@@ -3,6 +3,8 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
 
   import ChesstrainerWeb.EndgameList
 
+  alias Chesstrainer.Themes
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -97,7 +99,76 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
   end
 
   @impl true
-  def handle_event(event, params, socket) do
-    handle_filter_event(event, params, socket)
+  def handle_params(params, _uri, socket) do
+    {:noreply,
+     socket
+     |> apply_filters(params)
+     |> assign(:theme_query, "")
+     |> assign(:theme_results, [])
+     |> refresh()}
   end
+
+  # Every filter change is a patch, so the selection lives in the address bar
+  # and can be reloaded, linked and stepped through with the browser's history.
+  @impl true
+  def handle_event("add_theme", %{"id" => id}, socket) do
+    theme = Themes.get_theme!(id)
+
+    patch_filters(socket, Enum.uniq_by(socket.assigns.selected_themes ++ [theme], & &1.id))
+  end
+
+  def handle_event("remove_theme", %{"id" => id}, socket) do
+    themes = Enum.reject(socket.assigns.selected_themes, &(Integer.to_string(&1.id) == id))
+
+    patch_filters(socket, themes)
+  end
+
+  def handle_event("filter_key", %{"key" => key}, socket) do
+    patch_filters(socket, socket.assigns.selected_themes, blank_to_nil(key))
+  end
+
+  def handle_event("clear_filters", _params, socket), do: patch_filters(socket, [], nil)
+
+  def handle_event(event, params, socket), do: handle_filter_event(event, params, socket)
+
+  defp patch_filters(socket, themes, key \\ nil) do
+    {:noreply, push_patch(socket, to: filters_path(themes, key))}
+  end
+
+  defp filters_path(themes, key) do
+    query =
+      []
+      |> put_query(:themes, Enum.map_join(themes, ",", & &1.slug))
+      |> put_query(:key, key)
+
+    if query == [] do
+      ~p"/endgames"
+    else
+      ~p"/endgames?#{query}"
+    end
+  end
+
+  defp put_query(query, _name, value) when value in [nil, ""], do: query
+  defp put_query(query, name, value), do: query ++ [{name, value}]
+
+  defp apply_filters(socket, params) do
+    themes =
+      params
+      |> Map.get("themes", "")
+      |> String.split(",", trim: true)
+      |> Enum.uniq()
+      |> Enum.map(&Themes.get_theme_by_slug/1)
+      |> Enum.reject(&is_nil/1)
+
+    key = blank_to_nil(Map.get(params, "key"))
+    key = if key in socket.assigns.keys, do: key, else: nil
+
+    socket
+    |> assign(:selected_themes, themes)
+    |> assign(:selected_key, key)
+  end
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(value), do: value
 end
