@@ -410,6 +410,149 @@ defmodule Chesstrainer.ThemesTest do
     end
   end
 
+  describe "reviewing suggestions" do
+    test "approving an existing theme writes a community link and records the reviewer" do
+      reviewer = moderator_scope()
+      endgame = endgame_fixture()
+      author = attempted_scope(endgame)
+      theme = theme_fixture(%{name: "Lucena"})
+      {:ok, suggestion} = Themes.suggest_theme(author, endgame, %{theme_id: theme.id})
+
+      assert {:ok, updated} = Themes.approve_suggestion(reviewer, suggestion)
+
+      assert updated.status == :accepted
+      assert updated.reviewer_id == reviewer.user.id
+      assert updated.reviewed_at
+      assert link_sources(endgame.id) == %{theme.id => "community"}
+    end
+
+    test "approving a proposed name creates a technique theme and links it" do
+      reviewer = moderator_scope()
+      endgame = endgame_fixture()
+      author = attempted_scope(endgame)
+      {:ok, suggestion} = Themes.suggest_theme(author, endgame, %{proposed_name: "Opposition"})
+
+      assert {:ok, %{status: :accepted}} = Themes.approve_suggestion(reviewer, suggestion)
+
+      theme = Repo.get_by!(Themes.Theme, name: "Opposition")
+      assert theme.kind == :technique
+      assert link_sources(endgame.id) == %{theme.id => "community"}
+    end
+
+    test "merging a proposed name uses the chosen theme instead of creating one" do
+      reviewer = moderator_scope()
+      endgame = endgame_fixture()
+      author = attempted_scope(endgame)
+      target = theme_fixture(%{name: "Lucena"})
+      {:ok, suggestion} = Themes.suggest_theme(author, endgame, %{proposed_name: "Opposition"})
+
+      assert {:ok, updated} =
+               Themes.approve_suggestion(reviewer, suggestion, theme_id: target.id)
+
+      assert updated.status == :merged
+      assert link_sources(endgame.id) == %{target.id => "community"}
+      refute Repo.get_by(Themes.Theme, name: "Opposition")
+    end
+
+    test "merging into a material theme is refused" do
+      reviewer = moderator_scope()
+      endgame = endgame_fixture()
+      author = attempted_scope(endgame)
+      material = theme_fixture(%{name: "Rook endgame", kind: :material})
+      {:ok, suggestion} = Themes.suggest_theme(author, endgame, %{proposed_name: "Opposition"})
+
+      assert {:error, :not_suggestible} =
+               Themes.approve_suggestion(reviewer, suggestion, theme_id: material.id)
+    end
+
+    test "rejecting records a reason, the reviewer and the time without linking" do
+      reviewer = moderator_scope()
+      endgame = endgame_fixture()
+      author = attempted_scope(endgame)
+      theme = theme_fixture(%{name: "Lucena"})
+      {:ok, suggestion} = Themes.suggest_theme(author, endgame, %{theme_id: theme.id})
+
+      assert {:ok, updated} =
+               Themes.reject_suggestion(reviewer, suggestion, "  Not this position  ")
+
+      assert updated.status == :rejected
+      assert updated.note == "Not this position"
+      assert updated.reviewer_id == reviewer.user.id
+      assert updated.reviewed_at
+      assert link_sources(endgame.id) == %{}
+    end
+
+    test "rejecting requires a reason" do
+      reviewer = moderator_scope()
+      endgame = endgame_fixture()
+      author = attempted_scope(endgame)
+      theme = theme_fixture(%{name: "Lucena"})
+      {:ok, suggestion} = Themes.suggest_theme(author, endgame, %{theme_id: theme.id})
+
+      assert {:error, :note_required} = Themes.reject_suggestion(reviewer, suggestion, "  ")
+    end
+
+    test "only reviewers can decide, and only once" do
+      endgame = endgame_fixture()
+      author = attempted_scope(endgame)
+      theme = theme_fixture(%{name: "Lucena"})
+      {:ok, suggestion} = Themes.suggest_theme(author, endgame, %{theme_id: theme.id})
+
+      assert {:error, :unauthorized} = Themes.approve_suggestion(nil, suggestion)
+      assert {:error, :unauthorized} = Themes.approve_suggestion(author, suggestion)
+      assert {:error, :unauthorized} = Themes.reject_suggestion(author, suggestion, "No")
+
+      {:ok, decided} = Themes.approve_suggestion(moderator_scope(), suggestion)
+
+      assert {:error, :not_pending} = Themes.approve_suggestion(moderator_scope(), decided)
+      assert {:error, :not_pending} = Themes.reject_suggestion(moderator_scope(), decided, "No")
+    end
+
+    test "evidence counts group a theme and a proposed name across players" do
+      endgame = endgame_fixture()
+      theme = theme_fixture(%{name: "Lucena"})
+
+      {:ok, first} =
+        Themes.suggest_theme(attempted_scope(endgame), endgame, %{theme_id: theme.id})
+
+      {:ok, second} =
+        Themes.suggest_theme(attempted_scope(endgame), endgame, %{theme_id: theme.id})
+
+      {:ok, third} =
+        Themes.suggest_theme(attempted_scope(endgame), endgame, %{proposed_name: "Opposition"})
+
+      {:ok, fourth} =
+        Themes.suggest_theme(attempted_scope(endgame), endgame, %{proposed_name: "opposition"})
+
+      evidence = Themes.pending_evidence([first, second, third, fourth])
+
+      assert evidence[first.id] == 2
+      assert evidence[second.id] == 2
+      assert evidence[third.id] == 2
+      assert evidence[fourth.id] == 2
+    end
+
+    test "the queue lists pending suggestions oldest first with counts" do
+      endgame = endgame_fixture()
+      theme = theme_fixture(%{name: "Lucena"})
+
+      {:ok, suggestion} =
+        Themes.suggest_theme(attempted_scope(endgame), endgame, %{theme_id: theme.id})
+
+      assert Themes.count_pending_suggestions() == 1
+      assert [listed] = Themes.list_pending_suggestions()
+      assert listed.id == suggestion.id
+      assert listed.endgame.id == endgame.id
+      assert listed.endgame.themes == []
+      assert listed.user.username
+    end
+  end
+
+  defp moderator_scope do
+    {:ok, user} = Accounts.update_user_role(user_fixture(), :moderator)
+    Scope.for_user(user)
+  end
+
   defp attempted_scope(endgame) do
     scope = user_scope_fixture()
     {:ok, _attempt} = Attempts.record_attempt(scope, endgame, :solved)

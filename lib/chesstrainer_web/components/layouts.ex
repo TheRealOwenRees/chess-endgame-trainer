@@ -154,7 +154,8 @@ defmodule ChesstrainerWeb.Layouts do
       for {capability, label, href} <- [
             {:manage_endgames, "Endgames", ~p"/admin/endgames"},
             {:manage_themes, "Themes", ~p"/admin/themes"},
-            {:manage_users, "Users", ~p"/admin/users"}
+            {:manage_users, "Users", ~p"/admin/users"},
+            {:review_theme_suggestions, "Moderation", ~p"/admin/moderation/theme-suggestions"}
           ],
           Policy.can?(assigns.current_scope, capability),
           do: %{label: label, href: href}
@@ -188,10 +189,15 @@ defmodule ChesstrainerWeb.Layouts do
       end
 
     admin =
-      if admin?(scope) do
-        [%{label: "Admin", href: ~p"/admin/endgames"}]
-      else
-        []
+      cond do
+        admin?(scope) ->
+          [%{label: "Admin", href: ~p"/admin/endgames"}]
+
+        can_review_suggestions?(scope) ->
+          [%{label: "Admin", href: ~p"/admin/moderation/theme-suggestions"}]
+
+        true ->
+          []
       end
 
     marketing ++ admin
@@ -202,6 +208,8 @@ defmodule ChesstrainerWeb.Layouts do
 
   defp admin?(%{user: %{role: role}}), do: Role.admin?(role)
   defp admin?(_scope), do: false
+
+  defp can_review_suggestions?(scope), do: Policy.can?(scope, :review_theme_suggestions)
 
   # Signed-in users start a puzzle session; visitors browse the public list.
   defp start_href(%{user: %{}}), do: ~p"/train"
