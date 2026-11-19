@@ -68,6 +68,66 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
     {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
     assert has_element?(view, "#endgame-board")
-    assert has_element?(view, ~s{a[href="/"]})
+    assert has_element?(view, ~s{a[href="/endgames"]})
+  end
+
+  describe "collection URLs" do
+    test "puts the theme filter in the address bar", %{conn: conn} do
+      lucena = theme_fixture(%{name: "Lucena"})
+      endgame = endgame_fixture()
+      {:ok, _} = Endgames.update_endgame(endgame, %{}, [lucena])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames")
+
+      view |> form("#theme-filter-form", %{theme_search: "Luc"}) |> render_change()
+      view |> element("button", "Lucena") |> render_click()
+
+      assert_patch(view, ~p"/endgames?themes=lucena")
+    end
+
+    test "restores the selection from the address bar", %{conn: conn} do
+      lucena = theme_fixture(%{name: "Lucena"})
+      kr = endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+      _kq = endgame_fixture(fen: "8/8/3k4/8/8/3K1Q2/8/8 w - - 0 1")
+      {:ok, _} = Endgames.update_endgame(kr, %{}, [lucena])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames?themes=lucena")
+
+      assert has_element?(view, "#key-group-KR-v-K")
+      refute has_element?(view, "#key-group-KQ-v-K")
+      assert has_element?(view, "#train-theme-links a[href='/train/lucena']")
+    end
+
+    test "combines themes and a Key", %{conn: conn} do
+      lucena = theme_fixture(%{name: "Lucena"})
+      endgame = endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+      {:ok, _} = Endgames.update_endgame(endgame, %{}, [lucena])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames?themes=lucena&key=KR+v+K")
+
+      assert has_element?(view, "#key-group-KR-v-K")
+      assert has_element?(view, "#train-theme-links a[href='/train/lucena']")
+    end
+
+    test "removing a theme patches the address bar back", %{conn: conn} do
+      lucena = theme_fixture(%{name: "Lucena"})
+      endgame = endgame_fixture()
+      {:ok, _} = Endgames.update_endgame(endgame, %{}, [lucena])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames?themes=lucena")
+
+      view |> element("button[aria-label='Remove Lucena']") |> render_click()
+
+      assert_patch(view, ~p"/endgames")
+    end
+
+    test "ignores themes and keys that do not exist", %{conn: conn} do
+      endgame_fixture()
+
+      {:ok, view, _html} = live(conn, ~p"/endgames?themes=nope&key=Q+v+Q")
+
+      assert has_element?(view, "#key-group-K-v-K")
+      refute has_element?(view, "#train-theme-links")
+    end
   end
 end

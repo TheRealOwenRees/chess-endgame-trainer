@@ -232,7 +232,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       refute has_element?(view, ~s{a[href="/endgames"]})
     end
 
-    test "points home for a signed-in free user", %{conn: conn} do
+    test "points to the endgame index for a signed-in free user", %{conn: conn} do
       user = Chesstrainer.AccountsFixtures.user_fixture()
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen)
@@ -242,8 +242,8 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
         |> log_in_user(user)
         |> live(~p"/endgames/#{endgame.public_code}/play")
 
-      assert has_element?(view, ~s{a[href="/"]}, "Back home")
-      refute has_element?(view, ~s{a[href="/endgames"]})
+      assert has_element?(view, ~s{a[href="/endgames"]}, "Back to endgames")
+      refute has_element?(view, ~s{a[href="/"]}, "Back home")
     end
 
     test "points to the endgame index for a premium user", %{conn: conn} do

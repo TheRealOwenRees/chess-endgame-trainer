@@ -1,7 +1,6 @@
 defmodule ChesstrainerWeb.EndgameLive.Play do
   use ChesstrainerWeb, :live_view
 
-  alias Chesstrainer.Accounts.Scope
   alias Chesstrainer.Endgames
   alias ChesstrainerWeb.EndgameLive.PlayCore
   alias ChesstrainerWeb.PlayComponents
@@ -35,10 +34,10 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
           </p>
         </div>
         <div class="flex flex-none gap-2">
-          <.button :if={Scope.premium?(@current_scope)} navigate={~p"/endgames"}>
+          <.button :if={@current_scope && @current_scope.user} navigate={~p"/endgames"}>
             <.icon name="hero-arrow-left" /> Back to endgames
           </.button>
-          <.button :if={!Scope.premium?(@current_scope)} navigate={~p"/"}>
+          <.button :if={is_nil(@current_scope) || is_nil(@current_scope.user)} navigate={~p"/"}>
             <.icon name="hero-arrow-left" /> Back home
           </.button>
         </div>

@@ -13,9 +13,11 @@ the player is told about it.
 - **Volume caps punish the people most likely to pay.** They also have no
   natural threshold: any daily number is arbitrary, and a user who is improving
   hits it hardest.
-- **Content gates already leak.** Puzzle Search is premium-only in the nav but
-  not on its route, so a free user reaches it by URL. Gating a category of
-  knowledge creates that mess; gating depth does not.
+- **Content gates already leaked.** Puzzle Search was premium-only in the nav
+  but open on its route, so a free user reached it by URL. That gate has since
+  been removed: browsing is discovery of content the free tier already owns,
+  not analysis. Gating a category of knowledge creates that mess; gating depth
+  does not.
 - **Ads were closed (#75).** A niche trainer's impressions earn pennies against
   the consent surface the app has been careful to keep small (cookieless,
   no tracking of signed-in pages) and against the positioning that refuses to be
@@ -77,3 +79,6 @@ means VAT and invoicing that a one-person operation should not own.
   backend on demand, not from local tables per move.
 - Rate limiting becomes a product concern — an analysis queue — not only an
   availability one.
+- The last content gate is gone: the browse link is shown to every signed-in
+  user, themed sessions are open at `/train/:theme_slug`, and the play page's
+  back link follows the session rather than the plan.

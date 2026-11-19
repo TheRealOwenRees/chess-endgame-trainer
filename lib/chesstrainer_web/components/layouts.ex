@@ -7,7 +7,6 @@ defmodule ChesstrainerWeb.Layouts do
 
   alias Chesstrainer.Accounts.Policy
   alias Chesstrainer.Accounts.Role
-  alias Chesstrainer.Accounts.Scope
 
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
@@ -180,10 +179,8 @@ defmodule ChesstrainerWeb.Layouts do
 
   defp nav_links(scope) do
     marketing =
-      if Scope.premium?(scope) do
-        [
-          %{label: "Puzzle Search", href: "/endgames"}
-        ]
+      if signed_in_user(scope) do
+        [%{label: "Endgames", href: "/endgames"}]
       else
         []
       end
