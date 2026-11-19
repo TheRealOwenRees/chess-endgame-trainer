@@ -1,7 +1,9 @@
 # Chesstrainer
 
 An endgame trainer: the user plays a stored endgame position against
-tablebase-optimal defence and is graded on every move.
+tablebase-optimal defence and is graded on every move — with the board, or from
+memory in blindfold mode. Premium adds analysis of what was played, never
+access to the play itself.
 
 ## Core model
 
@@ -22,8 +24,10 @@ assignment is persisted so it stays stable for that day.
 _Avoid_: Random puzzle, featured puzzle
 
 **Attempt**:
-A recorded playthrough of a puzzle by a user, ending solved or failed; a
-per-user record, distinct from an endgame's global attempt and solve counts.
+A playthrough of a puzzle that ends solved or failed, recorded per user and
+distinct from an endgame's global attempt and solve counts. The global counts
+include anonymous play and count only finished playthroughs — loading or
+resetting a puzzle leaves no trace.
 _Avoid_: Run, game
 
 **Theme**:
@@ -62,6 +66,8 @@ _Avoid_: Permission, access level
 
 **Plan**:
 A user's subscription tier — `free` or `premium` — independent of their role.
+Premium is defined by analysis and advanced practice, never by volume and never
+by content the free tier cannot reach.
 _Avoid_: Tier, subscription, membership
 
 **Mailing list**:
@@ -144,6 +150,43 @@ whole library stays reachable. The spread is a configured constant. It is a
 property of a session, not of an endgame — the same endgame is easy for one user
 and hard for another.
 _Avoid_: Level, rank, tier
+
+## Blindfold
+
+**Blindfold**:
+A presentation of play in which the board is hidden and the user must move from
+memory and calculation. Grading is unchanged; only what the user can see is.
+_Avoid_: Blind mode, sightless mode, visualization mode
+
+**Line drill**:
+A blindfold exercise in which the user is given a starting position and a line
+in notation, then plays that line while the pieces stay frozen in their starting
+squares — every position after the first exists only in the user's head.
+_Avoid_: Playback, memory game, replay
+
+## Analysis
+
+**Oracle**:
+The authority that decides whether a move keeps the result: the tablebase, an
+engine corridor, or a stored line. Routing and grading consult it before
+anything else.
+_Avoid_: Grade source, validator, engine
+
+**Analysis**:
+A stored report of a finished attempt or imported game — which move lost the
+result, what it cost, and the technique at fault. Produced on request in the
+background; the play loop never waits for it.
+_Avoid_: Heuristics, feedback (the live per-move grade), review
+
+**Imported game**:
+A game the user submits for analysis, of which only the endgame tail is judged
+exactly.
+_Avoid_: Upload, PGN, game history
+
+**Weakness report**:
+The aggregate of a user's analyses, grouped by Key and motif, showing which
+conversions they keep losing.
+_Avoid_: Stats, dashboard, mistakes
 
 ## Infrastructure
 
