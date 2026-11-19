@@ -138,15 +138,27 @@ defmodule Chesstrainer.PuzzlesTest do
       {:ok, _} = Endgames.update_endgame(themed, %{}, [theme])
 
       for _ <- 1..20 do
-        assert Puzzles.next_endgame(user, :medium, theme_id: theme.id).id == themed.id
+        assert Puzzles.next_endgame(user, :medium, theme_ids: [theme.id]).id == themed.id
       end
 
       assert Puzzles.next_endgame(user, :medium,
-               theme_id: theme.id,
+               theme_ids: [theme.id],
                exclude_ids: [themed.id]
              ) == nil
 
-      assert Puzzles.next_endgame(user, :medium, theme_id: theme.id) != nil
+      assert Puzzles.next_endgame(user, :medium, theme_ids: [theme.id]) != nil
+    end
+
+    test "restricts selection to a material Key" do
+      user = user_fixture()
+      kq = endgame_fixture(fen: "8/8/3k4/8/8/3K1Q2/8/8 w - - 0 1")
+      _kr = endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+
+      for _ <- 1..20 do
+        assert Puzzles.next_endgame(user, :medium, key: "KQ v K").id == kq.id
+      end
+
+      assert Puzzles.next_endgame(user, :medium, key: "KQ v K", exclude_ids: [kq.id]) == nil
     end
   end
 end

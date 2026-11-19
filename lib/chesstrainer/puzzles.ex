@@ -64,40 +64,45 @@ defmodule Chesstrainer.Puzzles do
   baseline.
 
   `:exclude_ids` (default `[]`) skips endgames by id — used for the puzzles
-  already served in this session. `:theme_id` restricts selection to endgames
-  carrying that theme; the fallback is restricted too, so a themed session never
-  silently widens to unrelated endgames. Returns `nil` when no endgame exists at
-  all, or none within the theme.
+  already served in this session. `:theme_ids` restricts selection to endgames
+  carrying any of those themes, and `:key` to a single material Key; the
+  fallback is restricted too, so a filtered session never silently widens to
+  unrelated endgames. Returns `nil` when no endgame matches at all.
   """
   def next_endgame(%User{} = user, difficulty, opts \\ [])
       when difficulty in @difficulties do
     exclude_ids = Keyword.get(opts, :exclude_ids, [])
-    theme_id = Keyword.get(opts, :theme_id)
+    theme_ids = List.wrap(Keyword.get(opts, :theme_ids))
+    key = Keyword.get(opts, :key)
     recent_ids = Attempts.recent_endgame_ids(user.id, repeat_window_days())
     target = difficulty_target(user.rating, difficulty)
 
     Endgame
     |> on_side_of(user.rating, difficulty)
-    |> filter_theme(theme_id)
+    |> filter_themes(theme_ids)
+    |> filter_key(key)
     |> skip_ids(exclude_ids ++ recent_ids)
     |> weighted_one(target)
     |> case do
-      nil -> least_recently_attempted(user.id, exclude_ids, theme_id)
+      nil -> least_recently_attempted(user.id, exclude_ids, theme_ids, key)
       endgame -> endgame
     end
   end
 
-  defp filter_theme(query, nil), do: query
+  defp filter_themes(query, []), do: query
 
-  defp filter_theme(query, theme_id) do
+  defp filter_themes(query, theme_ids) do
     endgame_ids =
       from(t in "endgames_themes",
-        where: t.theme_id == ^theme_id,
+        where: t.theme_id in ^theme_ids,
         select: t.endgame_id
       )
 
     where(query, [e], e.id in subquery(endgame_ids))
   end
+
+  defp filter_key(query, nil), do: query
+  defp filter_key(query, key), do: where(query, [e], e.key == ^key)
 
   # Keep the labels honest: "easy" never serves above the user's rating plus the
   # spread, and "hard" never below it minus the spread. "medium" is open, which
@@ -128,7 +133,7 @@ defmodule Chesstrainer.Puzzles do
 
   # Every candidate is excluded, so the repeat window is overruled: serve
   # whatever the user has waited longest to see again.
-  defp least_recently_attempted(user_id, exclude_ids, theme_id) do
+  defp least_recently_attempted(user_id, exclude_ids, theme_ids, key) do
     attempted =
       Attempt
       |> where([a], a.user_id == ^user_id)
@@ -136,7 +141,8 @@ defmodule Chesstrainer.Puzzles do
       |> select([a], %{endgame_id: a.endgame_id, last_at: max(a.inserted_at)})
 
     Endgame
-    |> filter_theme(theme_id)
+    |> filter_themes(theme_ids)
+    |> filter_key(key)
     |> skip_ids(exclude_ids)
     |> join(:left, [e], a in subquery(attempted), on: a.endgame_id == e.id)
     |> order_by([_e, a], asc_nulls_first: a.last_at)

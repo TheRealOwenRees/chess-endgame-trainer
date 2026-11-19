@@ -4,6 +4,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
   import ChesstrainerWeb.EndgameList
 
   alias Chesstrainer.Themes
+  alias ChesstrainerWeb.CollectionParams
 
   @impl true
   def render(assigns) do
@@ -22,22 +23,21 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
         selected_key={@selected_key}
       />
 
-      <div
-        :if={@selected_themes != []}
-        id="train-theme-links"
-        class="mb-4 flex flex-wrap items-center gap-2 text-sm"
-      >
-        <span class="text-muted">Train this theme:</span>
-        <.link
-          :for={theme <- @selected_themes}
-          navigate={~p"/train/#{theme.slug}"}
-          class="font-semibold text-primary-text underline underline-offset-4"
+      <div class="mb-4">
+        <.button
+          id="play-collection"
+          variant="primary"
+          navigate={play_path(@selected_themes, @selected_key)}
         >
-          {theme.name}
-        </.link>
+          <.icon name="hero-play" /> Play these {collection_count(@groups)}
+        </.button>
       </div>
 
-      <.grouped_list :if={@groups != []} groups={@groups}>
+      <.grouped_list
+        :if={@groups != []}
+        groups={@groups}
+        play_href={&play_path(@selected_themes, &1)}
+      >
         <:header>
           <tr>
             <th>Color</th>
@@ -113,14 +113,15 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
   @impl true
   def handle_event("add_theme", %{"id" => id}, socket) do
     theme = Themes.get_theme!(id)
+    themes = Enum.uniq_by(socket.assigns.selected_themes ++ [theme], & &1.id)
 
-    patch_filters(socket, Enum.uniq_by(socket.assigns.selected_themes ++ [theme], & &1.id))
+    patch_filters(socket, themes, socket.assigns.selected_key)
   end
 
   def handle_event("remove_theme", %{"id" => id}, socket) do
     themes = Enum.reject(socket.assigns.selected_themes, &(Integer.to_string(&1.id) == id))
 
-    patch_filters(socket, themes)
+    patch_filters(socket, themes, socket.assigns.selected_key)
   end
 
   def handle_event("filter_key", %{"key" => key}, socket) do
@@ -131,42 +132,33 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
 
   def handle_event(event, params, socket), do: handle_filter_event(event, params, socket)
 
-  defp patch_filters(socket, themes, key \\ nil) do
+  defp patch_filters(socket, themes, key) do
     {:noreply, push_patch(socket, to: filters_path(themes, key))}
   end
 
   defp filters_path(themes, key) do
-    query =
-      []
-      |> put_query(:themes, Enum.map_join(themes, ",", & &1.slug))
-      |> put_query(:key, key)
-
-    if query == [] do
-      ~p"/endgames"
-    else
-      ~p"/endgames?#{query}"
+    case CollectionParams.params(%{themes: themes, key: key}) do
+      [] -> ~p"/endgames"
+      params -> ~p"/endgames?#{params}"
     end
   end
 
-  defp put_query(query, _name, value) when value in [nil, ""], do: query
-  defp put_query(query, name, value), do: query ++ [{name, value}]
+  defp play_path(themes, key) do
+    case CollectionParams.params(%{themes: themes, key: key}) do
+      [] -> ~p"/train"
+      params -> ~p"/train?#{params}"
+    end
+  end
 
   defp apply_filters(socket, params) do
-    themes =
-      params
-      |> Map.get("themes", "")
-      |> String.split(",", trim: true)
-      |> Enum.uniq()
-      |> Enum.map(&Themes.get_theme_by_slug/1)
-      |> Enum.reject(&is_nil/1)
-
-    key = blank_to_nil(Map.get(params, "key"))
-    key = if key in socket.assigns.keys, do: key, else: nil
+    collection = CollectionParams.parse(params)
 
     socket
-    |> assign(:selected_themes, themes)
-    |> assign(:selected_key, key)
+    |> assign(:selected_themes, collection.themes)
+    |> assign(:selected_key, collection.key)
   end
+
+  defp collection_count(groups), do: Enum.sum(Enum.map(groups, & &1.count))
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(nil), do: nil

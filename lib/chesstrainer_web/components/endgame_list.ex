@@ -194,6 +194,7 @@ defmodule ChesstrainerWeb.EndgameList do
   end
 
   attr :groups, :list, required: true
+  attr :play_href, :any, default: nil
   slot :header, required: true
   slot :row, required: true
 
@@ -201,24 +202,34 @@ defmodule ChesstrainerWeb.EndgameList do
     ~H"""
     <div class="space-y-3">
       <section :for={group <- @groups} id={"key-group-" <> String.replace(group.key, " ", "-")}>
-        <button
-          type="button"
-          phx-click="toggle_group"
-          phx-value-key={group.key}
-          aria-expanded={to_string(group.expanded)}
-          class="flex w-full items-center justify-between gap-3 rounded bg-base-200 px-3 py-2 text-left"
-        >
-          <span class="font-semibold">{group.key}</span>
-          <span class="flex items-center gap-2 text-sm">
-            <.badge id={"key-group-count-" <> String.replace(group.key, " ", "-")}>
-              {group.count}
-            </.badge>
-            <.icon
-              name={if group.expanded, do: "hero-chevron-down", else: "hero-chevron-right"}
-              class="size-4"
-            />
-          </span>
-        </button>
+        <div class="flex items-center justify-between gap-3 rounded bg-base-200 px-3 py-2">
+          <button
+            type="button"
+            phx-click="toggle_group"
+            phx-value-key={group.key}
+            aria-expanded={to_string(group.expanded)}
+            class="flex flex-1 items-center justify-between gap-3 text-left"
+          >
+            <span class="font-semibold">{group.key}</span>
+            <span class="flex items-center gap-2 text-sm">
+              <.badge id={"key-group-count-" <> String.replace(group.key, " ", "-")}>
+                {group.count}
+              </.badge>
+              <.icon
+                name={if group.expanded, do: "hero-chevron-down", else: "hero-chevron-right"}
+                class="size-4"
+              />
+            </span>
+          </button>
+          <.link
+            :if={@play_href}
+            id={"play-group-" <> String.replace(group.key, " ", "-")}
+            navigate={@play_href.(group.key)}
+            class="flex-none text-sm font-semibold text-primary-text underline underline-offset-4"
+          >
+            Play all {group.count}
+          </.link>
+        </div>
 
         <table :if={group.expanded} class={table_class()}>
           <thead>

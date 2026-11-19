@@ -111,6 +111,12 @@ carries a start time and a rating baseline for the timer and rating-gain
 monitor. Ephemeral — it lives only in the running LiveView, never persisted.
 _Avoid_: Run, game, attempt
 
+**Collection**:
+A narrowing of the library — some themes and optionally one material Key —
+that can be browsed and played as a session. It has an address, so the same
+collection can be linked and shared.
+_Avoid_: Filter, search, list
+
 **Repeat window**:
 The minimum interval before the same endgame may be served to the same user
 again. Selection skips endgames attempted inside the window; only when nothing
