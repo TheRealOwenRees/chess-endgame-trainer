@@ -363,7 +363,12 @@ defmodule Chesstrainer.Endgames do
   end
 
   @doc """
-  Records the start of an attempt, incrementing `times_attempted`.
+  Records a finished attempt, incrementing `times_attempted`.
+
+  The counter measures completed playthroughs, not page loads: opening a puzzle
+  and resetting it leaves no trace, so `times_attempted` and `times_solved`
+  describe the same population and their ratio is a real solve rate. Anonymous
+  play counts; the per-user history in `Chesstrainer.Attempts` does not.
   """
   def record_attempt(%Endgame{id: id}), do: increment(id, times_attempted: 1)
 

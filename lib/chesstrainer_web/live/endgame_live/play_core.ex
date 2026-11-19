@@ -365,10 +365,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
     if connected?(socket) do
       case Tablebase.new(fen) do
         {:ok, tablebase} ->
-          {:ok, endgame} = Endgames.record_attempt(socket.assigns.endgame)
-
           socket
-          |> assign(:endgame, endgame)
           |> assign(:tablebase, tablebase)
           |> snapshot(fen, tablebase)
           |> assign(:status, :playing)
@@ -527,6 +524,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
 
   defp solve_attempt(socket) do
     {:ok, endgame} = Endgames.record_solve(socket.assigns.endgame)
+    {:ok, endgame} = Endgames.record_attempt(endgame)
 
     socket =
       socket
@@ -541,7 +539,12 @@ defmodule ChesstrainerWeb.EndgameLive.PlayCore do
   end
 
   defp fail_attempt(socket) do
-    socket = record_attempt(socket, :failed)
+    {:ok, endgame} = Endgames.record_attempt(socket.assigns.endgame)
+
+    socket =
+      socket
+      |> assign(:endgame, endgame)
+      |> record_attempt(:failed)
 
     {:noreply,
      socket

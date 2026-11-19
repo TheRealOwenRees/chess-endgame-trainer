@@ -389,6 +389,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       play_move(view, endgame, "d1", "d4", "Qd4")
 
       assert render(view) =~ "Failed"
+      assert Endgames.get_endgame!(endgame.id).times_attempted == 1
     end
 
     test "rejects a move that is out of sequence", %{conn: conn} do
@@ -459,13 +460,13 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
   end
 
   describe "attempt outcome" do
-    test "records an attempt on start", %{conn: conn} do
+    test "does not count a load as an attempt", %{conn: conn} do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen)
 
       {:ok, _view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
-      assert Endgames.get_endgame!(endgame.id).times_attempted == 1
+      assert Endgames.get_endgame!(endgame.id).times_attempted == 0
     end
 
     test "solves on checkmate", %{conn: conn} do
@@ -488,6 +489,7 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
 
       assert render(view) =~ "Solved!"
       assert Endgames.get_endgame!(endgame.id).times_solved == 1
+      assert Endgames.get_endgame!(endgame.id).times_attempted == 1
     end
 
     test "solves on a promotion that keeps the win", %{conn: conn} do
@@ -787,7 +789,33 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       assert html =~ "No Moves"
       refute html =~ "Optimal move"
       assert_init_board(view, endgame.fen, "white", "white")
-      assert Endgames.get_endgame!(endgame.id).times_attempted == 2
+      assert Endgames.get_endgame!(endgame.id).times_attempted == 0
+    end
+
+    test "does not count a solved attempt twice", %{conn: conn} do
+      endgame = endgame_fixture()
+      fen_after = "8/8/8/8/8/8/8/8 b - - 0 1"
+
+      seed_tablebase(endgame.fen, moves: grading_moves())
+      seed_tablebase(fen_after, checkmate: true, moves: [])
+
+      {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
+
+      render_hook(view, "endgame_move_played", %{
+        "from" => "d1",
+        "to" => "d7",
+        "san" => "Qd7+",
+        "prev_fen" => endgame.fen,
+        "fen" => fen_after,
+        "endgame_id" => endgame.id
+      })
+
+      assert render(view) =~ "Solved!"
+      assert Endgames.get_endgame!(endgame.id).times_attempted == 1
+
+      view |> element("button", "Try again") |> render_click()
+
+      assert Endgames.get_endgame!(endgame.id).times_attempted == 1
     end
   end
 

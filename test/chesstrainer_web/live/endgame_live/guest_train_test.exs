@@ -5,6 +5,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrainTest do
   import Chesstrainer.EndgamesFixtures
 
   alias Chesstrainer.Attempts.Attempt
+  alias Chesstrainer.Endgames
   alias Chesstrainer.Endgames.Tablebase
   alias Chesstrainer.Endgames.Tablebase.Cache, as: TablebaseCache
   alias Chesstrainer.FEN
@@ -108,7 +109,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrainTest do
   end
 
   describe "playing" do
-    test "solves a puzzle without recording an attempt", %{conn: conn} do
+    test "solves a puzzle without recording a per-user attempt", %{conn: conn} do
       endgame = endgame_fixture()
       seed_tablebase(endgame.fen, moves: grading_moves())
 
@@ -119,6 +120,7 @@ defmodule ChesstrainerWeb.EndgameLive.GuestTrainTest do
       assert render(view) =~ "Solved!"
       assert has_element?(view, "#next-puzzle-button")
       assert Repo.aggregate(Attempt, :count) == 0
+      assert Endgames.get_endgame!(endgame.id).times_attempted == 1
     end
 
     test "next puzzle loads a different endgame", %{conn: conn} do

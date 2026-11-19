@@ -24,8 +24,10 @@ assignment is persisted so it stays stable for that day.
 _Avoid_: Random puzzle, featured puzzle
 
 **Attempt**:
-A recorded playthrough of a puzzle by a user, ending solved or failed; a
-per-user record, distinct from an endgame's global attempt and solve counts.
+A playthrough of a puzzle that ends solved or failed, recorded per user and
+distinct from an endgame's global attempt and solve counts. The global counts
+include anonymous play and count only finished playthroughs — loading or
+resetting a puzzle leaves no trace.
 _Avoid_: Run, game
 
 **Theme**:
