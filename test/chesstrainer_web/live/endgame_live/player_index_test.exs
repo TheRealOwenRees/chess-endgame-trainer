@@ -124,6 +124,26 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndexTest do
     assert_patch(view, ~p"/endgames?key=KR+v+K")
   end
 
+  test "each Key section can be played whole", %{conn: conn} do
+    lucena = theme_fixture(%{name: "Lucena"})
+    endgame = endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+    {:ok, _} = Endgames.update_endgame(endgame, %{}, [lucena])
+
+    {:ok, view, _html} = live(conn, ~p"/endgames?themes=lucena")
+
+    assert has_element?(view, "#play-group-KR-v-K[href*='key=KR']", "Play all 1")
+    assert has_element?(view, "#play-group-KR-v-K[href*='themes=lucena']")
+  end
+
+  test "an unexpanded section can be played without opening it", %{conn: conn} do
+    endgame_fixture(fen: "8/8/3k4/8/8/3K1R2/8/8 w - - 0 1")
+
+    {:ok, view, _html} = live(conn, ~p"/endgames")
+
+    assert has_element?(view, "#play-group-KR-v-K[href*='key=KR']")
+    refute has_element?(view, "#key-group-KR-v-K table")
+  end
+
   describe "collection URLs" do
     test "puts the theme filter in the address bar", %{conn: conn} do
       lucena = theme_fixture(%{name: "Lucena"})

@@ -33,7 +33,11 @@ defmodule ChesstrainerWeb.EndgameLive.PlayerIndex do
         </.button>
       </div>
 
-      <.grouped_list :if={@groups != []} groups={@groups}>
+      <.grouped_list
+        :if={@groups != []}
+        groups={@groups}
+        play_href={&play_path(@selected_themes, &1)}
+      >
         <:header>
           <tr>
             <th>Color</th>
