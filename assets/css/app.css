@@ -1,30 +1,32 @@
 /* See the Tailwind configuration guide for advanced usage
    https://tailwindcss.com/docs/configuration */
 
-@import "tailwindcss" source(none);
-@import "phoenix-colocated/chesstrainer/colocated.css";
+@layer reset, vendor, base, layout, component, page;
+
+@import "tailwindcss" layer(reset);
+@import "phoenix-colocated/chesstrainer/colocated.css" layer(reset);
 
 /* Chessground imports */
-@import "../node_modules/chessground/assets/chessground.base.css";
-@import "../node_modules/chessground/assets/chessground.brown.css";
-@import "../node_modules/chessground/assets/chessground.cburnett.css";
+@import "../node_modules/chessground/assets/chessground.base.css" layer(vendor);
+@import "../node_modules/chessground/assets/chessground.brown.css" layer(vendor);
+@import "../node_modules/chessground/assets/chessground.cburnett.css" layer(vendor);
 
-@import "./helpers/_variables.css";
-@import "./base/_theme.css";
-@import "./base/_globals.css";
-@import "./base/_typography.css";
-@import "./layouts/_nav.css";
-@import "./layouts/_footer.css";
-@import "./layouts/_hero.css";
-@import "./layouts/_section.css";
-@import "./components/_icon.css";
-@import "./components/_button.css";
-@import "./components/_learning-strip.css";
-@import "./components/_mailing-list.css";
-@import "./components/_board.css";
-@import "./components/_promotion.css";
-@import "./pages/_legal.css";
-@import "./pages/_error.css";
+@import "./helpers/_variables.css" layer(base);
+@import "./base/_theme.css" layer(base);
+@import "./base/_globals.css" layer(base);
+@import "./base/_typography.css" layer(base);
+@import "./layouts/_nav.css" layer(layout);
+@import "./layouts/_footer.css" layer(layout);
+@import "./layouts/_hero.css" layer(layout);
+@import "./layouts/_section.css" layer(layout);
+@import "./components/_icon.css" layer(component);
+@import "./components/_button.css" layer(component);
+@import "./components/_learning-strip.css" layer(component);
+@import "./components/_mailing-list.css" layer(component);
+@import "./components/_board.css" layer(component);
+@import "./components/_promotion.css" layer(component);
+@import "./pages/_legal.css" layer(page);
+@import "./pages/_error.css" layer(page);
 
 @source "../css";
 @source "../js";
@@ -70,7 +72,7 @@ html[data-theme="dark"] .board-shell { box-shadow: 0 26px 65px rgba(0, 0, 0, .55
 html[data-theme="dark"] .primary-button { box-shadow: 0 10px 28px rgba(0, 0, 0, .35); }
 html[data-theme="dark"] .learning-strip { box-shadow: inset 0 1px 0 var(--color-hairline); }
 
-@media (max-width: 650px) {  
+@media (max-width: 650px) {
   .puzzle-section { width: calc(100% - 36px); padding: 80px 0; }
   .puzzle-grid { grid-template-columns: 1fr; }
   .puzzle-coming-soon { min-height: 255px; padding: 38px 22px; }
