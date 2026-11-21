@@ -1,12 +1,21 @@
-.promotion-overlay {
-  position: absolute;
-  inset: 0;
+.promotion-dialog {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  overscroll-behavior: contain;
+}
+
+.promotion-dialog::backdrop {
   background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  border-radius: inherit;
+  overscroll-behavior: contain;
+}
+
+html[data-theme="dark"] .promotion-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.68);
 }
 
 .promotion-picker {
@@ -17,10 +26,9 @@
   padding: 10px;
   border-radius: 14px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-}
-
-html[data-theme="dark"] .promotion-overlay {
-  background: rgba(0, 0, 0, 0.68);
+  max-height: calc(100dvh - 3rem);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .promotion-piece {
@@ -44,6 +52,17 @@ html[data-theme="dark"] .promotion-overlay {
 
 .promotion-piece:active {
   transform: scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promotion-piece {
+    transition: none;
+  }
+
+  .promotion-piece:hover,
+  .promotion-piece:active {
+    transform: none;
+  }
 }
 
 .promotion-piece.queen.white {

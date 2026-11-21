@@ -59,6 +59,32 @@
   --color-error-content: #ffffff;
 }
 
+/* Named type scale. Every size is relative to the root, so OS text scaling
+   (via <meta name="text-scale">) and browser zoom apply. Fluid steps mix a rem
+   term with a viewport unit and keep the max within 2.5x the min. */
+@theme static {
+  --text-micro: 0.75rem;
+  --text-micro--line-height: 1.4;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.5;
+  --text-copy: 1rem;
+  --text-copy--line-height: 1.6;
+  --text-lead: 1.125rem;
+  --text-lead--line-height: 1.55;
+  --text-subtitle: 1.375rem;
+  --text-subtitle--line-height: 1.3;
+  --text-title: 1.625rem;
+  --text-title--line-height: 1.15;
+  --text-section: 2rem;
+  --text-section--line-height: 1.05;
+  --text-page-title: clamp(2.125rem, 1.5rem + 2.5vw, 3rem);
+  --text-page-title--line-height: 1.05;
+  --text-headline: clamp(2.6875rem, 1.5rem + 4vw, 4.0625rem);
+  --text-headline--line-height: 0.96;
+  --text-display: clamp(3.5rem, 2rem + 5vw, 5.4375rem);
+  --text-display--line-height: 0.93;
+}
+
 html[data-theme="dark"] {
   color-scheme: dark;
 

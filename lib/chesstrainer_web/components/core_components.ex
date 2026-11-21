@@ -29,9 +29,9 @@ defmodule ChesstrainerWeb.CoreComponents do
 
   alias Phoenix.LiveView.JS
 
-  @input_class "w-full rounded-md border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content placeholder:text-base-content/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+  @input_class "w-full rounded-md border border-base-300 bg-base-100 px-3 py-2 text-copy text-base-content placeholder:text-base-content/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
   @input_error_class "border-error focus:border-error focus:ring-error/30"
-  @label_class "mb-1 block text-sm font-medium text-base-content"
+  @label_class "mb-1 block text-small font-medium text-base-content"
   @checkbox_class "size-4 rounded border-base-300 accent-primary"
 
   defp input_class, do: @input_class

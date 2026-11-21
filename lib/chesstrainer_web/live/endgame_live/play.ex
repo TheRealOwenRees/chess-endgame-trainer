@@ -31,6 +31,7 @@ defmodule ChesstrainerWeb.EndgameLive.Play do
             >
               <.icon name="hero-document-duplicate" class="w-3.5 h-3.5" />
             </button>
+            <span id="copy-fen-status" role="status" class="ml-1 text-xs"></span>
           </p>
         </div>
         <div class="flex flex-none gap-2">

@@ -1,6 +1,10 @@
 import { Chessground } from "chessground";
 import { Chess } from "chess.js";
 
+const isTypingTarget = (target) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
 export const ChessBoard = {
   mounted() {
     this.chess = new Chess();
@@ -18,8 +22,8 @@ export const ChessBoard = {
       this.showReviewPosition(fen);
     });
 
-    this.handleEvent("best_line_move", ({ from, to, promotion, san }) => {
-      this.applyBestLineMove({ from, to, promotion, san });
+    this.handleEvent("best_line_move", ({ from, to, promotion }) => {
+      this.applyBestLineMove({ from, to, promotion });
     });
 
     this.handleEvent("apply_move", ({ from, to, promotion }) => {
@@ -28,15 +32,10 @@ export const ChessBoard = {
     });
 
     this.handleKeyDown = (event) => {
-      if (this.pendingPromotion) {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          this.cancelPromotion();
-        }
-        return;
-      }
-
       if (!this.reviewing) return;
+      if (event.defaultPrevented) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isTypingTarget(event.target)) return;
 
       if (event.key === "ArrowLeft") {
         event.preventDefault();
@@ -77,13 +76,15 @@ export const ChessBoard = {
           });
         }
       } catch (error) {
-        console.error("Invalid FEN string submitted:", error);
-        alert("Invalid FEN configuration!");
+        this.pushEvent("chess_fen_invalid", {
+          fen,
+          message: error && error.message ? error.message : String(error),
+        });
       }
     });
 
-    this.handleEvent("opponent_move", ({ from, to, promotion, san }) => {
-      this.applyOpponentMove({ from, to, promotion, san });
+    this.handleEvent("opponent_move", ({ from, to, promotion }) => {
+      this.applyOpponentMove({ from, to, promotion });
     });
 
     this.handleEvent("resume_board", () => {
@@ -99,6 +100,10 @@ export const ChessBoard = {
 
   destroyed() {
     window.removeEventListener("keydown", this.handleKeyDown);
+    window.removeEventListener("resize", this.repositionPromotion);
+    this.repositionPromotion = null;
+    this.promotionDialog?.remove();
+    this.promotionDialog = null;
   },
 
   showReviewPosition(fen) {
@@ -106,8 +111,7 @@ export const ChessBoard = {
 
     try {
       this.chess.load(fen);
-    } catch (error) {
-      console.error("Invalid review FEN from server:", fen, error);
+    } catch {
       return;
     }
 
@@ -120,13 +124,12 @@ export const ChessBoard = {
     });
   },
 
-  applyBestLineMove({ from, to, promotion, san }) {
+  applyBestLineMove({ from, to, promotion }) {
     const move = promotion
       ? this.chess.move({ from, to, promotion })
       : this.chess.move({ from, to });
 
     if (!move) {
-      console.error("Best-line move rejected by chess.js", { from, to, promotion, san });
       return;
     }
 
@@ -148,7 +151,6 @@ export const ChessBoard = {
     try {
       this.chess.load(fen);
     } catch (error) {
-      console.error("Invalid FEN from server:", fen, error);
       this.pushEvent("chess_fen_invalid", {
         fen: fen,
         message: error && error.message ? error.message : String(error),
@@ -203,14 +205,18 @@ export const ChessBoard = {
   },
 
   showPromotionDialog(orig, dest) {
-    this.pendingPromotion = { orig, dest };
-    this.previousFocus = document.activeElement;
     const color = this.chess.turn() === "w" ? "white" : "black";
-    const overlay = document.createElement("div");
-    overlay.className = "promotion-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", "Choose a promotion piece");
+    const dialog = document.createElement("dialog");
+    dialog.className = "promotion-dialog";
+    dialog.setAttribute("aria-labelledby", "promotion-dialog-title");
+    dialog.setAttribute("closedby", "any");
+
+    const title = document.createElement("h2");
+    title.id = "promotion-dialog-title";
+    title.className = "sr-only";
+    title.textContent = "Choose a promotion piece";
+    dialog.appendChild(title);
+
     const picker = document.createElement("div");
     picker.className = "promotion-picker";
     const pieces = [
@@ -227,58 +233,73 @@ export const ChessBoard = {
       btn.addEventListener("click", () => this.completePromotion(code));
       picker.appendChild(btn);
     });
-    overlay.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        this.cancelPromotion();
-        return;
-      }
+    dialog.appendChild(picker);
 
-      if (event.key !== "Tab") return;
+    // Safari and older engines lack `closedby`: light-dismiss ourselves.
+    if (!("closedBy" in HTMLDialogElement.prototype)) {
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+    }
 
-      const buttons = Array.from(picker.querySelectorAll("button"));
-      const first = buttons[0];
-      const last = buttons[buttons.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
+    dialog.addEventListener("close", () => {
+      // A dismissal (Esc, back gesture, backdrop) leaves the position untouched.
+      const dismissed = !!this.pendingPromotion;
+      this.pendingPromotion = null;
+      if (this.promotionDialog === dialog) this.promotionDialog = null;
+      window.removeEventListener("resize", this.repositionPromotion);
+      this.repositionPromotion = null;
+      dialog.remove();
+      if (dismissed && this.ground) this.ground.set({ fen: this.chess.fen() });
     });
-    overlay.appendChild(picker);
-    const container = this.el.parentElement;
-    container.style.position = "relative";
-    container.appendChild(overlay);
+
+    this.pendingPromotion = { orig, dest };
+    this.promotionDialog = dialog;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    this.positionPromotionDialog(dialog);
+    this.repositionPromotion = () => this.positionPromotionDialog(dialog);
+    window.addEventListener("resize", this.repositionPromotion);
     picker.querySelector("button")?.focus();
   },
 
-  cancelPromotion() {
-    this.pendingPromotion = null;
-    const overlay = this.el.parentElement?.querySelector(".promotion-overlay");
-    if (overlay) overlay.remove();
-    this.restoreFocus();
-  },
+  // Anchor the picker to the square the pawn promotes on: horizontally centred
+  // on the square, extending towards the middle of the board, clamped to the
+  // viewport so it stays reachable at 320px.
+  positionPromotionDialog(dialog) {
+    if (!this.pendingPromotion || !this.ground) return;
 
-  restoreFocus() {
-    if (this.previousFocus instanceof HTMLElement) {
-      this.previousFocus.focus();
-    } else {
-      document.getElementById("move-input")?.focus();
-    }
+    const { dest } = this.pendingPromotion;
+    const board = this.el.getBoundingClientRect();
+    const squareSize = board.width / 8;
+    const orientation = this.ground.state.orientation || "white";
+    const fileIndex = dest.charCodeAt(0) - "a".charCodeAt(0);
+    const rank = Number(dest[1]);
+    const column = orientation === "white" ? fileIndex : 7 - fileIndex;
+    const row = orientation === "white" ? 8 - rank : rank - 1;
 
-    this.previousFocus = null;
+    const squareLeft = board.left + column * squareSize;
+    const squareTop = board.top + row * squareSize;
+    const squareCenterX = squareLeft + squareSize / 2;
+    const boardCenterY = board.top + board.height / 2;
+
+    const { width, height } = dialog.getBoundingClientRect();
+    const margin = 8;
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const maxTop = Math.max(margin, window.innerHeight - height - margin);
+
+    const preferredTop =
+      squareTop + squareSize / 2 < boardCenterY ? squareTop : squareTop + squareSize - height;
+
+    dialog.style.left = `${Math.min(Math.max(squareCenterX - width / 2, margin), maxLeft)}px`;
+    dialog.style.top = `${Math.min(Math.max(preferredTop, margin), maxTop)}px`;
   },
 
   completePromotion(pieceType) {
     const { orig, dest } = this.pendingPromotion;
     this.pendingPromotion = null;
-    const picker = this.el.parentElement?.querySelector(".promotion-overlay");
-    if (picker) picker.remove();
+    this.promotionDialog?.close();
     this.executeMove(orig, dest, pieceType);
-    document.getElementById("move-input")?.focus();
   },
 
   executeMove(orig, dest, promotion) {
@@ -329,13 +350,12 @@ export const ChessBoard = {
     }
   },
 
-  applyOpponentMove({ from, to, promotion, san }) {
+  applyOpponentMove({ from, to, promotion }) {
     const move = promotion
       ? this.chess.move({ from, to, promotion })
       : this.chess.move({ from, to });
 
     if (!move) {
-      console.error("Opponent move rejected by chess.js", { from, to, promotion, san });
       return;
     }
 
