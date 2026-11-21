@@ -3,6 +3,13 @@
 
 @layer reset, vendor, base, layout, component, page;
 
+/* Custom variants must be declared at the top level; inside a layered import
+   Tailwind sees them as nested and refuses to build. */
+@custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
+@custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
+@custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 @import "tailwindcss" layer(reset);
 @import "phoenix-colocated/chesstrainer/colocated.css" layer(reset);
 

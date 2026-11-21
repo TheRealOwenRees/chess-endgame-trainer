@@ -64,6 +64,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ ~p"/guest-train"
     assert html =~ "/assets/js/marketing.js"
     refute html =~ "/assets/js/app.js"
+    assert html =~ ~s(<meta name="text-scale" content="scale">)
 
     assert LazyHTML.text(LazyHTML.query(document, "title")) =~ Branding.home_title()
     refute html =~ "Phoenix Framework"

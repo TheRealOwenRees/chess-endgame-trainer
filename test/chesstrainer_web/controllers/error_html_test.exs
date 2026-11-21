@@ -19,6 +19,7 @@ defmodule ChesstrainerWeb.ErrorHTMLTest do
     assert html =~ "The page you were looking for moved"
     assert html =~ ~s(class="site-footer")
     assert html =~ "/assets/js/marketing.js"
+    assert html =~ ~s(<meta name="text-scale" content="scale">)
     refute html =~ ~s(name="csrf-token")
   end
 
@@ -30,6 +31,7 @@ defmodule ChesstrainerWeb.ErrorHTMLTest do
     assert html =~ "An unexpected error stopped this page"
     assert html =~ Branding.support_email()
     assert html =~ ~s(class="site-footer")
+    assert html =~ ~s(<meta name="text-scale" content="scale">)
   end
 
   test "hides the endgame link from guests" do
