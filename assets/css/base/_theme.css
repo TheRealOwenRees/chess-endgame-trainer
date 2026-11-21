@@ -83,6 +83,9 @@
   --text-headline--line-height: 0.96;
   --text-display: clamp(3.5rem, 2rem + 5vw, 5.4375rem);
   --text-display--line-height: 0.93;
+  /* Decorative chess glyphs that need a fixed display size. */
+  --text-glyph: 3.5625rem;
+  --text-glyph--line-height: 1;
 }
 
 html[data-theme="dark"] {

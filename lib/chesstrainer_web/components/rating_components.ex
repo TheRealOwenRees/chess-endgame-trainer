@@ -64,7 +64,7 @@ defmodule ChesstrainerWeb.RatingComponents do
         </div>
       </div>
 
-      <div class="mt-1 flex justify-between text-[10px] text-muted">
+      <div class="mt-1 flex justify-between text-micro text-muted">
         <span>{@scale_min}</span>
         <span>{@scale_max}</span>
       </div>

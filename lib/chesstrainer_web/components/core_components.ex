@@ -479,7 +479,7 @@ defmodule ChesstrainerWeb.CoreComponents do
     <span
       class={[
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-        @size == "sm" && "px-1.5 text-[0.7rem]",
+        @size == "sm" && "px-1.5 text-micro",
         @color == "neutral" && "bg-base-200 text-base-content",
         @color == "primary" && "bg-primary/15 text-primary-text",
         @color == "warning" && "bg-warning/15 text-warning-text",

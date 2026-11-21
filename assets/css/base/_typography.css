@@ -30,7 +30,7 @@
   src: url("/fonts/dm-serif-display-italic.woff2") format("woff2");
 }
 
-h1, h2 { font-family: 'DM Serif Display', serif; font-weight: 400; letter-spacing: -.035em; overflow-wrap: break-word; }
+h1, h2 { font-family: 'DM Serif Display', serif; font-weight: 400; letter-spacing: -.035em; overflow-wrap: break-word; text-wrap: balance; }
 h1 {
   max-width: 590px;
   font-size: var(--text-display);

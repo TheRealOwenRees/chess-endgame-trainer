@@ -1,7 +1,7 @@
 .section-heading { display: grid; grid-template-columns: 1fr .65fr; align-items: end; margin-bottom: 46px; }
-.section-kicker { display: block; margin-bottom: 14px; color: var(--color-coral-text); text-transform: uppercase; letter-spacing: .13em; font-size: 11px; font-weight: 700; }
-.section-heading h2, .progress-banner h2 { font-size: clamp(43px, 5vw, 65px); line-height: .96; }
-.section-heading > p { max-width: 390px; color: var(--color-muted); font-size: 14px; line-height: 1.7; }
+.section-kicker { display: block; margin-bottom: 14px; color: var(--color-coral-text); text-transform: uppercase; letter-spacing: .13em; font-size: var(--text-micro); font-weight: 700; }
+.section-heading h2, .progress-banner h2 { font-size: var(--text-headline); line-height: var(--text-headline--line-height); text-wrap: balance; }
+.section-heading > p { max-width: 390px; color: var(--color-muted); font-size: var(--text-small); line-height: 1.7; text-wrap: pretty; }
 
 @media (max-width: 900px) {
     .section-heading { grid-template-columns: 1fr .8fr; }    
