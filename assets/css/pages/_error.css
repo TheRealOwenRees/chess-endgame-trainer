@@ -14,7 +14,7 @@
   border: 1px solid var(--color-hairline);
   border-radius: 999px;
   color: var(--color-coral-text);
-  font-size: 12px;
+  font-size: var(--text-micro);
   font-weight: 700;
   letter-spacing: .16em;
 }
@@ -22,21 +22,23 @@
 .error-page h1 {
   max-width: 640px;
   margin: 28px auto 0;
-  font-size: clamp(40px, 5.5vw, 60px);
+  font-size: var(--text-headline);
   line-height: 1.02;
+  text-wrap: balance;
 }
 
 .error-page p {
   max-width: 48ch;
   margin: 18px auto 0;
   color: var(--color-muted);
-  font-size: 16px;
+  font-size: var(--text-copy);
   line-height: 1.7;
+  text-wrap: pretty;
 }
 
 .error-page .error-hint {
   margin-top: 10px;
-  font-size: 13px;
+  font-size: var(--text-small);
 }
 
 .error-actions {
@@ -55,6 +57,6 @@
   }
 
   .error-page h1 {
-    font-size: clamp(34px, 10vw, 44px);
+    font-size: var(--text-page-title);
   }
 }

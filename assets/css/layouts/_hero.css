@@ -4,7 +4,7 @@
 }
 
 .hero-copy { position: relative; z-index: 2; min-width: 0; padding: 74px 0 92px; }
-.hero-copy > p { max-width: 480px; margin-top: 29px; color: var(--color-muted); font-size: 17px; line-height: 1.65; }
+.hero-copy > p { max-width: 480px; margin-top: 29px; color: var(--color-muted); font-size: var(--text-lead); line-height: 1.65; text-wrap: pretty; }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 25px; margin-top: 35px; }
 
 .coral-orbit, .mint-orbit { position: absolute; border-radius: 50%; }
@@ -22,7 +22,7 @@
 @media (max-width: 650px) {
     .hero { width: calc(100% - 36px); }
     .hero-copy { padding: 65px 0 24px; }
-    .hero-copy > p { font-size: 15px; }
+    .hero-copy > p { font-size: var(--text-copy); }
     .coral-orbit { width: 340px; height: 340px; right: -28%; top: 65px; }
     .mint-orbit { width: 170px; height: 170px; left: -8%; }
 }

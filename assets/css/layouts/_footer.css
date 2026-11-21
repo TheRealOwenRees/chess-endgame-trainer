@@ -5,11 +5,11 @@
 }
 
 .footer-brand { display: flex; flex-direction: column; gap: 12px; }
-.footer-brand p { color: var(--color-muted); font-size: 13px; }
-.footer-links { display: flex; gap: 26px; font-size: 14px; font-weight: 600; }
+.footer-brand p { color: var(--color-muted); font-size: var(--text-small); }
+.footer-links { display: flex; gap: 26px; font-size: var(--text-small); font-weight: 600; }
 .footer-links a { transition: opacity .2s; }
 .footer-links a:hover { opacity: .55; }
-.site-footer > small { color: var(--color-muted); font-size: 11px; }
+.site-footer > small { color: var(--color-muted); font-size: var(--text-micro); }
 
 
 @media (max-width: 650px) {
