@@ -1,6 +1,10 @@
 import { Chessground } from "chessground";
 import { Chess } from "chess.js";
 
+const isTypingTarget = (target) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
 export const ChessBoard = {
   mounted() {
     this.chess = new Chess();
@@ -18,8 +22,8 @@ export const ChessBoard = {
       this.showReviewPosition(fen);
     });
 
-    this.handleEvent("best_line_move", ({ from, to, promotion, san }) => {
-      this.applyBestLineMove({ from, to, promotion, san });
+    this.handleEvent("best_line_move", ({ from, to, promotion }) => {
+      this.applyBestLineMove({ from, to, promotion });
     });
 
     this.handleEvent("apply_move", ({ from, to, promotion }) => {
@@ -29,6 +33,9 @@ export const ChessBoard = {
 
     this.handleKeyDown = (event) => {
       if (!this.reviewing) return;
+      if (event.defaultPrevented) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isTypingTarget(event.target)) return;
 
       if (event.key === "ArrowLeft") {
         event.preventDefault();
@@ -69,13 +76,15 @@ export const ChessBoard = {
           });
         }
       } catch (error) {
-        console.error("Invalid FEN string submitted:", error);
-        alert("Invalid FEN configuration!");
+        this.pushEvent("chess_fen_invalid", {
+          fen,
+          message: error && error.message ? error.message : String(error),
+        });
       }
     });
 
-    this.handleEvent("opponent_move", ({ from, to, promotion, san }) => {
-      this.applyOpponentMove({ from, to, promotion, san });
+    this.handleEvent("opponent_move", ({ from, to, promotion }) => {
+      this.applyOpponentMove({ from, to, promotion });
     });
 
     this.handleEvent("resume_board", () => {
@@ -102,8 +111,7 @@ export const ChessBoard = {
 
     try {
       this.chess.load(fen);
-    } catch (error) {
-      console.error("Invalid review FEN from server:", fen, error);
+    } catch {
       return;
     }
 
@@ -116,13 +124,12 @@ export const ChessBoard = {
     });
   },
 
-  applyBestLineMove({ from, to, promotion, san }) {
+  applyBestLineMove({ from, to, promotion }) {
     const move = promotion
       ? this.chess.move({ from, to, promotion })
       : this.chess.move({ from, to });
 
     if (!move) {
-      console.error("Best-line move rejected by chess.js", { from, to, promotion, san });
       return;
     }
 
@@ -144,7 +151,6 @@ export const ChessBoard = {
     try {
       this.chess.load(fen);
     } catch (error) {
-      console.error("Invalid FEN from server:", fen, error);
       this.pushEvent("chess_fen_invalid", {
         fen: fen,
         message: error && error.message ? error.message : String(error),
@@ -344,13 +350,12 @@ export const ChessBoard = {
     }
   },
 
-  applyOpponentMove({ from, to, promotion, san }) {
+  applyOpponentMove({ from, to, promotion }) {
     const move = promotion
       ? this.chess.move({ from, to, promotion })
       : this.chess.move({ from, to });
 
     if (!move) {
-      console.error("Opponent move rejected by chess.js", { from, to, promotion, san });
       return;
     }
 

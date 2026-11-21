@@ -151,6 +151,8 @@ defmodule ChesstrainerWeb.EndgameLive.PlayTest do
       {:ok, view, _html} = live(conn, ~p"/endgames/#{endgame.public_code}/play")
 
       assert has_element?(view, "#endgame-board")
+      assert has_element?(view, "#copy-fen-btn[phx-hook='CopyFen']")
+      assert has_element?(view, "#copy-fen-status[role='status']")
       assert_init_board(view, endgame.fen, "white", "white")
     end
 
