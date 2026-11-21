@@ -47,16 +47,14 @@ defmodule ChesstrainerWeb.PlayComponents do
     <div class="space-y-4">
       <div class="flex flex-col gap-2 rounded-xl bg-base-200 p-4 shadow-inner sm:flex-row">
         <div class="flex w-full flex-col gap-2 sm:w-100">
-          <div class="relative">
-            <div
-              id="endgame-board"
-              phx-hook="ChessBoard"
-              phx-update="ignore"
-              data-endgame-id={@endgame.id}
-              class="aspect-square w-full"
-              aria-hidden="true"
-            >
-            </div>
+          <div
+            id="endgame-board"
+            phx-hook="ChessBoard"
+            phx-update="ignore"
+            data-endgame-id={@endgame.id}
+            class="aspect-square w-full"
+            aria-hidden="true"
+          >
           </div>
 
           <div
