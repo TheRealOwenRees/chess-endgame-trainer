@@ -138,6 +138,9 @@ TRUST_FORWARDED_FOR=true
 PRELAUNCH=true
 MAILING_LIST_ENABLED=false
 
+# Required: signs ALTCHA captcha challenges. Generate with `openssl rand -hex 32`.
+ALTCHA_HMAC_SECRET=...
+
 SES_REGION=eu-north-1
 SES_ACCESS_KEY_ID=AKIA...
 SES_SECRET_ACCESS_KEY=...

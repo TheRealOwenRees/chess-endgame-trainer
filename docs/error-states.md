@@ -50,6 +50,7 @@ see [error-states-verification.md](error-states-verification.md).
 | A2 | Confirmation token invalid or expired | `Accounts.confirm_user/1` returns `:error` (`user_confirmation_controller.ex:17`) | Flash **"User not found or token is invalid."** then the registration page | improve | Say "That confirmation link is invalid or has expired." and send the user to log in, where an unconfirmed account triggers a fresh confirmation email. No "user not found" phrasing. |
 | A3 | Invalid credentials | `get_user_by_login_and_password/2` returns `nil` | Flash "Invalid email, username or password"; email is prefilled | keep | Deliberately identical for unknown and wrong-password logins, so it does not enumerate accounts. |
 | A4 | Login throttle | 5 failures per login or 10 per address in 15 minutes (`LoginThrottle`) | Flash "Too many attempts. Try again in N minutes." | keep | Accurate countdown, no account information. |
+| A5 | Registration honeypot | Off-screen company field filled (`registration.ex` → `Honeypot.filled?/1`) | Same success flash and redirect to log-in as a real signup; no account, no email | keep | Deliberate decoy: never confirm the trap to a bot. |
 
 ## Mailing list
 

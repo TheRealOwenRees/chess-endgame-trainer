@@ -3,15 +3,17 @@ defmodule ChesstrainerWeb.MailingListController do
 
   alias Chesstrainer.MailingList
   alias Chesstrainer.MailingList.Notifier
+  alias ChesstrainerWeb.Captcha
+  alias ChesstrainerWeb.Honeypot
   alias ChesstrainerWeb.MailingListFormToken
 
   @return_to "/#mailing-list"
   @token_salt "mailing_list_confirm"
   @token_max_age 7 * 24 * 60 * 60
 
-  def create(conn, %{"subscriber" => params}) when is_map(params) do
+  def create(conn, %{"subscriber" => params} = all_params) when is_map(params) do
     if mailing_list_enabled?() do
-      create_subscription(conn, params)
+      create_subscription(conn, params, all_params)
     else
       closed(conn)
     end
@@ -55,15 +57,18 @@ defmodule ChesstrainerWeb.MailingListController do
     end
   end
 
-  defp create_subscription(conn, params) do
+  defp create_subscription(conn, params, all_params) do
     email = params["email"]
 
     cond do
-      honeypot_filled?(params) ->
-        fake_success(conn)
+      Honeypot.filled?(params) ->
+        confirmation_sent(conn)
 
       not is_binary(email) ->
         invalid_email(conn)
+
+      not Captcha.verified?(all_params) ->
+        captcha_error(conn)
 
       MailingListFormToken.verify(params["form_token"]) != :ok ->
         form_error(conn)
@@ -86,7 +91,7 @@ defmodule ChesstrainerWeb.MailingListController do
         if MailingList.confirmation_allowed?(email) do
           send_confirmation(conn, email)
         else
-          fake_success(conn)
+          confirmation_sent(conn)
         end
 
       {:error, %Ecto.Changeset{}} ->
@@ -101,10 +106,7 @@ defmodule ChesstrainerWeb.MailingListController do
     case Notifier.deliver_confirmation_instructions(email, url) do
       {:ok, _email} ->
         _ = MailingList.mark_confirmation_sent(email)
-
-        conn
-        |> put_flash(:info, "Check your inbox to confirm your subscription.")
-        |> redirect(to: @return_to)
+        confirmation_sent(conn)
 
       {:error, _reason} ->
         conn
@@ -113,11 +115,17 @@ defmodule ChesstrainerWeb.MailingListController do
     end
   end
 
-  defp honeypot_filled?(params), do: params["company"] not in [nil, ""]
-
-  defp fake_success(conn) do
+  # The single success path, shared by real and honeypot submissions so a bot
+  # cannot tell them apart.
+  defp confirmation_sent(conn) do
     conn
     |> put_flash(:info, "Check your inbox to confirm your subscription.")
+    |> redirect(to: @return_to)
+  end
+
+  defp captcha_error(conn) do
+    conn
+    |> put_flash(:error, "Please complete the verification challenge and try again.")
     |> redirect(to: @return_to)
   end
 

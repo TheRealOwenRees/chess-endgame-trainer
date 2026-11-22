@@ -9,6 +9,7 @@ defmodule ChesstrainerWeb.LandingComponents do
   use Phoenix.Component
 
   import Phoenix.Controller, only: [get_csrf_token: 0]
+  import ChesstrainerWeb.CoreComponents, only: [captcha: 1, honeypot: 1]
 
   alias Chesstrainer.FEN
   alias Chesstrainer.Themes
@@ -96,16 +97,7 @@ defmodule ChesstrainerWeb.LandingComponents do
         <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
         <input type="hidden" name="subscriber[form_token]" value={MailingListFormToken.sign()} />
 
-        <div class="mailing-list-honeypot" aria-hidden="true">
-          <label for="mailing-list-company">Company</label>
-          <input
-            id="mailing-list-company"
-            type="text"
-            name="subscriber[company]"
-            tabindex="-1"
-            autocomplete="off"
-          />
-        </div>
+        <.honeypot id="mailing-list-company" name="subscriber[company]" />
 
         <label for="mailing-list-email">Email address</label>
         <div class="mailing-list-row">
@@ -119,6 +111,8 @@ defmodule ChesstrainerWeb.LandingComponents do
           />
           <.pill_button variant={:primary} type="submit">Join the list</.pill_button>
         </div>
+
+        <.captcha class="mt-2" />
       </form>
     </section>
     """

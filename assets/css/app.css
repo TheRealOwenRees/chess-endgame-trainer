@@ -26,12 +26,14 @@
 @import "./layouts/_footer.css" layer(layout);
 @import "./layouts/_hero.css" layer(layout);
 @import "./layouts/_section.css" layer(layout);
+@import "./layouts/_form.css" layer(layout);
 @import "./components/_icon.css" layer(component);
 @import "./components/_button.css" layer(component);
 @import "./components/_learning-strip.css" layer(component);
 @import "./components/_mailing-list.css" layer(component);
 @import "./components/_board.css" layer(component);
 @import "./components/_promotion.css" layer(component);
+@import "./components/_captcha.css" layer(component);
 @import "./pages/_legal.css" layer(page);
 @import "./pages/_error.css" layer(page);
 
@@ -86,3 +88,7 @@ html[data-theme="dark"] .learning-strip { box-shadow: inset 0 1px 0 var(--color-
   .puzzle-card { min-height: 255px; }
   .progress-banner { width: calc(100% - 36px); padding: 48px 28px; flex-direction: column; align-items: flex-start; gap: 34px; }
 }
+
+/* ALTCHA's footer is micro legal text; match the site's micro size. This has to
+   sit outside `layer(component)` because the widget's own rules are unlayered. */
+altcha-widget .altcha-footer { font-size: var(--text-micro); }

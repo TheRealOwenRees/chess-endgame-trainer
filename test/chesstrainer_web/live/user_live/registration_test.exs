@@ -3,9 +3,12 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
 
   import Phoenix.LiveViewTest
   import Chesstrainer.AccountsFixtures
+  import ChesstrainerWeb.CaptchaFixtures
   import Swoosh.TestAssertions
 
+  alias Chesstrainer.Accounts.User
   alias Chesstrainer.MailingList.Subscriber
+  alias Chesstrainer.Repo
 
   describe "Registration page" do
     test "renders registration page", %{conn: conn} do
@@ -13,6 +16,7 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
 
       assert html =~ "Register"
       assert html =~ "Log in"
+      assert html =~ "<altcha-widget"
     end
 
     test "redirects if already logged in", %{conn: conn} do
@@ -52,21 +56,9 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
     test "creates account but does not log in", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/register")
 
-      email = unique_user_email()
-      username = unique_username()
-
-      form =
-        form(lv, "#registration_form",
-          user: %{
-            "username" => username,
-            "email" => email,
-            "password" => valid_user_password(),
-            "password_confirmation" => valid_user_password()
-          }
-        )
-
       {:ok, _lv, html} =
-        render_submit(form)
+        lv
+        |> render_submit(:save, registration_params(%{"email" => unique_user_email()}))
         |> follow_redirect(conn, ~p"/users/log-in")
 
       assert html =~
@@ -81,37 +73,38 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
       email = unique_user_email()
 
       lv
-      |> form("#registration_form",
-        user: %{
-          "username" => unique_username(),
-          "email" => email,
-          "password" => valid_user_password(),
-          "password_confirmation" => valid_user_password(),
-          "mailing_list" => "true"
-        }
+      |> render_submit(
+        :save,
+        registration_params(%{"email" => email, "mailing_list" => "true"})
       )
-      |> render_submit()
 
-      subscriber = Chesstrainer.Repo.get_by(Subscriber, email: email)
+      subscriber = Repo.get_by(Subscriber, email: email)
       assert subscriber
       assert subscriber.confirmed_at == nil
+    end
+
+    test "silently accepts a honeypot submission", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/register")
+
+      {:ok, _lv, html} =
+        lv
+        |> render_submit(:save, registration_params(%{"company" => "spam.example"}))
+        |> follow_redirect(conn, ~p"/users/log-in")
+
+      assert html =~
+               "An email with instructions for how to confirm your email address has been sent to your inbox."
+
+      refute_email_sent()
+      assert Repo.aggregate(User, :count) == 0
     end
 
     test "does not subscribe when the box is unchecked", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/register")
 
       lv
-      |> form("#registration_form",
-        user: %{
-          "username" => unique_username(),
-          "email" => unique_user_email(),
-          "password" => valid_user_password(),
-          "password_confirmation" => valid_user_password()
-        }
-      )
-      |> render_submit()
+      |> render_submit(:save, registration_params())
 
-      assert Chesstrainer.Repo.aggregate(Subscriber, :count) == 0
+      assert Repo.aggregate(Subscriber, :count) == 0
     end
 
     test "renders errors for duplicated email", %{conn: conn} do
@@ -120,16 +113,7 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
       user = user_fixture(%{email: "test@email.com"})
 
       result =
-        lv
-        |> form("#registration_form",
-          user: %{
-            "username" => unique_username(),
-            "email" => user.email,
-            "password" => valid_user_password(),
-            "password_confirmation" => valid_user_password()
-          }
-        )
-        |> render_submit()
+        render_submit(lv, :save, registration_params(%{"email" => user.email}))
 
       assert result =~ "has already been taken"
     end
@@ -140,16 +124,7 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
       user = user_fixture()
 
       result =
-        lv
-        |> form("#registration_form",
-          user: %{
-            "username" => user.username,
-            "email" => unique_user_email(),
-            "password" => valid_user_password(),
-            "password_confirmation" => valid_user_password()
-          }
-        )
-        |> render_submit()
+        render_submit(lv, :save, registration_params(%{"username" => user.username}))
 
       assert result =~ "has already been taken"
     end
@@ -158,18 +133,35 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
       {:ok, lv, _html} = live(conn, ~p"/users/register")
 
       result =
-        lv
-        |> form("#registration_form",
-          user: %{
-            "username" => unique_username(),
-            "email" => unique_user_email(),
-            "password" => valid_user_password(),
-            "password_confirmation" => "something else"
-          }
+        render_submit(
+          lv,
+          :save,
+          registration_params(%{"password_confirmation" => "something else"})
         )
-        |> render_submit()
 
       assert result =~ "does not match password"
+    end
+
+    test "rejects a submission without a captcha solution", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/register")
+
+      result =
+        lv
+        |> render_submit(:save, Map.delete(registration_params(), "altcha"))
+
+      assert result =~ "Please complete the verification challenge"
+      assert Repo.aggregate(User, :count) == 0
+    end
+
+    test "rejects a submission with an invalid captcha solution", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/register")
+
+      params = Map.put(registration_params(), "altcha", "not-a-real-token")
+
+      result = render_submit(lv, :save, params)
+
+      assert result =~ "Please complete the verification challenge"
+      assert Repo.aggregate(User, :count) == 0
     end
   end
 
@@ -185,5 +177,20 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
 
       assert login_html =~ "Log in"
     end
+  end
+
+  defp registration_params(user_attrs \\ %{}) do
+    user =
+      Map.merge(
+        %{
+          "username" => unique_username(),
+          "email" => unique_user_email(),
+          "password" => valid_user_password(),
+          "password_confirmation" => valid_user_password()
+        },
+        user_attrs
+      )
+
+    %{"user" => user, "altcha" => altcha_token()}
   end
 end

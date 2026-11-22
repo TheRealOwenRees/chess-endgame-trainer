@@ -2,6 +2,10 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
   use ChesstrainerWeb, :live_view
 
   alias Chesstrainer.Accounts
+  alias ChesstrainerWeb.Captcha
+  alias ChesstrainerWeb.Honeypot
+
+  @reset_instructions_flash "If your email is in our system, you will receive instructions to reset your password shortly."
 
   @impl true
   def render(assigns) do
@@ -33,6 +37,7 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
               spellcheck="false"
             />
           <% else %>
+            <.honeypot id="forgot-company" name="user[company]" />
             <.input
               field={@form[:email]}
               type="email"
@@ -41,6 +46,8 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
               spellcheck="false"
               required
             />
+
+            <.captcha />
           <% end %>
 
           <.button variant="primary" class="w-full" phx-disable-with="Saving...">
@@ -96,21 +103,29 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
   end
 
   @impl true
-  def handle_event("submit_email", %{"user" => %{"email" => email}}, socket) do
-    if user = Accounts.get_user_by_email(String.trim(email)) do
-      Accounts.deliver_user_reset_password_instructions(
-        user,
-        &url(~p"/users/reset-password/#{&1}")
+  def handle_event(
+        "submit_email",
+        %{"user" => %{"email" => email} = user_params} = params,
+        socket
       )
-    end
+      when is_binary(email) do
+    cond do
+      Honeypot.filled?(user_params) ->
+        {:noreply, reset_instructions_sent(socket)}
 
-    {:noreply,
-     socket
-     |> put_flash(
-       :info,
-       "If your email is in our system, you will receive instructions to reset your password shortly."
-     )
-     |> push_navigate(to: ~p"/users/log-in")}
+      not Captcha.verified?(params) ->
+        {:noreply,
+         put_flash(socket, :error, "Please complete the verification challenge and try again.")}
+
+      true ->
+        deliver_reset_instructions(email)
+        {:noreply, reset_instructions_sent(socket)}
+    end
+  end
+
+  # Crafted payloads (missing or non-binary email) get the same decoy response.
+  def handle_event("submit_email", _params, socket) do
+    {:noreply, reset_instructions_sent(socket)}
   end
 
   def handle_event("submit_password", %{"user" => user_params}, socket) do
@@ -124,5 +139,22 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, form: to_form(changeset, action: :insert))}
     end
+  end
+
+  defp deliver_reset_instructions(email) do
+    if user = Accounts.get_user_by_email(String.trim(email)) do
+      Accounts.deliver_user_reset_password_instructions(
+        user,
+        &url(~p"/users/reset-password/#{&1}")
+      )
+    end
+  end
+
+  # The single success path, shared by real and honeypot submissions so a bot
+  # cannot tell them apart.
+  defp reset_instructions_sent(socket) do
+    socket
+    |> put_flash(:info, @reset_instructions_flash)
+    |> push_navigate(to: ~p"/users/log-in")
   end
 end

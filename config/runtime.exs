@@ -20,6 +20,17 @@ if System.get_env("PHX_SERVER") do
   config :chesstrainer, ChesstrainerWeb.Endpoint, server: true
 end
 
+# Captcha. Production must supply a real secret; dev and test fall back to a
+# fixed throwaway value so the app boots without extra setup.
+altcha_secret =
+  if config_env() == :prod do
+    System.fetch_env!("ALTCHA_HMAC_SECRET")
+  else
+    System.get_env("ALTCHA_HMAC_SECRET", "dev-only-altcha-secret")
+  end
+
+config :altcha, Altcha.Plug.Challenge, hmac_signature_secret: altcha_secret
+
 if prelaunch = System.get_env("PRELAUNCH") do
   config :chesstrainer, :prelaunch, prelaunch in ~w(true 1)
 end

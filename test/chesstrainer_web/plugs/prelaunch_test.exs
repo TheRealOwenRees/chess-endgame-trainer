@@ -52,6 +52,20 @@ defmodule ChesstrainerWeb.Plugs.PrelaunchTest do
     assert get_resp_header(conn, "x-robots-tag") == ["noindex, nofollow"]
   end
 
+  test "allows the captcha challenge endpoint", %{conn: conn} do
+    conn = get(conn, "/altcha/challenge")
+
+    assert response(conn, 200)
+    assert conn |> get_resp_header("content-type") |> hd() =~ "application/json"
+  end
+
+  test "renders the captcha on the prelaunch signup form", %{conn: conn} do
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ "<altcha-widget"
+    assert html =~ ~s(challenge="/altcha/challenge")
+  end
+
   test "redirects blocked routes to the home page", %{conn: conn} do
     conn = get(conn, ~p"/train")
 
