@@ -2,6 +2,7 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
   use ChesstrainerWeb, :live_view
 
   alias Chesstrainer.Accounts
+  alias ChesstrainerWeb.Captcha
   alias ChesstrainerWeb.Honeypot
 
   @reset_instructions_flash "If your email is in our system, you will receive instructions to reset your password shortly."
@@ -102,13 +103,24 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
   end
 
   @impl true
-  def handle_event("submit_email", %{"user" => %{"email" => email} = user_params}, socket)
+  def handle_event(
+        "submit_email",
+        %{"user" => %{"email" => email} = user_params} = params,
+        socket
+      )
       when is_binary(email) do
-    if not Honeypot.filled?(user_params) do
-      deliver_reset_instructions(email)
-    end
+    cond do
+      Honeypot.filled?(user_params) ->
+        {:noreply, reset_instructions_sent(socket)}
 
-    {:noreply, reset_instructions_sent(socket)}
+      not Captcha.verified?(params) ->
+        {:noreply,
+         put_flash(socket, :error, "Please complete the verification challenge and try again.")}
+
+      true ->
+        deliver_reset_instructions(email)
+        {:noreply, reset_instructions_sent(socket)}
+    end
   end
 
   # Crafted payloads (missing or non-binary email) get the same decoy response.
