@@ -1,0 +1,17 @@
+/* Blend the ALTCHA widget into the surrounding card and match the site's
+   typography.
+
+   The widget ships an unlayered stylesheet that paints its box from custom
+   properties declared on `:root`. Overriding those properties on the host
+   element lets the values inherit into the widget without fighting the
+   library's cascade. `--altcha-input-background-color` is resolved at
+   `:root`, so it needs setting separately from `--altcha-color-base`. */
+altcha-widget {
+  --altcha-color-base: transparent;
+  --altcha-input-background-color: transparent;
+
+  /* The widget inherits `font-family` and `font-size` from the host, matching
+     the form inputs (`text-copy`: 1rem). */
+  font-family: "DM Sans", sans-serif;
+  font-size: var(--text-copy);
+}
