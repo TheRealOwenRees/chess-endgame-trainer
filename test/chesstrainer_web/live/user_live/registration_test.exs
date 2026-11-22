@@ -16,6 +16,7 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
 
       assert html =~ "Register"
       assert html =~ "Log in"
+      assert html =~ "<altcha-widget"
     end
 
     test "redirects if already logged in", %{conn: conn} do

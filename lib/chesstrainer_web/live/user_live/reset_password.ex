@@ -45,6 +45,8 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
               spellcheck="false"
               required
             />
+
+            <.captcha />
           <% end %>
 
           <.button variant="primary" class="w-full" phx-disable-with="Saving...">

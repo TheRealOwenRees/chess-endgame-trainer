@@ -27,6 +27,11 @@ defmodule ChesstrainerWeb.CoreComponents do
   use Phoenix.Component
   use Gettext, backend: ChesstrainerWeb.Gettext
 
+  use Phoenix.VerifiedRoutes,
+    endpoint: ChesstrainerWeb.Endpoint,
+    router: ChesstrainerWeb.Router,
+    statics: ChesstrainerWeb.static_paths()
+
   alias Phoenix.LiveView.JS
 
   @input_class "w-full rounded-md border border-base-300 bg-base-100 px-3 py-2 text-copy text-base-content placeholder:text-base-content/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -148,6 +153,40 @@ defmodule ChesstrainerWeb.CoreComponents do
       </button>
       """
     end
+  end
+
+  @doc """
+  Renders the ALTCHA captcha widget.
+
+  Pair it with `ChesstrainerWeb.Captcha.verified?/1` in the form handler, passing
+  the full event params (the widget submits a top-level `altcha` field).
+
+  ## Examples
+
+      <.captcha />
+
+      <.captcha id="login-altcha" display="bar" />
+  """
+  attr :id, :string, default: "altcha", doc: "the unique id of the container"
+  attr :class, :any, default: "mb-2"
+
+  attr :display, :string,
+    values: ~w(standard bar floating overlay bottomsheet invisible),
+    default: "standard"
+
+  attr :type, :string, values: ~w(checkbox switch native), default: "checkbox"
+
+  def captcha(assigns) do
+    ~H"""
+    <div id={@id} phx-update="ignore" class={@class}>
+      <altcha-widget
+        challenge={~p"/altcha/challenge"}
+        display={@display}
+        type={@type}
+      >
+      </altcha-widget>
+    </div>
+    """
   end
 
   @doc """
