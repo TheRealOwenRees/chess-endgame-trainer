@@ -3,6 +3,7 @@ defmodule ChesstrainerWeb.MailingListController do
 
   alias Chesstrainer.MailingList
   alias Chesstrainer.MailingList.Notifier
+  alias ChesstrainerWeb.Honeypot
   alias ChesstrainerWeb.MailingListFormToken
 
   @return_to "/#mailing-list"
@@ -59,8 +60,8 @@ defmodule ChesstrainerWeb.MailingListController do
     email = params["email"]
 
     cond do
-      honeypot_filled?(params) ->
-        fake_success(conn)
+      Honeypot.filled?(params) ->
+        confirmation_sent(conn)
 
       not is_binary(email) ->
         invalid_email(conn)
@@ -86,7 +87,7 @@ defmodule ChesstrainerWeb.MailingListController do
         if MailingList.confirmation_allowed?(email) do
           send_confirmation(conn, email)
         else
-          fake_success(conn)
+          confirmation_sent(conn)
         end
 
       {:error, %Ecto.Changeset{}} ->
@@ -101,10 +102,7 @@ defmodule ChesstrainerWeb.MailingListController do
     case Notifier.deliver_confirmation_instructions(email, url) do
       {:ok, _email} ->
         _ = MailingList.mark_confirmation_sent(email)
-
-        conn
-        |> put_flash(:info, "Check your inbox to confirm your subscription.")
-        |> redirect(to: @return_to)
+        confirmation_sent(conn)
 
       {:error, _reason} ->
         conn
@@ -113,9 +111,9 @@ defmodule ChesstrainerWeb.MailingListController do
     end
   end
 
-  defp honeypot_filled?(params), do: params["company"] not in [nil, ""]
-
-  defp fake_success(conn) do
+  # The single success path, shared by real and honeypot submissions so a bot
+  # cannot tell them apart.
+  defp confirmation_sent(conn) do
     conn
     |> put_flash(:info, "Check your inbox to confirm your subscription.")
     |> redirect(to: @return_to)

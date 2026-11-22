@@ -4,6 +4,7 @@ defmodule ChesstrainerWeb.UserLive.Registration do
   alias Chesstrainer.Accounts
   alias Chesstrainer.Accounts.User
   alias Chesstrainer.MailingList
+  alias ChesstrainerWeb.Honeypot
 
   @impl true
   def render(assigns) do
@@ -34,6 +35,9 @@ defmodule ChesstrainerWeb.UserLive.Registration do
             required
             phx-mounted={JS.focus()}
           />
+
+          <.honeypot id="register-company" name="user[company]" />
+
           <.input
             field={@form[:email]}
             type="email"
@@ -42,6 +46,7 @@ defmodule ChesstrainerWeb.UserLive.Registration do
             spellcheck="false"
             required
           />
+
           <.input
             field={@form[:password]}
             type="password"
@@ -58,6 +63,7 @@ defmodule ChesstrainerWeb.UserLive.Registration do
             spellcheck="false"
             required
           />
+
           <.input
             field={@form[:mailing_list]}
             type="checkbox"
@@ -84,10 +90,15 @@ defmodule ChesstrainerWeb.UserLive.Registration do
 
   @impl true
   def handle_event("save", %{"user" => user_params}, socket) do
-    if prelaunch?() do
-      {:noreply, push_navigate(socket, to: ~p"/")}
-    else
-      save_registration(socket, user_params)
+    cond do
+      prelaunch?() ->
+        {:noreply, push_navigate(socket, to: ~p"/")}
+
+      Honeypot.filled?(user_params) ->
+        {:noreply, registration_sent(socket)}
+
+      true ->
+        save_registration(socket, user_params)
     end
   end
 
@@ -118,13 +129,7 @@ defmodule ChesstrainerWeb.UserLive.Registration do
             &url(~p"/users/confirm/#{&1}")
           )
 
-        {:noreply,
-         socket
-         |> put_flash(
-           :info,
-           "An email with instructions for how to confirm your email address has been sent to your inbox."
-         )
-         |> push_navigate(to: ~p"/users/log-in")}
+        {:noreply, registration_sent(socket)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign_form(socket, changeset)}
@@ -132,6 +137,17 @@ defmodule ChesstrainerWeb.UserLive.Registration do
   end
 
   defp prelaunch?, do: Application.get_env(:chesstrainer, :prelaunch, false)
+
+  # The single success path, shared by real and honeypot submissions so a bot
+  # cannot tell them apart.
+  defp registration_sent(socket) do
+    socket
+    |> put_flash(
+      :info,
+      "An email with instructions for how to confirm your email address has been sent to your inbox."
+    )
+    |> push_navigate(to: ~p"/users/log-in")
+  end
 
   defp assign_form(socket, %Ecto.Changeset{} = changeset) do
     form = to_form(changeset, as: "user")

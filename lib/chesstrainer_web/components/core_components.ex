@@ -151,6 +151,24 @@ defmodule ChesstrainerWeb.CoreComponents do
   end
 
   @doc """
+  Renders the off-screen honeypot field.
+
+  Pair it with `ChesstrainerWeb.Honeypot.filled?/1` on the submitted nested
+  params and take the normal success path when it is filled.
+  """
+  attr :id, :string, required: true
+  attr :name, :string, required: true, doc: ~s(the input's full name, e.g. "user[company]")
+
+  def honeypot(assigns) do
+    ~H"""
+    <div class="form-honeypot-input" aria-hidden="true">
+      <label for={@id}>Company</label>
+      <input id={@id} type="text" name={@name} tabindex="-1" autocomplete="off" />
+    </div>
+    """
+  end
+
+  @doc """
   Renders an input with label and error messages.
 
   A `Phoenix.HTML.FormField` may be passed as argument,

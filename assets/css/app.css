@@ -26,6 +26,7 @@
 @import "./layouts/_footer.css" layer(layout);
 @import "./layouts/_hero.css" layer(layout);
 @import "./layouts/_section.css" layer(layout);
+@import "./layouts/_form.css" layer(layout);
 @import "./components/_icon.css" layer(component);
 @import "./components/_button.css" layer(component);
 @import "./components/_learning-strip.css" layer(component);

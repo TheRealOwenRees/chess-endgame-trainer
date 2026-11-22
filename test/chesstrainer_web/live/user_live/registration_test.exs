@@ -5,7 +5,9 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
   import Chesstrainer.AccountsFixtures
   import Swoosh.TestAssertions
 
+  alias Chesstrainer.Accounts.User
   alias Chesstrainer.MailingList.Subscriber
+  alias Chesstrainer.Repo
 
   describe "Registration page" do
     test "renders registration page", %{conn: conn} do
@@ -95,6 +97,30 @@ defmodule ChesstrainerWeb.UserLive.RegistrationTest do
       subscriber = Chesstrainer.Repo.get_by(Subscriber, email: email)
       assert subscriber
       assert subscriber.confirmed_at == nil
+    end
+
+    test "silently accepts a honeypot submission", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/register")
+
+      {:ok, _lv, html} =
+        lv
+        |> form("#registration_form",
+          user: %{
+            "username" => unique_username(),
+            "email" => unique_user_email(),
+            "password" => valid_user_password(),
+            "password_confirmation" => valid_user_password(),
+            "company" => "spam.example"
+          }
+        )
+        |> render_submit()
+        |> follow_redirect(conn, ~p"/users/log-in")
+
+      assert html =~
+               "An email with instructions for how to confirm your email address has been sent to your inbox."
+
+      refute_email_sent()
+      assert Repo.aggregate(User, :count) == 0
     end
 
     test "does not subscribe when the box is unchecked", %{conn: conn} do

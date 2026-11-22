@@ -29,6 +29,29 @@ defmodule ChesstrainerWeb.UserLive.ResetPasswordTest do
       assert_email_sent(to: user.email, subject: "Reset password instructions")
     end
 
+    test "renders the honeypot field", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/reset-password")
+
+      assert html =~ ~s(id="forgot-company")
+      assert html =~ ~s(name="user[company]")
+    end
+
+    test "silently accepts a honeypot submission", %{conn: conn} do
+      user = user_fixture()
+      {:ok, lv, _html} = live(conn, ~p"/users/reset-password")
+
+      {:ok, _lv, html} =
+        lv
+        |> form("#reset_password_form",
+          user: %{"email" => user.email, "company" => "spam.example"}
+        )
+        |> render_submit()
+        |> follow_redirect(conn, ~p"/users/log-in")
+
+      assert html =~ "If your email is in our system"
+      refute_email_sent()
+    end
+
     test "does not reveal an unknown email", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/reset-password")
 
@@ -60,6 +83,12 @@ defmodule ChesstrainerWeb.UserLive.ResetPasswordTest do
 
       assert html =~ "Reset password"
       assert html =~ "Confirm new password"
+    end
+
+    test "does not render the honeypot", %{conn: conn, token: token} do
+      {:ok, _lv, html} = live(conn, ~p"/users/reset-password/#{token}")
+
+      refute html =~ "forgot-company"
     end
 
     test "redirects with an error for an invalid token", %{conn: conn} do

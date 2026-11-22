@@ -293,7 +293,7 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ ~s(name="_csrf_token")
     assert html =~ ~s(name="subscriber[form_token]")
     assert html =~ ~s(id="mailing-list-company")
-    assert html =~ ~s(class="mailing-list-honeypot")
+    assert html =~ ~s(class="form-honeypot-input")
   end
 
   test "guest navbar links to log in and register", %{conn: conn} do
