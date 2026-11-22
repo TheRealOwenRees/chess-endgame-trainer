@@ -52,6 +52,18 @@ defmodule ChesstrainerWeb.UserLive.ResetPasswordTest do
       refute_email_sent()
     end
 
+    test "takes the decoy path for a malformed payload", %{conn: conn} do
+      {:ok, lv, _html} = live(conn, ~p"/users/reset-password")
+
+      {:ok, _lv, html} =
+        lv
+        |> render_submit("submit_email", %{"user" => %{"email" => 123}})
+        |> follow_redirect(conn, ~p"/users/log-in")
+
+      assert html =~ "If your email is in our system"
+      refute_email_sent()
+    end
+
     test "does not reveal an unknown email", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/reset-password")
 

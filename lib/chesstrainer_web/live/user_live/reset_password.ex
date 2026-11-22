@@ -100,11 +100,17 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
   end
 
   @impl true
-  def handle_event("submit_email", %{"user" => user_params}, socket) when is_map(user_params) do
-    unless Honeypot.filled?(user_params) do
-      deliver_reset_instructions(user_params["email"])
+  def handle_event("submit_email", %{"user" => %{"email" => email} = user_params}, socket)
+      when is_binary(email) do
+    if not Honeypot.filled?(user_params) do
+      deliver_reset_instructions(email)
     end
 
+    {:noreply, reset_instructions_sent(socket)}
+  end
+
+  # Crafted payloads (missing or non-binary email) get the same decoy response.
+  def handle_event("submit_email", _params, socket) do
     {:noreply, reset_instructions_sent(socket)}
   end
 
@@ -121,7 +127,7 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
     end
   end
 
-  defp deliver_reset_instructions(email) when is_binary(email) do
+  defp deliver_reset_instructions(email) do
     if user = Accounts.get_user_by_email(String.trim(email)) do
       Accounts.deliver_user_reset_password_instructions(
         user,
@@ -129,8 +135,6 @@ defmodule ChesstrainerWeb.UserLive.ResetPassword do
       )
     end
   end
-
-  defp deliver_reset_instructions(_email), do: nil
 
   # The single success path, shared by real and honeypot submissions so a bot
   # cannot tell them apart.
