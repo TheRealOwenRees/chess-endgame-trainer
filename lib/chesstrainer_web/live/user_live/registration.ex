@@ -71,8 +71,8 @@ defmodule ChesstrainerWeb.UserLive.Registration do
             label="Send me occasional endgame tips and site news by email"
           />
 
-          <div id="altcha" phx-update="ignore">
-            <altcha-widget challenge={~p"/altcha/challenge"}></altcha-widget>
+          <div id="altcha" phx-update="ignore" class="mb-2">
+            <altcha-widget challenge={~p"/altcha/challenge"} type="bar"></altcha-widget>
           </div>
 
           <.button phx-disable-with="Creating account..." variant="primary" class="w-full">
