@@ -78,6 +78,10 @@ defmodule ChesstrainerWeb.Router do
     end
   end
 
+  scope "/altcha" do
+    forward "/challenge", Altcha.Plug.Challenge
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", ChesstrainerWeb do
   #   pipe_through :api

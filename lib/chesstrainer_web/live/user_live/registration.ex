@@ -5,6 +5,7 @@ defmodule ChesstrainerWeb.UserLive.Registration do
   alias Chesstrainer.Accounts.User
   alias Chesstrainer.MailingList
   alias ChesstrainerWeb.Honeypot
+  alias ChesstrainerWeb.Captcha
 
   @impl true
   def render(assigns) do
@@ -70,6 +71,10 @@ defmodule ChesstrainerWeb.UserLive.Registration do
             label="Send me occasional endgame tips and site news by email"
           />
 
+          <div id="altcha" phx-update="ignore">
+            <altcha-widget challenge={~p"/altcha/challenge"}></altcha-widget>
+          </div>
+
           <.button phx-disable-with="Creating account..." variant="primary" class="w-full">
             Create an account
           </.button>
@@ -89,13 +94,17 @@ defmodule ChesstrainerWeb.UserLive.Registration do
   end
 
   @impl true
-  def handle_event("save", %{"user" => user_params}, socket) do
+  def handle_event("save", %{"user" => user_params} = params, socket) do
     cond do
       prelaunch?() ->
         {:noreply, push_navigate(socket, to: ~p"/")}
 
       Honeypot.filled?(user_params) ->
         {:noreply, registration_sent(socket)}
+
+      not Captcha.verified?(params) ->
+        {:noreply,
+         put_flash(socket, :error, "Please complete the verification challenge and try again.")}
 
       true ->
         save_registration(socket, user_params)

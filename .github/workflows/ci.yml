@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       MIX_ENV: test
+      ALTCHA_HMAC_SECRET: test-only-altcha-secret
 
     services:
       postgres:
@@ -65,6 +66,7 @@ jobs:
       SES_REGION: eu-north-1
       SES_ACCESS_KEY_ID: build
       SES_SECRET_ACCESS_KEY: build
+      ALTCHA_HMAC_SECRET: build-only-altcha-secret
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1

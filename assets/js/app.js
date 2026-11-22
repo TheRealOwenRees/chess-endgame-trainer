@@ -21,6 +21,8 @@
 import "phoenix_html";
 // Plain-DOM mobile navigation (works on controller and LiveView pages).
 import "./nav";
+// Captcha
+import "altcha"
 // Cookieless Matomo for anonymous public pages.
 import { initAnalytics } from "./analytics";
 // Establish Phoenix Socket and LiveView configuration.
