@@ -3,6 +3,7 @@ defmodule ChesstrainerWeb.MailingListController do
 
   alias Chesstrainer.MailingList
   alias Chesstrainer.MailingList.Notifier
+  alias ChesstrainerWeb.Captcha
   alias ChesstrainerWeb.Honeypot
   alias ChesstrainerWeb.MailingListFormToken
 
@@ -10,9 +11,9 @@ defmodule ChesstrainerWeb.MailingListController do
   @token_salt "mailing_list_confirm"
   @token_max_age 7 * 24 * 60 * 60
 
-  def create(conn, %{"subscriber" => params}) when is_map(params) do
+  def create(conn, %{"subscriber" => params} = all_params) when is_map(params) do
     if mailing_list_enabled?() do
-      create_subscription(conn, params)
+      create_subscription(conn, params, all_params)
     else
       closed(conn)
     end
@@ -56,7 +57,7 @@ defmodule ChesstrainerWeb.MailingListController do
     end
   end
 
-  defp create_subscription(conn, params) do
+  defp create_subscription(conn, params, all_params) do
     email = params["email"]
 
     cond do
@@ -65,6 +66,9 @@ defmodule ChesstrainerWeb.MailingListController do
 
       not is_binary(email) ->
         invalid_email(conn)
+
+      not Captcha.verified?(all_params) ->
+        captcha_error(conn)
 
       MailingListFormToken.verify(params["form_token"]) != :ok ->
         form_error(conn)
@@ -116,6 +120,12 @@ defmodule ChesstrainerWeb.MailingListController do
   defp confirmation_sent(conn) do
     conn
     |> put_flash(:info, "Check your inbox to confirm your subscription.")
+    |> redirect(to: @return_to)
+  end
+
+  defp captcha_error(conn) do
+    conn
+    |> put_flash(:error, "Please complete the verification challenge and try again.")
     |> redirect(to: @return_to)
   end
 

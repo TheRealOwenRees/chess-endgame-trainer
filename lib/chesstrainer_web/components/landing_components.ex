@@ -9,7 +9,7 @@ defmodule ChesstrainerWeb.LandingComponents do
   use Phoenix.Component
 
   import Phoenix.Controller, only: [get_csrf_token: 0]
-  import ChesstrainerWeb.CoreComponents, only: [honeypot: 1]
+  import ChesstrainerWeb.CoreComponents, only: [captcha: 1, honeypot: 1]
 
   alias Chesstrainer.FEN
   alias Chesstrainer.Themes
@@ -111,6 +111,8 @@ defmodule ChesstrainerWeb.LandingComponents do
           />
           <.pill_button variant={:primary} type="submit">Join the list</.pill_button>
         </div>
+
+        <.captcha class="mt-2" />
       </form>
     </section>
     """

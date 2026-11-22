@@ -294,6 +294,9 @@ defmodule ChesstrainerWeb.PageControllerTest do
     assert html =~ ~s(name="subscriber[form_token]")
     assert html =~ ~s(id="mailing-list-company")
     assert html =~ ~s(class="form-honeypot-input")
+
+    widget = LazyHTML.query(document, "#mailing-list-form altcha-widget")
+    assert LazyHTML.attribute(widget, "challenge") == ["/altcha/challenge"]
   end
 
   test "guest navbar links to log in and register", %{conn: conn} do

@@ -31,6 +31,7 @@ defmodule ChesstrainerWeb.Plugs.Prelaunch do
   )
 
   @allowed_prefixes ~w(
+    /altcha
     /mailing-list
     /users/log-out
     /users/confirm

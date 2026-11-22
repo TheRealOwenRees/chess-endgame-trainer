@@ -15,3 +15,35 @@ altcha-widget {
   font-family: "DM Sans", sans-serif;
   font-size: var(--text-copy);
 }
+
+/* The mailing-list band is a compact dark card, so drop the widget's box
+   entirely and let the checkbox row sit on the card like a form hint. The
+   library only exposes custom properties for this; its own class rules are
+   unlayered and would beat anything we wrote against them directly. */
+.mailing-list altcha-widget {
+  --altcha-color-base: transparent;
+  --altcha-color-base-content: var(--color-on-deep);
+  --altcha-color-neutral-content: var(--color-on-deep-muted);
+  --altcha-color-success: var(--color-coral);
+  --altcha-color-success-content: var(--color-deep);
+
+  --altcha-border-width: 0;
+  --altcha-padding: 0;
+  --altcha-max-width: 100%;
+
+  /* `--altcha-border-width` also drives the checkbox, so restore it there. */
+  --altcha-checkbox-size: 16px;
+  --altcha-checkbox-border-width: 1px;
+  --altcha-checkbox-border-radius: 4px;
+  --altcha-checkbox-border-color: var(--color-on-deep-faint);
+  --altcha-checkbox-outline-color: var(--color-coral);
+
+  font-size: var(--text-micro);
+}
+
+/* The signup form's generic label style adds an 8px bottom margin. Inside the
+   widget that margin makes the flex item taller than the text, so centring it
+   against the checkbox pushes the text a few pixels up. */
+.mailing-list altcha-widget label {
+  margin: 0;
+}
